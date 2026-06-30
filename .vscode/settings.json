@@ -7,7 +7,7 @@
     "MYNangos", //personalised Nango app
     "MYpedia" //personalised pedia app,advanced Nango
   ],
-  "black-formatter.args": ["--line-length", "120"],
+  "black-formatter.args": ["--line-length", "90"],
   "ruff.lineLength": 50,
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "[json]": {
