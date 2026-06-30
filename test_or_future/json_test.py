@@ -20,6 +20,25 @@ def JSON_load_word(subject, schema):
         print(e.message)
     print("END")
 
+
+def update_value_by_path(obj, path_str, new_value):
+    keys = re.findall(r"\[(?:'([^']+)'|(\d+))\]", path_str)
+
+    if not keys:
+        return
+    # 最後の要素（書き換え対象）の1つ手前まで掘り進む
+    current = obj
+    for key_str, index_str in keys[:-1]:
+        key = key_str if key_str else int(index_str)
+        current = current[key]
+    # 最後のキー/インデックスを取得して値を書き換え
+    last_key_str, last_index_str = keys[-1]
+    last_key = last_key_str if last_key_str else int(last_index_str)
+
+    current[last_key] = new_value
+    return current
+
+
 def redundancy_JSON(wordsA, wordsB):
     """
     FMTの審査を通り、クレンジング済みのものを渡してください
