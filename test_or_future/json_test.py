@@ -5,6 +5,7 @@ from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
 from deepdiff import DeepDiff, extract
 
+
 # Json.v05.00~に対応してます
 # 今は複数ファイルの同時importは想定していません
 
@@ -43,6 +44,7 @@ def redundancy_JSON(wordsA, wordsB):
     """
     FMTの審査を通り、クレンジング済みのものを渡してください
     二つのwords_listを受け取って,`word`の値を基準に重複を解決します。
+    コード全体で,wordsAをベースにwordsBの内容をアップデートする形です。
     wordsA,BはJSON_FMTそのままの'row_db'についてのrow_db['words']を指します。
     user_askはDeepDiffのkeyに依存してます
     """
@@ -96,6 +98,11 @@ def redundancy_JSON(wordsA, wordsB):
                         base_obj, DiffPath, extract(wordsB[isect_word], DiffPath)
                     )
             return base_obj, ask_user_local
+    
+    def ask_conflict(base_obj,conflicts):
+        # ユーザーに選ばせる。
+        return base_obj
+
     setA = set(wordsA.keys())
     setB = set(wordsB.keys())
 
@@ -128,14 +135,29 @@ def redundancy_JSON(wordsA, wordsB):
                 ),
                 meaningB,
             )
-            for k,v in ask_MNG.items():
-                user_ask[keys_DeepDiff[0]][k]=v
-            for k in keys_DeepDiff[1:]:
-                user_ask[k]+=ask_MNG[k]
+            
+            #conflictの集計
+            for k in keys_DeepDiff:
+                if k == "value_changed":
+                    for k,v in ask_MNG.items():#value_changesは形式が異なるため。
+                        k=k.replace("root","root[meanings]")
+                        user_ask[keys_DeepDiff[0]][k]=v
+                else:
+                    k=k.replace("root","root[meanings]")
+                    user_ask[k]+=ask_MNG[k]
+            
+            #meaningsを合流
+            mergedAB["meanings"] = merged_meanings
+            
+            #conflictの解決
+            mergedAB = ask_conflict(mergedAB,user_ask)
+            
+            wordsA[isect_word] = mergedAB
+    return wordsA
+
 
 if __name__ == "__main__":
     sample_path = r"C:\Users\Ariku\OneDrive\Documents\Nango\test_or_future\sample.json"
-    schema_path = r"C:\Users\Ariku\OneDrive\Documents\Nango\test_or_future\pre_JSON_schema.json"
     schema_path = (
         r"C:\Users\Ariku\OneDrive\Documents\Nango\test_or_future\pre_JSON_schema.json"
     )
