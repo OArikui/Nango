@@ -1,12 +1,12 @@
 import json
 import re
+from tqdm import tqdm
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
 from deepdiff import DeepDiff, extract
 
-"""Json.v05.00~に対応してます。"""
-
-# 今は複数ファイルの同時importは想定していません。
+# Json.v05.00~に対応してます
+# 今は複数ファイルの同時importは想定していません
 
 
 def JSON_load_word(subject, schema):
@@ -44,7 +44,58 @@ def redundancy_JSON(wordsA, wordsB):
     FMTの審査を通り、クレンジング済みのものを渡してください
     二つのwords_listを受け取って,`word`の値を基準に重複を解決します。
     wordsA,BはJSON_FMTそのままの'row_db'についてのrow_db['words']を指します。
+    user_askはDeepDiffのkeyに依存してます
     """
+
+    keys_DeepDiff = [
+        "values_changed",
+        "iterable_item_added",
+        "dictionary_item_removed",
+        "iterable_item_removed",
+        "type_changed",
+        "dictionary_item_added",
+    ]
+
+    def auto_merge_process(different, base_obj):
+        # 競合は単語ごとに聞く　value_changes以外のkeyも登録されています。
+        ask_user_local = {keys_DeepDiff[0]: {}}
+        for k in keys_DeepDiff[1:]:
+            ask_user_local[k] = []
+        # merge process
+        for cat, diff in different:
+            if cat in keys_DeepDiff[2:]:
+                if cat == "type_changed":
+                    ee = TypeError
+                else:
+                    ee = ValueError
+                print(ee, "JSON_load_word failed")
+
+            elif cat == keys_DeepDiff[0]:
+                for DiffPath, Diff_re in diff:  # value_changes
+                    if not Diff_re["old_value"]:  # old_valueが空データなら
+                        base_obj = update_value_by_path(
+                            base_obj, DiffPath, Diff_re["new_value"]
+                        )
+
+                    elif isinstance(Diff_re["old_value"], list):  # listは和集合に
+                        base_obj = update_value_by_path(
+                            base_obj,
+                            DiffPath,
+                            list(
+                                set(Diff_re["old_value"]).update(
+                                    set(Diff_re["new_value"])
+                                )
+                            ),
+                        )
+                    else:  # ヒューマンなユーザーがピーポーせにゃならん
+                        ask_user_local[cat].append(diff)
+
+            elif cat == keys_DeepDiff[1]:
+                for DiffPath in diff:
+                    base_obj = update_value_by_path(
+                        base_obj, DiffPath, extract(wordsB[isect_word], DiffPath)
+                    )
+            return base_obj, ask_user_local
     setA = set(wordsA.keys())
     setB = set(wordsB.keys())
 
@@ -54,19 +105,6 @@ def redundancy_JSON(wordsA, wordsB):
         print("no intersection")
 
     else:
-        keys_DeepDiff = [
-            "dictionary_item_added",
-            "iterable_item_added",
-            "values_changed",
-            "dictionary_item_removed",
-            "iterable_item_removed",
-            "type_changed",
-        ]
-
-        for isect_word in intersection:
-            objA = setA[isect_word]
-            diffAB = DeepDiff(wordsA[isect_word], wordsB[isect_word], ignore_order=True)
-
 
 if __name__ == "__main__":
     sample_path = r"C:\Users\Ariku\OneDrive\Documents\Nango\test_or_future\sample.json"
