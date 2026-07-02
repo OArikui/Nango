@@ -105,14 +105,45 @@ def redundancy_JSON(wordsA, wordsB):
         print("no intersection")
 
     else:
+        for isect_word in tqdm(intersection, title="merging intersections"):
+            # meaningsとそれ以外に分離
+            A = wordsA[isect_word]
+            B = wordsB[isect_word]
+            meaningA = A.pop("meanings")
+            meaningB = B.pop("meanings")
+
+            # meanings以外の処理
+            mergedAB, user_ask= auto_merge_process(DeepDiff(A, B, ignore_order=True), A)
+
+            # meaningsの処理
+            def compare_definition(a, b):
+                return a.get("definition") == b.get("definition")
+
+            merged_meanings, ask_MNG = auto_merge_process(
+                DeepDiff(
+                    meaningA,
+                    meaningB,
+                    ignore_order=True,
+                    iterable_compare_func=compare_definition,
+                ),
+                meaningB,
+            )
+            for k,v in ask_MNG.items():
+                user_ask[keys_DeepDiff[0]][k]=v
+            for k in keys_DeepDiff[1:]:
+                user_ask[k]+=ask_MNG[k]
 
 if __name__ == "__main__":
     sample_path = r"C:\Users\Ariku\OneDrive\Documents\Nango\test_or_future\sample.json"
     schema_path = r"C:\Users\Ariku\OneDrive\Documents\Nango\test_or_future\pre_JSON_schema.json"
+    schema_path = (
+        r"C:\Users\Ariku\OneDrive\Documents\Nango\test_or_future\pre_JSON_schema.json"
+    )
+    database_path = r""
+    db_path = r""
 
     with open(sample_path, mode="r", encoding="utf-8") as smp_ld:
         with open(schema_path, mode="r", encoding="utf-8") as sch_ld:
             sample = json.loads(smp_ld.read())
             schema = json.loads(sch_ld.read())
-
             JSON_load_word(sample, schema)
