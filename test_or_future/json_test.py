@@ -10,7 +10,7 @@ from deepdiff import DeepDiff, extract
 # 今は複数ファイルの同時importは想定していません
 
 
-def JSON_load_word(subject, schema):
+def JSON_load_word(subject, schema):#検証済み
     try:
         validator = Draft202012Validator(schema)
         validator.validate(subject)
@@ -22,7 +22,7 @@ def JSON_load_word(subject, schema):
     print("END")
 
 
-def update_value_by_path(obj, path_str, new_value):
+def update_value_by_path(obj, path_str, new_value):#未検証
     keys = re.findall(r"\[(?:'([^']+)'|(\d+))\]", path_str)
 
     if not keys:
@@ -40,7 +40,7 @@ def update_value_by_path(obj, path_str, new_value):
     return current
 
 
-def redundancy_JSON(wordsA, wordsB):
+def redundancy_JSON(wordsA, wordsB):#未検証
     """
     FMTの審査を通り、クレンジング済みのものを渡してください
     二つのwords_listを受け取って,`word`の値を基準に重複を解決します。
@@ -58,7 +58,7 @@ def redundancy_JSON(wordsA, wordsB):
         "dictionary_item_added",
     ]
 
-    def auto_merge_process(different, base_obj):
+    def auto_merge_process(different, base_obj):#未検証
         # 競合は単語ごとに聞く　value_changes以外のkeyも登録されています。
         ask_user_local = {keys_DeepDiff[0]: {}}
         for k in keys_DeepDiff[1:]:
@@ -99,7 +99,7 @@ def redundancy_JSON(wordsA, wordsB):
                     )
             return base_obj, ask_user_local
     
-    def ask_conflict(base_obj,conflicts):
+    def ask_conflict(base_obj,conflicts):#htmlと合わせて作るので保留
         # ユーザーに選ばせる。
         return base_obj
 
@@ -123,7 +123,7 @@ def redundancy_JSON(wordsA, wordsB):
             mergedAB, user_ask= auto_merge_process(DeepDiff(A, B, ignore_order=True), A)
 
             # meaningsの処理
-            def compare_definition(a, b):
+            def compare_definition(a, b):#検証済み
                 return a.get("definition") == b.get("definition")
 
             merged_meanings, ask_MNG = auto_merge_process(
