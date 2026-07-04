@@ -1,0 +1,501 @@
+:root {
+    --primary-color: #2c3e50;
+    --accent-color: #3498db;
+    --bg-color: #f8f9fa;
+    --card-bg: #ffffff;
+    --text-color: #333333;
+    --muted-color: #7f8c8d;
+    --success-color: #2ecc71;
+    --danger-color: #e74c3c;
+    --border-color: #cbd5e0;
+    --tag-field-bg: #e2f0fd;
+    --tag-field-color: #2b6cb0;
+    --tag-era-bg: #fef3c7;
+    --tag-era-color: #92400e;
+}
+
+body {
+    font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    line-height: 1.6;
+    margin: 0;
+    padding: 20px;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+h1 {
+    color: var(--primary-color);
+    font-size: 26px;
+    margin: 0;
+}
+
+/* ツールバー */
+.toolbar {
+    background: var(--card-bg);
+    padding: 15px 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    transition: background 0.2s;
+}
+
+.btn-primary {
+    background: var(--accent-color);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #2980b9;
+}
+
+.btn-success {
+    background: var(--success-color);
+    color: white;
+}
+
+.btn-success:hover {
+    background: #27ae60;
+}
+
+.btn-danger {
+    background: var(--danger-color);
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #c0392b;
+}
+
+.btn-secondary {
+    background: #95a5a6;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #7f8c8d;
+}
+
+.btn-warning {
+    background: #f39c12;
+    color: white;
+}
+
+.btn-warning:hover {
+    background: #d35400;
+}
+
+.btn-sm {
+    padding: 4px 10px;
+    border-radius: 4px;
+    background: white;
+    border: 1px solid var(--border-color);
+    color: #4a5568;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.btn-sm.active {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+#fileInput {
+    display: none;
+}
+
+/* メインレイアウト（左右分割） */
+.main-layout {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+}
+
+/* サイドバー（左側） */
+.sidebar {
+    width: 320px;
+    min-width: 320px;
+    background: var(--card-bg);
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    padding: 15px;
+    box-sizing: border-box;
+}
+
+/* 検索・ソートエリア */
+.search-box {
+    margin-bottom: 15px;
+}
+
+.search-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    box-sizing: border-box;
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+
+.control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--muted-color);
+    background: #f8f9fa;
+    padding: 8px;
+    border-radius: 6px;
+}
+
+.control-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+/* 階層構造（アコーディオン）ツリー */
+.tree-container {
+    max-height: 500px;
+    overflow-y: auto;
+    border-top: 1px solid #edf2f7;
+    padding-top: 10px;
+    margin-top: 10px;
+}
+
+/* カテゴリー（親ノード） */
+.tree-category {
+    margin-bottom: 5px;
+}
+
+.tree-category-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 10px;
+    background: #f7fafc;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 14px;
+    user-select: none;
+    transition: background 0.2s;
+}
+
+.tree-category-header:hover {
+    background: #edf2f7;
+}
+
+.tree-category-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.tree-toggle-icon {
+    font-size: 10px;
+    transition: transform 0.2s;
+}
+
+.tree-category.open .tree-toggle-icon {
+    transform: rotate(90deg);
+}
+
+/* 単語リスト（子ノード） */
+.tree-word-list {
+    display: none;
+    padding-left: 15px;
+    margin: 4px 0;
+}
+
+.tree-category.open .tree-word-list {
+    display: block;
+}
+
+.tree-word-item {
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    padding: 6px 10px;
+    margin: 2px 0;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13.5px;
+    color: #4a5568;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+}
+
+.tree-word-item:hover {
+    background: #f1f5f9;
+    color: var(--accent-color);
+}
+
+.tree-word-item.active {
+    background-color: #eef7fc;
+    color: var(--accent-color);
+    font-weight: bold;
+}
+
+/* メインコンテンツ（右側） */
+.main-content {
+    flex-grow: 1;
+    background: var(--card-bg);
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    padding: 30px;
+    min-height: 400px;
+    box-sizing: border-box;
+}
+
+.word-header-container {
+    border-bottom: 2px solid var(--accent-color);
+    padding-bottom: 12px;
+    margin-bottom: 15px;
+}
+
+.word-title-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.word-title {
+    font-size: 28px;
+    font-weight: bold;
+    color: var(--primary-color);
+    margin: 0;
+}
+
+.category-badge {
+    background-color: #e2e8f0;
+    color: #4a5568;
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+/* 分野・時代タグ用スタイル */
+.tag-container {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+}
+
+.custom-tag {
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.tag-field {
+    background-color: var(--tag-field-bg);
+    color: var(--tag-field-color);
+}
+
+.tag-era {
+    background-color: var(--tag-era-bg);
+    color: var(--tag-era-color);
+}
+
+.word-sub-info {
+    font-size: 13px;
+    color: var(--muted-color);
+    margin-top: 6px;
+}
+
+.section-title {
+    font-size: 16px;
+    font-weight: bold;
+    color: var(--accent-color);
+    margin-top: 25px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+}
+
+.section-title::before {
+    content: "◆";
+    margin-right: 6px;
+    font-size: 12px;
+}
+
+.meaning-box {
+    background-color: #eef7fc;
+    border-left: 4px solid var(--accent-color);
+    padding: 15px;
+    border-radius: 0 8px 8px 0;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.text-content {
+    font-size: 15px;
+    color: #444;
+    text-align: justify;
+    white-space: pre-wrap;
+}
+
+.example-list {
+    list-style: none;
+    padding-left: 0;
+    margin: 0;
+}
+
+.example-list li {
+    position: relative;
+    padding-left: 20px;
+    margin-bottom: 10px;
+    font-size: 15px;
+}
+
+.example-list li::before {
+    content: "「";
+    position: absolute;
+    left: 0;
+    color: var(--muted-color);
+}
+
+.example-list li::after {
+    content: "」";
+    color: var(--muted-color);
+}
+
+.synonym-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 5px;
+}
+
+.synonym-tag {
+    background-color: #f1f3f5;
+    color: #495057;
+    padding: 4px 12px;
+    border-radius: 15px;
+    font-size: 14px;
+}
+
+/* 編集フォーム・管理テーブル */
+.edit-form,
+.manage-panel {
+    display: none;
+}
+
+.form-row {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+}
+
+.form-group {
+    margin-bottom: 15px;
+    flex-grow: 1;
+    min-width: 150px;
+}
+
+.form-group label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 5px;
+    color: var(--primary-color);
+    font-size: 14px;
+}
+
+.form-control {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+    font-size: 15px;
+    font-family: inherit;
+}
+
+textarea.form-control {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+/* タグ管理用スタイル */
+.tag-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+.tag-table th,
+.tag-table td {
+    border: 1px solid var(--border-color);
+    padding: 10px;
+    text-align: left;
+}
+
+.tag-table th {
+    background-color: #f7fafc;
+}
+
+.empty-message {
+    text-align: center;
+    color: var(--muted-color);
+    padding: 40px 0;
+    font-size: 16px;
+}
+
+/* ==========================================================================
+   インラインコード（style属性）を使用した箇所の一覧
+   ==========================================================================
+   元のHTMLから引き継いだ、個別調整や動的コンポーネントのためのインラインスタイル位置：
+   1. <div style="float: right;"> (単語詳細画面の編集・削除ボタンエリアの右寄せ)
+   2. <button id="deleteBtn" style="padding: 8px 12px;" ...> (削除ボタンのサイズ個別微調整)
+   3. <h2 id="formTitle" style="margin-top:0; color: var(--primary-color);"> (フォームタイトルの余白・色リセット)
+   4. <div class="form-row" style="background: #edf2f7; padding: 12px; border-radius: 6px; margin-bottom: 15px;"> (分野・時代タグ入力行の背景・余白の個別装飾)
+   5. <div class="form-row" style="background: #f7fafc; padding: 10px; border-radius: 6px; border: 1px dashed var(--border-color);"> (検索用表記入力エリアの境界線・背景)
+   6. <div class="form-group" style="flex: 2; min-width: 250px;"> (フォーム内、単語名の幅の比率と最小幅の指定)
+   7. <div class="form-group" style="flex: 1; min-width: 150px;"> (フォーム内、単語分類の幅の比率と最小幅の指定)
+   8. <textarea id="editExamples" class="form-control" style="min-height: 100px;" ...> (例文入力エリアの最小高さの個別設定)
+   9. <h2 style="margin-top:0; color: var(--primary-color);"> (管理パネルタイトルの個別指定)
+  10. <p style="font-size:13px; color: var(--muted-color);"> (管理パネル説明文のフォントサイズと文字色)
+  11. <div style="margin-bottom: 20px;"> (分野タグテーブルを囲むブロックの下部余白調整)
+  12. <h3 style="font-size:16px; margin-bottom:8px; border-left: 4px solid var(--tag-field-color); padding-left: 8px;"> (分野タグの見出し装飾)
+  13. <h3 style="font-size:16px; margin-bottom:8px; border-left: 4px solid var(--tag-era-color); padding-left: 8px;"> (時代タグの見出し装飾)
+   ========================================================================== */

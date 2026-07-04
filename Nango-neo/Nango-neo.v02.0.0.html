@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="app-name" content="© 2026 Nango-neo (base: v3.10) - Version 1.1.0">
+    <meta name="html-version" content="neo.v01.1.0">
+    <meta name="json-version" content="v02">
+    <meta name="javascript-version" content="v01.0.0">
+    <title>Nango-neo.v01.1.0</title>
+    <link rel="stylesheet" href="Nango-neo.css">
+</head>
+
+<body>
+
+    <div class="container">
+        <header>
+            <h1>難語データビューアー Pro</h1>
+        </header>
+
+        <div class="toolbar">
+            <div>
+                <button class="btn btn-primary" onclick="triggerImport()">JSONインポート</button>
+                <input type="file" id="fileInput" accept=".json" onchange="importJSON(event)" multiple>
+                <button class="btn btn-success" id="exportBtn" onclick="exportJSON()">JSONエクスポート</button>
+                <button class="btn btn-warning" onclick="showManagePanel()">🏷️ タグ一括管理</button>
+            </div>
+            <div>
+                <button class="btn btn-primary" onclick="showNewForm()">＋ 新規単語追加</button>
+                <button class="btn btn-danger" onclick="resetToDefault()">初期状態にリセット</button>
+            </div>
+        </div>
+
+        <div class="main-layout">
+
+            <div class="sidebar">
+                <div class="search-box">
+                    <input type="text" id="searchInput" class="search-input" placeholder="検索 (かな, 漢字, タグ, 本文...)"
+                        oninput="handleSearch()">
+
+                    <div class="control-group">
+                        <div class="control-row">
+                            <span>階層基準:</span>
+                            <button class="btn-sm active" id="struct-cat"
+                                onclick="setHierarchyStructure('category')">分類</button>
+                            <button class="btn-sm" id="struct-field"
+                                onclick="setHierarchyStructure('fieldTag')">分野</button>
+                            <button class="btn-sm" id="struct-era" onclick="setHierarchyStructure('eraTag')">時代</button>
+                        </div>
+                        <div class="control-row">
+                            <span>並び替え:</span>
+                            <button class="btn-sm active" id="sort-id" onclick="setSort('id')">登録順</button>
+                            <button class="btn-sm" id="sort-alpha" onclick="setSort('alpha')">五十音順</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tree-container" id="treeContainer">
+                </div>
+            </div>
+
+            <div class="main-content">
+                <div id="viewMode">
+                    <div style="float: right;">
+                        <button class="btn btn-secondary" id="editBtn" onclick="showEditForm()">この単語を編集</button>
+                        <button class="btn btn-danger" id="deleteBtn" style="padding: 8px 12px;"
+                            onclick="deleteCurrentWord()">削除</button>
+                    </div>
+                    <div id="viewTarget"></div>
+                </div>
+
+                <div id="editMode" class="edit-form">
+                    <h2 id="formTitle" style="margin-top:0; color: var(--primary-color);">単語の編集</h2>
+
+                    <div class="form-row">
+                        <div class="form-group" style="flex: 2; min-width: 250px;">
+                            <label for="editWord">単語（表示名）*必須</label>
+                            <input type="text" id="editWord" class="form-control" placeholder="例: カスケード（cascade）">
+                        </div>
+                        <div class="form-group" style="flex: 1; min-width: 150px;">
+                            <label for="editCategory">単語分類</label>
+                            <select id="editCategory" class="form-control">
+                                <option value="指定なし">指定なし</option>
+                                <option value="外来語">外来語</option>
+                                <option value="熟語">熟語</option>
+                                <option value="慣用句">慣用句</option>
+                                <option value="古語・大和言葉">古語・大和言葉</option>
+                                <option value="その他">その他</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row"
+                        style="background: #edf2f7; padding: 12px; border-radius: 6px; margin-bottom: 15px;">
+                        <div class="form-group">
+                            <label for="editFieldTag">分野タグ (例: デザイン、医療、日常、ビジネス、エンジニアリングなど)</label>
+                            <input type="text" id="editFieldTag" class="form-control" placeholder="例: エンジニアリング">
+                        </div>
+                        <div class="form-group">
+                            <label for="editEraTag">時代タグ (例: 近代、中世、弥生中期、現代など)</label>
+                            <input type="text" id="editEraTag" class="form-control" placeholder="例: 現代">
+                        </div>
+                    </div>
+
+                    <div class="form-row"
+                        style="background: #f7fafc; padding: 10px; border-radius: 6px; border: 1px dashed var(--border-color);">
+                        <div class="form-group">
+                            <label for="editReading">よみがな (ひらがな) 【検索用】</label>
+                            <input type="text" id="editReading" class="form-control" placeholder="例: かすけーど">
+                        </div>
+                        <div class="form-group">
+                            <label for="editKanji">漢字表記 【検索用】</label>
+                            <input type="text" id="editKanji" class="form-control" placeholder="例: 傅く">
+                        </div>
+                        <div class="form-group">
+                            <label for="editEnglish">英語・スペル 【検索用】</label>
+                            <input type="text" id="editEnglish" class="form-control" placeholder="例: cascade">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="editMeaning">意味</label>
+                        <textarea id="editMeaning" class="form-control" placeholder="言葉の意味を入力"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="editBackground">背景 / 由来</label>
+                        <textarea id="editBackground" class="form-control" placeholder="言葉の背景や歴史、由来を入力"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="editNuance">ニュアンス</label>
+                        <textarea id="editNuance" class="form-control" placeholder="使われる際の細かいニュアンスを入力"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="editExamples">例文（1行に1文ずつ入力してください）</label>
+                        <textarea id="editExamples" class="form-control" style="min-height: 100px;"
+                            placeholder="例文1&#10;例文2&#10;例文3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="editSynonyms">類義語（カンマ「,」区切り、または改行で入力してください）</label>
+                        <textarea id="editSynonyms" class="form-control" placeholder="連鎖, 波及, ドミノ倒し"></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button class="btn btn-success" onclick="saveWord()">保存</button>
+                        <button class="btn btn-secondary" onclick="cancelEdit()">キャンセル</button>
+                    </div>
+                </div>
+
+                <div id="managePanelMode" class="manage-panel">
+                    <h2 style="margin-top:0; color: var(--primary-color);">🏷️ タグ一覧 ＆ 一括変更機能</h2>
+                    <p style="font-size:13px; color: var(--muted-color);">現在登録されているすべてのタグの一覧です。「変更」ボタンから名称を一括編集できます。</p>
+
+                    <div style="margin-bottom: 20px;">
+                        <h3 style="font-size:16px; margin-bottom:8px; border-left: 4px solid var(--tag-field-color); padding-left: 8px;">
+                            分野タグ一覧</h3>
+                        <div id="fieldTagsTableContainer"></div>
+                    </div>
+
+                    <div>
+                        <h3 style="font-size:16px; margin-bottom:8px; border-left: 4px solid var(--tag-era-color); padding-left: 8px;">
+                            時代タグ一覧</h3>
+                        <div id="eraTagsTableContainer"></div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
