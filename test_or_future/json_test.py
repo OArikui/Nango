@@ -125,34 +125,40 @@ def redundancy_JSON(wordsA, wordsB):  # 未検証
             # meaningsとそれ以外に分離
             A = wordsA[isect_word]
             B = wordsB[isect_word]
-            meaningA = A.pop("meanings")
-            meaningB = B.pop("meanings")
+            
+            def collect_conflict_with_meanings(A, B):
+                
+                meaningA = A.pop("meanings")
+                meaningB = B.pop("meanings")
 
-            # meanings以外の処理
-            mergedAB, user_ask = auto_merge_process(DeepDiff(A, B, ignore_order=True), A)
+                # meanings以外の処理
+                mergedAB, user_ask = auto_merge_process(DeepDiff(A, B, ignore_order=True), A)
 
-            # meaningsの処理
-            def compare_definition(a, b):  # 検証済み
-                return a.get("definition") == b.get("definition")
+                # meaningsの処理
+                def compare_definition(a, b):  # 検証済み
+                    return a.get("definition") == b.get("definition")
 
-            merged_meanings, ask_MNG = auto_merge_process(
-                DeepDiff(
-                    meaningA,
+                merged_meanings, ask_MNG = auto_merge_process(
+                    DeepDiff(
+                        meaningA,
+                        meaningB,
+                        ignore_order=True,
+                        iterable_compare_func=compare_definition,
+                    ),
                     meaningB,
-                    ignore_order=True,
-                    iterable_compare_func=compare_definition,
-                ),
-                meaningB,
-            )
+                )
 
-            # conflictの集計
-            for k, v in ask_MNG.items():
-                k = k.replace("root", "root[meanings]")
-                user_ask[k] = v
+                # conflictの集計
+                for k, v in ask_MNG.items():
+                    k = k.replace("root", "root[meanings]")
+                    user_ask[k] = v
 
-            # meaningsを合流
-            mergedAB["meanings"] = merged_meanings
+                # meaningsを合流
+                mergedAB["meanings"] = merged_meanings
 
+                return mergedAB, user_ask
+            
+            mergedAB, user_ask = collect_conflict_with_meanings(A, B)
             # conflictの解決
             mergedAB = ask_conflict(mergedAB, user_ask)
 
