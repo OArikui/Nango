@@ -5,12 +5,11 @@ from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
 from deepdiff import DeepDiff, extract
 
-
 # Json.v05.00~に対応してます
 # 今は複数ファイルの同時importは想定していません
 
 
-def JSON_load_word(subject, schema):#検証済み
+def JSON_load_word(subject, schema):  # 検証済み
     try:
         validator = Draft202012Validator(schema)
         validator.validate(subject)
@@ -22,7 +21,7 @@ def JSON_load_word(subject, schema):#検証済み
     print("END")
 
 
-def update_value_by_path(obj, path_str, new_value):#未検証
+def update_value_by_path(obj, path_str, new_value):  # 未検証
     keys = re.findall(r"\[(?:'([^']+)'|(\d+))\]", path_str)
 
     if not keys:
@@ -40,7 +39,7 @@ def update_value_by_path(obj, path_str, new_value):#未検証
     return current
 
 
-def redundancy_JSON(wordsA, wordsB):#未検証
+def redundancy_JSON(wordsA, wordsB):  # 未検証
     """
     FMTの審査を通り、クレンジング済みのものを渡してください
     二つのwords_listを受け取って,`word`の値を基準に重複を解決します。
@@ -58,11 +57,9 @@ def redundancy_JSON(wordsA, wordsB):#未検証
         "dictionary_item_added",
     ]
 
-    def auto_merge_process(different, base_obj):#未検証
+    def auto_merge_process(different, base_obj):  # 未検証
         # 競合は単語ごとに聞く　value_changes以外のkeyも登録されています。
-        ask_user_local = {keys_DeepDiff[0]: {}}
-        for k in keys_DeepDiff[1:]:
-            ask_user_local[k] = []
+        ask_user_local = {k: [] if i > 0 else {} for i, k in enumerate(keys_DeepDiff)}
         # merge process
         for cat, diff in different:
             if cat in keys_DeepDiff[2:]:
@@ -98,8 +95,8 @@ def redundancy_JSON(wordsA, wordsB):#未検証
                         base_obj, DiffPath, extract(wordsB[isect_word], DiffPath)
                     )
             return base_obj, ask_user_local
-    
-    def ask_conflict(base_obj,conflicts):#htmlと合わせて作るので保留
+
+    def ask_conflict(base_obj, conflicts):  # htmlと合わせて作るので保留
         # ユーザーに選ばせる。
         return base_obj
 
@@ -120,10 +117,10 @@ def redundancy_JSON(wordsA, wordsB):#未検証
             meaningB = B.pop("meanings")
 
             # meanings以外の処理
-            mergedAB, user_ask= auto_merge_process(DeepDiff(A, B, ignore_order=True), A)
+            mergedAB, user_ask = auto_merge_process(DeepDiff(A, B, ignore_order=True), A)
 
             # meaningsの処理
-            def compare_definition(a, b):#検証済み
+            def compare_definition(a, b):  # 検証済み
                 return a.get("definition") == b.get("definition")
 
             merged_meanings, ask_MNG = auto_merge_process(
@@ -135,23 +132,23 @@ def redundancy_JSON(wordsA, wordsB):#未検証
                 ),
                 meaningB,
             )
-            
-            #conflictの集計
+
+            # conflictの集計
             for k in keys_DeepDiff:
                 if k == "value_changed":
-                    for k,v in ask_MNG.items():#value_changesは形式が異なるため。
-                        k=k.replace("root","root[meanings]")
-                        user_ask[keys_DeepDiff[0]][k]=v
+                    for k, v in ask_MNG.items():  # value_changesは形式が異なるため。
+                        k = k.replace("root", "root[meanings]")
+                        user_ask[keys_DeepDiff[0]][k] = v
                 else:
-                    k=k.replace("root","root[meanings]")
-                    user_ask[k]+=ask_MNG[k]
-            
-            #meaningsを合流
+                    k = k.replace("root", "root[meanings]")
+                    user_ask[k] += ask_MNG[k]
+
+            # meaningsを合流
             mergedAB["meanings"] = merged_meanings
-            
-            #conflictの解決
-            mergedAB = ask_conflict(mergedAB,user_ask)
-            
+
+            # conflictの解決
+            mergedAB = ask_conflict(mergedAB, user_ask)
+
             wordsA[isect_word] = mergedAB
     return wordsA
 
