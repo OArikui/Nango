@@ -18,7 +18,7 @@ def JSON_load_word(subject, schema):  # 検証済み
         return subject
     except ValidationError as e:
         print(e.message)
-    print("END")
+        return ("ERROR", e.message)
 
 
 def update_value_by_path(obj, path_str, new_value):  # 未検証
@@ -151,6 +151,29 @@ def redundancy_JSON(wordsA, wordsB):  # 未検証
 
             wordsA[isect_word] = mergedAB
     return wordsA
+
+
+def bundle_load_JSON(paths: list, schema: str):  # path to JsonSchema  # 未完成
+
+    #===jsonの読み込み===
+    JsonSchema = json.loads(open(schema, mode="r", encoding="utf-8").read())
+    format_failed = []  # [path1,path2,...]
+    format_failed_massage = []  # [path1message,path2message,...]
+
+    JSONs = []
+    for path in paths:
+        with open(path, mode="r", encoding="utf-8") as f:
+            current_json = json.loads(f.read())
+            schema_return = JSON_load_word(current_json, JsonSchema)
+
+            if (
+                isinstance(schema_return, tuple) and schema_return[0] == "ERROR"
+            ):  # JSONの形式が不正な場合
+                format_failed.append(path)
+                format_failed_massage.append(schema_return[1])
+            else:
+                current_json = schema_return  # cleansed
+                JSONs.append(current_json)
 
 
 if __name__ == "__main__":
