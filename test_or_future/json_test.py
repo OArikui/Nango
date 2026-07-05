@@ -175,6 +175,55 @@ def bundle_load_JSON(paths: list, schema: str):  # path to JsonSchema  # 未完�
                 current_json = schema_return  # cleansed
                 JSONs.append(current_json)
 
+    #===重複の検出===
+    Dict_length = []  # [len(words1),len(words2),...]
+    loaded_words = []  # [word1,word2,...]
+    conflict_words = {}  # {word1:[jsonA,jsonB],word2:[jsonA,jsonB],...}
+
+    for i, current_json in enumerate(JSONs):
+
+        current_wordsK = current_json["words"].keys()
+        Dict_length.append(len(current_wordsK))
+
+        loaded_local = []  # 現在のjsonで新規に追加された単語を格納するリスト
+        for word in current_wordsK:  # 一つのファイルに重複があることは考えていません
+
+            try:  # wordが既にloaded_wordsに存在するかを判別
+                last_same_index = loaded_words.index(word)
+            except ValueError:
+                last_same_index = None
+
+            if last_same_index is not None:
+
+                if word not in conflict_words.keys():
+
+                    far_last_same_file = 0
+                    survived_word_num = len(loaded_words)
+                    while far_last_same_file >= 0 and survived_word_num >= 0:
+                        far_last_same_file -= 1
+                        survived_word_num -= Dict_length[far_last_same_file]
+                        if (
+                            survived_word_num <= last_same_index
+                        ):  # この条件でしかconflict_fileは定義されない
+                            conflict_file = paths[far_last_same_file]
+                            break
+
+                    try:
+                        conflict_words[word] = [conflict_file, i]
+                    except UnboundLocalError:
+                        print("WHILE LOOP ERROR")
+                        print("path:", path)
+                        print("word:", word)
+                        conflict_words[word] = ["no_file", i]
+
+                else:
+                    conflict_words[word].append(i)
+
+                loaded_local.append(len(conflict_words[word]))
+            else:
+                loaded_local.append(word)
+
+        loaded_words.extend(loaded_local)
 
 if __name__ == "__main__":
     sample_path = r"C:\Users\Ariku\OneDrive\Documents\Nango\test_or_future\sample.json"
