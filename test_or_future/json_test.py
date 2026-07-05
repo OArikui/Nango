@@ -46,6 +46,7 @@ def redundancy_JSON(wordsA, wordsB):  # 未検証
     コード全体で,wordsAをベースにwordsBの内容をアップデートする形です。
     wordsA,BはJSON_FMTそのままの'row_db'についてのrow_db['words']を指します。
     user_askはDeepDiffのkeyに依存してます
+    conflictはvalue_changedのみです。
     """
 
     keys_DeepDiff = [
@@ -87,7 +88,10 @@ def redundancy_JSON(wordsA, wordsB):  # 未検証
                             ),
                         )
                     else:  # ヒューマンなユーザーがピーポーせにゃならん
-                        ask_user_local[cat].append(diff)
+                        try:
+                            ask_user_local[DiffPath].append(Diff_re["new_value"])
+                        except KeyError:
+                            ask_user_local[DiffPath] = {Diff_re["old_value"], Diff_re["new_value"]}#競合内容の重複をなくすためにset型
 
             elif cat == keys_DeepDiff[1]:
                 for DiffPath in diff:
@@ -97,6 +101,14 @@ def redundancy_JSON(wordsA, wordsB):  # 未検証
             return base_obj, ask_user_local
 
     def ask_conflict(base_obj, conflicts):  # htmlと合わせて作るので保留
+        """
+        conflictsの形式
+        {
+            "root['meanings'][0]['definition']": ["Aの定義", "Bの定義"],
+            "root['meanings'][1]['definition']": ["Aの定義", "Bの定義"],
+        }
+        pathはdeepdiff流
+        """
         # ユーザーに選ばせる。
         return base_obj
 
@@ -134,14 +146,9 @@ def redundancy_JSON(wordsA, wordsB):  # 未検証
             )
 
             # conflictの集計
-            for k in keys_DeepDiff:
-                if k == "value_changed":
-                    for k, v in ask_MNG.items():  # value_changesは形式が異なるため。
-                        k = k.replace("root", "root[meanings]")
-                        user_ask[keys_DeepDiff[0]][k] = v
-                else:
-                    k = k.replace("root", "root[meanings]")
-                    user_ask[k] += ask_MNG[k]
+            for k, v in ask_MNG.items():
+                k = k.replace("root", "root[meanings]")
+                user_ask[k] = v
 
             # meaningsを合流
             mergedAB["meanings"] = merged_meanings
