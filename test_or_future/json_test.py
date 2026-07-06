@@ -9,7 +9,14 @@ from deepdiff import DeepDiff, extract
 # 今は複数ファイルの同時importは想定していません
 
 
-def JSON_load_word(subject, schema):  # 検証済み
+def JSON_load_word(subject, schema, path=False):  # 検証済み
+    if path:
+        if isinstance(schema, str):
+            schema = json.loads(open(schema, mode="r", encoding="utf-8").read())
+        if isinstance(subject, str):
+            subject = json.loads(open(subject, mode="r", encoding="utf-8").read())
+        else:
+            raise TypeError("subject and schema must be dict or path to json file")
     try:
         validator = Draft202012Validator(schema)
         validator.validate(subject)
