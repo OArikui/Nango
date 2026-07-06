@@ -91,7 +91,10 @@ def redundancy_JSON(wordsA, wordsB):  # 未検証
                         try:
                             ask_user_local[DiffPath].append(Diff_re["new_value"])
                         except KeyError:
-                            ask_user_local[DiffPath] = {Diff_re["old_value"], Diff_re["new_value"]}#競合内容の重複をなくすためにset型
+                            ask_user_local[DiffPath] = {
+                                Diff_re["old_value"],
+                                Diff_re["new_value"],
+                            }  # 競合内容の重複をなくすためにset型
 
             elif cat == keys_DeepDiff[1]:
                 for DiffPath in diff:
@@ -112,6 +115,38 @@ def redundancy_JSON(wordsA, wordsB):  # 未検証
         # ユーザーに選ばせる。
         return base_obj
 
+    def collect_conflict_with_meanings(A, B):
+
+        meaningA = A.pop("meanings")
+        meaningB = B.pop("meanings")
+
+        # meanings以外の処理
+        mergedAB, user_ask = auto_merge_process(DeepDiff(A, B, ignore_order=True), A)
+
+        # meaningsの処理
+        def compare_definition(a, b):  # 検証済み
+            return a.get("definition") == b.get("definition")
+
+        merged_meanings, ask_MNG = auto_merge_process(
+            DeepDiff(
+                meaningA,
+                meaningB,
+                ignore_order=True,
+                iterable_compare_func=compare_definition,
+            ),
+            meaningB,
+        )
+
+        # conflictの集計
+        for k, v in ask_MNG.items():
+            k = k.replace("root", "root[meanings]")
+            user_ask[k] = v
+
+        # meaningsを合流
+        mergedAB["meanings"] = merged_meanings
+
+        return mergedAB, user_ask
+
     setA = set(wordsA.keys())
     setB = set(wordsB.keys())
 
@@ -125,39 +160,7 @@ def redundancy_JSON(wordsA, wordsB):  # 未検証
             # meaningsとそれ以外に分離
             A = wordsA[isect_word]
             B = wordsB[isect_word]
-            
-            def collect_conflict_with_meanings(A, B):
-                
-                meaningA = A.pop("meanings")
-                meaningB = B.pop("meanings")
 
-                # meanings以外の処理
-                mergedAB, user_ask = auto_merge_process(DeepDiff(A, B, ignore_order=True), A)
-
-                # meaningsの処理
-                def compare_definition(a, b):  # 検証済み
-                    return a.get("definition") == b.get("definition")
-
-                merged_meanings, ask_MNG = auto_merge_process(
-                    DeepDiff(
-                        meaningA,
-                        meaningB,
-                        ignore_order=True,
-                        iterable_compare_func=compare_definition,
-                    ),
-                    meaningB,
-                )
-
-                # conflictの集計
-                for k, v in ask_MNG.items():
-                    k = k.replace("root", "root[meanings]")
-                    user_ask[k] = v
-
-                # meaningsを合流
-                mergedAB["meanings"] = merged_meanings
-
-                return mergedAB, user_ask
-            
             mergedAB, user_ask = collect_conflict_with_meanings(A, B)
             # conflictの解決
             mergedAB = ask_conflict(mergedAB, user_ask)
@@ -168,7 +171,7 @@ def redundancy_JSON(wordsA, wordsB):  # 未検証
 
 def bundle_load_JSON(paths: list, schema: str):  # path to JsonSchema  # 未完成
 
-    #===jsonの読み込み===
+    # ===jsonの読み込み===
     JsonSchema = json.loads(open(schema, mode="r", encoding="utf-8").read())
     format_failed = []  # [path1,path2,...]
     format_failed_massage = []  # [path1message,path2message,...]
@@ -191,7 +194,7 @@ def bundle_load_JSON(paths: list, schema: str):  # path to JsonSchema  # 未完�
     #===重複の検出===
     Dict_length = []  # [len(words1),len(words2),...]
     loaded_words = []  # [word1,word2,...]
-    conflict_words = {}  # {word1:[jsonA,jsonB],word2:[jsonA,jsonB],...}
+    conflict_words = {}  # {word1:[jsonA_index,jsonB_index],word2:[jsonA_index,jsonB_index],...}
 
     for i, current_json in enumerate(JSONs):
 
@@ -207,7 +210,6 @@ def bundle_load_JSON(paths: list, schema: str):  # path to JsonSchema  # 未完�
                 last_same_index = None
 
             if last_same_index is not None:
-
                 if word not in conflict_words.keys():
 
                     far_last_same_file = 0
@@ -218,11 +220,11 @@ def bundle_load_JSON(paths: list, schema: str):  # path to JsonSchema  # 未完�
                         if (
                             survived_word_num <= last_same_index
                         ):  # この条件でしかconflict_fileは定義されない
-                            conflict_file = paths[far_last_same_file]
+                            conflict_file_index = far_last_same_file
                             break
 
                     try:
-                        conflict_words[word] = [conflict_file, i]
+                        conflict_words[word] = [conflict_file_index, i]
                     except UnboundLocalError:
                         print("WHILE LOOP ERROR")
                         print("path:", path)
