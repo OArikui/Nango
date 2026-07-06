@@ -115,7 +115,11 @@ def redundancy_JSON(wordsA, wordsB):  # 未検証
         # ユーザーに選ばせる。
         return base_obj
 
-    def collect_conflict_with_meanings(A, B):
+    def collect_conflict_with_meanings(A, B):  # 未検証
+        """
+        A,Bは1単語
+        meaningsの中身はlistであり、順序が変わるだけでdiffが出るので、definitionを基準に比較する
+        """
 
         meaningA = A.pop("meanings")
         meaningB = B.pop("meanings")
@@ -169,7 +173,7 @@ def redundancy_JSON(wordsA, wordsB):  # 未検証
     return wordsA
 
 
-def bundle_load_JSON(paths: list, schema: str):  # path to JsonSchema  # 未完成
+def bundle_load_JSON(paths: list, schema: str):  # path to JsonSchema  # 未検証
 
     # ===jsonの読み込み===
     JsonSchema = json.loads(open(schema, mode="r", encoding="utf-8").read())
@@ -191,10 +195,14 @@ def bundle_load_JSON(paths: list, schema: str):  # path to JsonSchema  # 未完�
                 current_json = schema_return  # cleansed
                 JSONs.append(current_json)
 
-    #===重複の検出===
+    # ===重複単語の検出===
     Dict_length = []  # [len(words1),len(words2),...]
     loaded_words = []  # [word1,word2,...]
-    conflict_words = {}  # {word1:[jsonA_index,jsonB_index],word2:[jsonA_index,jsonB_index],...}
+    conflict_words = (
+        {}
+    )  # {word1:[jsonA_index,jsonB_index],word2:[jsonA_index,jsonB_index],...}
+
+    JSON_words_into = {JSONs[0]["words"]}  # importするjsonをまとめたJsonSchema順守のdir
 
     for i, current_json in enumerate(JSONs):
 
@@ -208,6 +216,9 @@ def bundle_load_JSON(paths: list, schema: str):  # path to JsonSchema  # 未完�
                 last_same_index = loaded_words.index(word)
             except ValueError:
                 last_same_index = None
+                JSON_words_into[word] = current_json["words"][
+                    word
+                ]  # 新規単語があればimport対象に追加
 
             if last_same_index is not None:
                 if word not in conflict_words.keys():
@@ -239,6 +250,37 @@ def bundle_load_JSON(paths: list, schema: str):  # path to JsonSchema  # 未完�
                 loaded_local.append(word)
 
         loaded_words.extend(loaded_local)
+
+    # ===重複単語の差分解決と競合収集===
+    user_ask = {}
+    for word_K in conflict_words.keys():
+        print(f"conflict word: {word_K}, files: {conflict_words[word_K]}")
+        baseW_data = JSONs[conflict_words[word_K][0]]["words"][word_K]
+
+        for conflict_file_index in conflict_words[word_K][1:]:
+            compareW_data = JSONs[conflict_file_index]["words"][word_K]
+            return_collected = redundancy_JSON.collect_conflict_with_meanings(
+                baseW_data, compareW_data
+            )
+            baseW_data.update(return_collected[0])
+
+            for k, v in return_collected[1].items():
+                k = k.replace("root", f"root['words']['{word_K}']")
+
+                if k in user_ask.keys():
+                    v = v[1:]  # 先頭の要素はbaseW_dataに含まれているので除外
+                    if v not in user_ask[k]:
+                        user_ask[k].extend(v)
+                else:
+                    user_ask[k] = v
+
+        JSON_words_into[word_K] = baseW_data
+
+    # ===競合の解決===
+    JSON_words_into = redundancy_JSON.ask_conflict(JSON_words_into, user_ask)
+
+    return JSON_words_into
+
 
 if __name__ == "__main__":
     sample_path = r"C:\Users\Ariku\OneDrive\Documents\Nango\test_or_future\sample.json"
