@@ -6,7 +6,6 @@ from jsonschema.exceptions import ValidationError
 from deepdiff import DeepDiff, extract
 
 # Json.v05.00~に対応してます
-# 今は複数ファイルの同時importは想定していません
 
 
 def JSON_load_word(subject, schema, path=False):  # 検証済み
@@ -290,15 +289,31 @@ def bundle_load_JSON(paths: list, schema: str):  # path to JsonSchema  # 未検�
 
 
 if __name__ == "__main__":
-    sample_path = r"C:\Users\Ariku\OneDrive\Documents\Nango\test_or_future\sample.json"
-    schema_path = (
-        r"C:\Users\Ariku\OneDrive\Documents\Nango\test_or_future\pre_JSON_schema.json"
-    )
+    sample_path = r""
+    sample_paths = [r"", r"", r"", r"", r"", r""]
+    schema_path = r""
     database_path = r""
-    db_path = r""
+    
+    database_json = json.loads(open(database_path, mode="r", encoding="utf-8").read())
+    
+    # 1 単一ファイルの読み込み
+    
+    updated_words = redundancy_JSON(
+        database_json["words"],
+        JSON_load_word(sample_path, schema_path, path=True)["words"],
+    )
 
-    with open(sample_path, mode="r", encoding="utf-8") as smp_ld:
-        with open(schema_path, mode="r", encoding="utf-8") as sch_ld:
-            sample = json.loads(smp_ld.read())
-            schema = json.loads(sch_ld.read())
-            JSON_load_word(sample, schema)
+    open(database_path, mode="w", encoding="utf-8").write(
+        json.dumps(
+            database_json.update(updated_words), sort_keys=0, ensure_ascii=False, indent=2
+        )
+    )
+
+    # 2 複数ファイルの読み込み
+    bundle_words = bundle_load_JSON(sample_paths, schema_path)
+    open(database_path, mode="w", encoding="utf-8").write(
+        json.dumps(
+            database_json.update(bundle_words), sort_keys=0, ensure_ascii=False, indent=2
+        )
+    )
+
