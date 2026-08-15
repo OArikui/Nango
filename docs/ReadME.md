@@ -1,5 +1,10 @@
 # Nango-neo
 
+## 目的
+第2言語、母語関わらず、言葉の文化的背景を含む意味と体験
+をパーソナライズされた辞書に保存すること。また、そのサービス。
+
+きっかけ:[ゆるコンピューター科学ラジオ](https://www.youtube.com/@yurucom)
 ## ファイル構造
 
 ```powershell
@@ -21,7 +26,8 @@ Nango
 │      Where am I drifting to.md
 │
 ├─Nango-neo  \\main
-│  │  Nango-neo.v01.1.0.html
+│  │  Nango-neo.v02.0.0.html
+│  │  style.v01.0.0.css
 │  │  Nango_main.v01.0.0.js
 │  │
 │  └─DTformats.neo.v5.12
