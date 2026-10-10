@@ -2,6 +2,8 @@
 
 ## 開発手順,進捗
 
+> 2026-10-09更新: Nango-neo Phase 1のブラウザー辞書機能を実装。形式・テストの詳細は [`PHASE1_IMPLEMENTATION.md`](PHASE1_IMPLEMENTATION.md) を参照。サーバー構築はPhase 2のため未着手。
+
 - [ ] server構築 `with python`
   - [ ] データ管理システムの構築 server side
     - [ ] jsonfileのimport,dbとの結合
@@ -11,8 +13,13 @@
       - [ ] 複数ファイルimportへの対応
     - [ ] JavaScriptとへのデータ送信`fetch API`
 - [ ] pageの作成 `with JavaScript,HTML`
-  - [ ] serverとのやり取り `JavaScript` mod `Ajax`
-  - [ ] 画面描画の作成 `JavaScript,HTML`
+  - [ ] serverとのやり取り `JavaScript` mod `Ajax`（Phase 2）
+  - [x] 画面描画の作成 `JavaScript,HTML`（Phase 1）
+  - [x] DTformats.neo.v5.13形式の読込・保存・エクスポート
+  - [x] 複数JSONの取込、ID再採番、重複マージ、競合時の確認
+  - [x] 階層検索、タグ一括管理、意味単位の追加・コピー・貼り付け・複製・削除・順序変更
+  - [x] JSON貼り付けインポート、「今日の単語」表示
+  - [x] JSON Schema検証・JavaScriptスモークテスト
 
 ## 開発ルール
 
@@ -53,3 +60,9 @@
 > > ## マイナーバージョンはクオーテーション内h2
 > >
 > > ### パッチバージョンはh3
+
+
+## v02.3.0 / DTformats.neo.v5.14
+- 単語名から読みを括弧で付ける形式を廃止し、reading フィールドに分離。原語は english に保存。
+- タグ一覧のタグ名から該当単語一覧へ移動できる機能を追加。単語詳細・単語一覧のタグもクリック可能。
+- 単語一覧に昇順・降順切替を追加。

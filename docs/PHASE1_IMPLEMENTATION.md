@@ -4,7 +4,7 @@
 
 ## 概要
 
-Phase 1 のブラウザー辞書機能を、`Nango-neo/DTformats.neo.v5.12/` に定義されたデータ形式を基準に実装した。ブラウザー側の内部処理では単語配列を使うが、LocalStorage・インポート・エクスポートの境界で v5.12 のドキュメント形式に変換する。
+Phase 1 のブラウザー辞書機能を、`Nango-neo/DTformats.neo.v5.13/` に定義されたデータ形式を基準に実装した。ブラウザー側の内部処理では単語配列を使うが、LocalStorage・インポート・エクスポートの境界で v5.12 のドキュメント形式に変換する。
 
 ## v5.12形式
 
@@ -12,12 +12,12 @@ Phase 1 のブラウザー辞書機能を、`Nango-neo/DTformats.neo.v5.12/` に
 - `word` / `word(any)` を各単語内に重複保存しない。
 - 各単語は1件以上の `meanings` を持つ。
 - 各意味には空でない `definition` が必要。
-- `fieldTag`、`examples`、`synonyms`、`other_tags` は文字列配列。
+- `fieldTag`、`examples`、`synonyms`、`other_tags` は文字列配列。`fieldTag` は1要素につき1つの分野タグを格納し、中点で複数タグを連結しない。
 - `datetime` は RFC 3339日時文字列。
 - `additional_data` は文字列配列。
 - 過去形式の必須キー末尾 `$` はインポート時に除去し、標準の必須項目チェックを行う。
 
-スキーマは `DF-FMT_schema.v01.12.json` に、AI向けひな形は `DT-FMT_instruction_AI.v01.12.json` に、データ例は `DT-FMT_template.v02.12.json` にある。
+スキーマは `DF-FMT_schema.v01.13.json` に、AI向けひな形は `DT-FMT_instruction_AI.v01.13.json` に、データ例は `DT-FMT_template.v02.13.json` にある。
 
 ## Phase 1 機能
 
@@ -42,7 +42,7 @@ Phase 1 のブラウザー辞書機能を、`Nango-neo/DTformats.neo.v5.12/` に
 ### 検索・編集・UX
 
 - 意味、背景、ニュアンス、例文、類義語、複数タグなどを含む全文検索。
-- 分類・時代・分野タグでサイドバーを切替表示。分野タグは意味単位で複数設定可能。
+- 分類・時代・分野タグでサイドバーを切替表示。分野タグは意味単位で複数設定可能。旧データの `IT・美容・ライフスタイル` のような連結値も、読み込み時に独立したタグへ自動分割。
 - 分野タグ・時代タグ・その他タグを一覧表示し、一括改名・削除。
 - 意味単位の追加、コピー、貼り付け、複製、削除、順序変更。
 - JSON貼り付けによる取り込み。
@@ -59,7 +59,7 @@ python -m unittest test_or_future.test_phase1_format -v
 python test_or_future/json_test.py
 ```
 
-- JavaScript純粋ロジックのスモークテスト: 11 assertions
+- JavaScript純粋ロジックのスモークテスト: 14 assertions（中点区切りのタグ移行・固有名詞タグの保持を追加）
 - JSON Schema Draft 2020-12テスト: 7 tests
 - Chromiumブラウザー操作テスト: 新規登録、編集、複数意味、意味コピー・貼り付け、JSONエクスポート、複数JSONインポート、意味の全文検索、「今日の単語」を確認。JavaScriptコンソールエラーなし。
 
@@ -68,3 +68,38 @@ python test_or_future/json_test.py
 - データの永続化はブラウザーの `localStorage`。ブラウザー・プロファイル・オリジンごとに保存領域が異なり、自動同期しない。
 - Phase 1ではPython API、ユーザーアカウント、クラウド保存、PostgreSQL/MySQLなどは実装していない（Phase 2）。
 - 旧形式から読み込める一方、エクスポートはv5.12形式となる。旧版アプリとデータを往復するときは元データをバックアップすること。
+
+## 分野タグの複数化修正（2026-10-09）
+
+- `fieldTag` の各配列要素を独立したタグとして扱うルールをAI指示・JSON Schemaの説明・テンプレートに明記。
+- AI指示では `IT・美容・ライフスタイル` ではなく `["IT", "美容", "ライフスタイル"]` と出力するよう指定。
+- アプリの分野タグ入力欄でカンマ・読点・中点・改行を区切りとして利用可能にした。
+- 既存データの `fieldTag` に含まれる中点連結値をインポート／読み込み時に分割し、重複を除去。`category` と `other_tags` は中点を含む分類名・固有名詞があり得るため、自動分割しない。
+- ユーザー提供の141語データを修正し、151個の連結済み `fieldTag` 値を配列要素に分割。JSON Schema検証に成功。
+
+
+## v02.1.0 — 単語一覧機能
+
+- ツールバーに「単語一覧」を追加。
+- 登録済み単語を単語名・読み・分類・タグの表で表示。
+- 登録順／五十音順切り替え、一覧内キーワード検索、行から詳細画面への移動を実装。
+
+
+## v02.2.0 / DTformats.neo.v5.13: 表示名の読み表記統一
+
+- 外来語・外国語・略語・記号や難読漢字の表示名は、必要に応じて `見出し語（読み）` に統一する。
+- 括弧は全角 `（ ）`、括弧内は `reading` と一致する日本語の読みとする。
+- 原語・正式名称は `english` に保持し、表示名の括弧内へ混在させない。
+- インポート、ローカル保存データ読み込み、新規登録時に既存の括弧表記を正規化する。
+
+
+## v02.3.0 / DTformats.neo.v5.14
+- 単語名から読みを括弧で付ける形式を廃止し、reading フィールドに分離。原語は english に保存。
+- タグ一覧のタグ名から該当単語一覧へ移動できる機能を追加。単語詳細・単語一覧のタグもクリック可能。
+- 単語一覧に昇順・降順切替を追加。
+
+
+## v02.4.0 UI / Python launcher
+- `run.py` and `RUN_NANGO.bat` serve the app on localhost using Python standard library only.
+- Added in-app Back/Forward navigation history.
+- Tag tables sort by tag name or matching-word count; word list sorts by each displayed column.

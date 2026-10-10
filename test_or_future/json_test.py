@@ -1,27 +1,36 @@
+"""Validate the sample dictionary document against the current v5.12 schema."""
+from __future__ import annotations
+
 import json
-from jsonschema import Draft202012Validator
-from jsonschema.exceptions import ValidationError
+import sys
+from pathlib import Path
+
+from jsonschema import Draft202012Validator, FormatChecker
 
 
-def JSON_load_word(subject, schema):
-    try:
-        validator = Draft202012Validator(schema)
-        validator.validate(subject)
-        adapted_json = json.dumps(subject, sort_keys=0, ensure_ascii=False, indent=2)
-        print(adapted_json)
-        return subject
-    except ValidationError as e:
-        print(e.message)
-    print("END")
+def main() -> int:
+    test_dir = Path(__file__).resolve().parent
+    schema_path = test_dir / "pre_JSON_schema.json"
+    sample_path = test_dir / "sample.json"
+
+    with schema_path.open(encoding="utf-8") as file:
+        schema = json.load(file)
+    with sample_path.open(encoding="utf-8") as file:
+        sample = json.load(file)
+
+    Draft202012Validator.check_schema(schema)
+    validator = Draft202012Validator(schema, format_checker=FormatChecker())
+    errors = sorted(validator.iter_errors(sample), key=lambda error: list(map(str, error.path)))
+    if errors:
+        for error in errors:
+            location = ".".join(map(str, error.absolute_path)) or "$"
+            print(f"{location}: {error.message}", file=sys.stderr)
+        return 1
+
+    print(f"Valid: {sample_path.name} matches {schema_path.name}")
+    print(f"Word count: {len(sample['words'])}")
+    return 0
 
 
 if __name__ == "__main__":
-    sample_path = r"C:\Users\Ariku\OneDrive\Documents\Nango\test_or_future\sample.json"
-    schema_path = r"C:\Users\Ariku\OneDrive\Documents\Nango\test_or_future\pre_JSON_schema.json"
-
-    with open(sample_path, mode="r", encoding="utf-8") as smp_ld:
-        with open(schema_path, mode="r", encoding="utf-8") as sch_ld:
-            sample = json.loads(smp_ld.read())
-            schema = json.loads(sch_ld.read())
-
-            JSON_load_word(sample, schema)
+    raise SystemExit(main())

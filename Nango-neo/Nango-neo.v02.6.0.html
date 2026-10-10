@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="app-name" content="© 2026 Nango-neo (base: v3.10) - Version 2.6.0">
+    <meta name="html-version" content="neo.v02.6.0">
+    <meta name="json-version" content="DTformats.neo.v5.14">
+    <meta name="javascript-version" content="v01.6.0">
+    <title>Nango-neo — Phase 1</title>
+    <link rel="stylesheet" href="style.v02.6.0.css">
+</head>
+
+<body>
+
+    <div class="container">
+        <header class="app-heading">
+            <div class="brand-mark" aria-hidden="true">N</div>
+            <div class="brand-copy">
+                <p class="eyebrow">PERSONAL KNOWLEDGE BASE</p>
+                <h1>難語データビューアー <span>Pro</span></h1>
+                <p class="brand-subtitle">言葉を集め、意味をつなぎ、知識を育てる。</p>
+            </div>
+            <div class="version-chip">NANGO-NEO <strong>v2.6.0</strong></div>
+        </header>
+
+        <div class="toolbar">
+            <div class="page-navigation" aria-label="ページ内移動">
+                <button class="btn btn-secondary" id="pageBackBtn" type="button" onclick="navigateAppHistory(-1)" disabled>← 戻る</button>
+                <button class="btn btn-secondary" id="pageForwardBtn" type="button" onclick="navigateAppHistory(1)" disabled>進む →</button>
+            </div>
+            <div>
+                <button class="btn btn-primary" onclick="triggerImport()">JSONインポート</button>
+                <input type="file" id="fileInput" accept=".json" onchange="importJSON(event)" multiple>
+                <button class="btn btn-success" id="exportBtn" onclick="exportJSON()">JSONエクスポート</button>
+                <button class="btn btn-warning" onclick="showManagePanel()">🏷️ タグ一括管理</button>
+                <button class="btn btn-secondary" onclick="togglePastePanel()">JSONを貼り付け</button>
+                <button class="btn btn-secondary" onclick="showTodaysWord()">今日の単語</button>
+                <button class="btn btn-secondary" onclick="showWordList()">📚 単語一覧</button>
+            </div>
+            <div>
+                <button class="btn btn-primary" onclick="showNewForm()">＋ 新規単語追加</button>
+                <button class="btn btn-danger" onclick="resetToDefault()">初期状態にリセット</button>
+            </div>
+        </div>
+
+        <div id="todaysWordBanner" class="todays-word-banner" aria-live="polite"></div>
+
+        <div class="main-layout">
+
+            <div class="sidebar">
+                <div class="search-box">
+                    <input type="text" id="searchInput" class="search-input" placeholder="検索 (かな, 漢字, タグ, 本文...)"
+                        oninput="handleSearch()">
+
+                    <div class="control-group">
+                        <div class="control-row">
+                            <span>階層基準:</span>
+                            <button class="btn-sm active" id="struct-cat"
+                                onclick="setHierarchyStructure('category')">分類</button>
+                            <button class="btn-sm" id="struct-field"
+                                onclick="setHierarchyStructure('fieldTag')">分野</button>
+                            <button class="btn-sm" id="struct-era" onclick="setHierarchyStructure('eraTag')">時代</button>
+                        </div>
+                        <div class="control-row">
+                            <span>並び替え:</span>
+                            <button class="btn-sm active" id="sort-id" onclick="setSort('id')">登録順</button>
+                            <button class="btn-sm" id="sort-alpha" onclick="setSort('alpha')">五十音順</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tree-container" id="treeContainer">
+                </div>
+            </div>
+
+            <div class="main-content">
+                <div id="viewMode">
+                    <div style="float: right;">
+                        <button class="btn btn-secondary" id="editBtn" onclick="showEditForm()">この単語を編集</button>
+                        <button class="btn btn-danger" id="deleteBtn" style="padding: 8px 12px;"
+                            onclick="deleteCurrentWord()">削除</button>
+                    </div>
+                    <div id="viewTarget"></div>
+                </div>
+
+                <div id="editMode" class="edit-form">
+                    <h2 id="formTitle" style="margin-top:0; color: var(--primary-color);">単語の編集</h2>
+
+                    <div class="form-row">
+                        <div class="form-group" style="flex: 2; min-width: 250px;">
+                            <label for="editWord">単語（表示名）*必須</label>
+                            <input type="text" id="editWord" class="form-control" placeholder="例: カスケード"><small>単語名には読みを括弧で付けません。読みは「よみがな」、原語は「英語・スペル」に入力してください。</small>
+                        </div>
+                        <div class="form-group" style="flex: 1; min-width: 150px;">
+                            <label for="editCategory">単語分類</label>
+                            <input type="text" id="editCategory" class="form-control" placeholder="例: 外来語、古語・大和言葉、専門用語">
+                        </div>
+                    </div>
+
+                    <div class="form-row"
+                        style="background: #edf2f7; padding: 12px; border-radius: 6px; margin-bottom: 15px;">
+                        <div class="form-group">
+                            <label for="editEraTag">時代タグ (例: 近代、中世、現代)</label>
+                            <input type="text" id="editEraTag" class="form-control" placeholder="例: 現代">
+                        </div>
+                        <div class="form-group">
+                            <label for="editOtherTags">その他タグ（1タグずつ。カンマ、読点、改行区切り）</label>
+                            <input type="text" id="editOtherTags" class="form-control" placeholder="例: 学習用, 要確認">
+                        </div>
+                    </div>
+
+                    <div class="form-row"
+                        style="background: #f7fafc; padding: 10px; border-radius: 6px; border: 1px dashed var(--border-color);">
+                        <div class="form-group">
+                            <label for="editReading">よみがな (ひらがな) 【検索用】</label>
+                            <input type="text" id="editReading" class="form-control" placeholder="例: かすけーど">
+                        </div>
+                        <div class="form-group">
+                            <label for="editKanji">漢字表記 【検索用】</label>
+                            <input type="text" id="editKanji" class="form-control" placeholder="例: 傅く">
+                        </div>
+                        <div class="form-group">
+                            <label for="editEnglish">英語・スペル 【検索用】</label>
+                            <input type="text" id="editEnglish" class="form-control" placeholder="例: cascade">
+                        </div>
+                    </div>
+
+                    <div class="meaning-editor-section">
+                        <div class="meaning-editor-toolbar">
+                            <h3>意味（meaning）</h3>
+                            <button class="btn btn-primary" type="button" onclick="addMeaningEditor()">＋ 意味を追加</button>
+                            <button class="btn btn-secondary" id="pasteMeaningBtn" type="button" onclick="pasteMeaningEditor()" disabled>意味を貼り付け</button>
+                        </div>
+                        <p class="form-help">単語1件に複数の意味を登録できます。意味ごとに定義・背景・ニュアンス・分野タグ・例文・類義語を管理します。定義は必須です。</p>
+                        <div id="meaningsEditor"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="editColumn">コラム（豆知識・補足）</label>
+                        <textarea id="editColumn" class="form-control" placeholder="言葉にまつわる豆知識や、さらに深掘りしたエピソード"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="editMemo">メモ</label>
+                        <textarea id="editMemo" class="form-control" placeholder="個人的なメモ。生物分類・地理座標・文字コードなどの補足にも使用"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="editGeminiNote">AIからの一言</label>
+                        <textarea id="editGeminiNote" class="form-control" placeholder="親しみやすく、要点を捉えた一言"></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button class="btn btn-success" onclick="saveWord()">保存</button>
+                        <button class="btn btn-secondary" onclick="cancelEdit()">キャンセル</button>
+                    </div>
+                </div>
+
+                <div id="wordListMode" class="word-list-panel" style="display:none;">
+                    <div class="word-list-heading">
+                        <div>
+                            <h2 style="margin-top:0; color: var(--primary-color);">📚 単語一覧</h2>
+                            <p class="form-help">登録済みの単語を一覧表示します。単語を選択すると詳細画面を開きます。</p>
+                        </div>
+                        <button class="btn btn-secondary" type="button" onclick="showViewMode()">詳細画面へ戻る</button>
+                    </div>
+                    <div class="word-list-controls">
+                        <input id="wordListSearch" type="search" class="form-control" placeholder="単語・読み・分類・タグで絞り込み" oninput="renderWordList()" aria-label="単語一覧を検索">
+                        <select id="wordListSort" class="form-control" onchange="setWordListSort()" aria-label="単語一覧の並び順">
+                            <option value="id">登録順</option>
+                            <option value="alpha">五十音順</option>
+                        </select>
+                        <select id="wordListDirection" class="form-control" onchange="setWordListSort()" aria-label="単語一覧の昇順・降順">
+                            <option value="asc">昇順</option>
+                            <option value="desc">降順</option>
+                        </select>
+                    </div>
+                    <div id="wordListTagFilter" class="word-list-tag-filter" style="display:none" aria-live="polite"></div>
+                    <p id="wordListCount" class="word-list-count" aria-live="polite"></p>
+                    <div id="wordListContainer"></div>
+                </div>
+
+                <div id="managePanelMode" class="manage-panel">
+                    <h2 style="margin-top:0; color: var(--primary-color);">🏷️ タグ一覧 ＆ 一括変更機能</h2>
+                    <p style="font-size:13px; color: var(--muted-color);">現在登録されているすべてのタグの一覧です。「変更」ボタンから名称を一括編集できます。</p>
+
+                    <div style="margin-bottom: 20px;">
+                        <h3 style="font-size:16px; margin-bottom:8px; border-left: 4px solid var(--tag-field-color); padding-left: 8px;">
+                            分野タグ一覧</h3>
+                        <div id="fieldTagsTableContainer"></div>
+                    </div>
+
+                    <div>
+                        <h3 style="font-size:16px; margin-bottom:8px; border-left: 4px solid var(--tag-era-color); padding-left: 8px;">
+                            時代タグ一覧</h3>
+                        <div id="eraTagsTableContainer"></div>
+                    </div>
+                    <div>
+                        <h3 style="font-size:16px; margin-bottom:8px;">その他タグ一覧</h3>
+                        <div id="otherTagsTableContainer"></div>
+                    </div>
+                    <div class="form-actions"><button class="btn btn-secondary" type="button" onclick="closeManagePanel()">閉じる</button></div>
+                </div>
+
+                <div id="pastePanelMode" class="paste-panel">
+                    <h2>JSON貼り付けインポート</h2>
+                    <p class="form-help">DTformats.neo.v5.14形式、または旧版の単語配列JSONを貼り付けられます。追加・マージか置き換えを選択できます。</p>
+                    <textarea id="jsonPasteInput" class="form-control json-paste-input" spellcheck="false" placeholder="{
+  &quot;words&quot;: { ... },
+  &quot;additional_data&quot;: []
+}"></textarea>
+                    <div class="form-actions">
+                        <button class="btn btn-success" type="button" onclick="importPastedJSON()">貼り付けデータを取り込む</button>
+                        <button class="btn btn-secondary" type="button" onclick="showViewMode()">キャンセル</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script src="Nango_main.v01.6.0.js" defer></script>
+</body>
+</html>

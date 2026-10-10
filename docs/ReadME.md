@@ -1,61 +1,89 @@
 # Nango-neo
 
-## ファイル構造
+## 現行版
 
-```powershell
-Nango
-├─.venv
-│  ├─Include
-│  ├─Lib
-│  │  └─...
-│  └─Scripts
-├─.vscode
-│      settings.json
-│
-├─docs
-│      CONTRIBUTE.md
-│      Gemini_first_talk.md
-│      Nango.memo.md
-│      neo-versions.md
-│      ReadME.md
-│      Where am I drifting to.md
-│
-├─Nango-neo  \\main
-│  │  Nango-neo.v01.1.0.html
-│  │  Nango_main.v01.0.0.js
-│  │
-│  └─DTformats.neo.v5.12
-│          DF-FMT_schema.v01.12.json
-│          DT-FMT_instruction_AI.v01.12.json
-│          DT-FMT_template.v02.12.json
-│
-└─test_or_future  \\試験的,原則 new branch
-        json_test.py
-        pre_JSON_schema.json
-        sample.json
+- 画面: `Nango-neo/Nango-neo.v02.2.0.html`
+- JavaScript: `Nango-neo/Nango_main.v01.2.0.js`
+- CSS: `Nango-neo/style.v02.1.0.css`
+- データ形式: `Nango-neo/DTformats.neo.v5.13/`
+- Phase 1実装記録: `docs/PHASE1_IMPLEMENTATION.md`
 
+## 起動方法
+
+1. `Nango-neo/Nango-neo.v02.2.0.html` をブラウザーで開きます。
+2. ブラウザーの `localStorage` に辞書を保存します。データは同じブラウザー・同じオリジンで利用します。
+3. バックアップや別環境への移行には、画面上の「JSONエクスポート」を利用してください。
+
+ローカルファイルとして開いたときにブラウザーが保存を制限する場合は、PowerShellなどで `Nango-neo` フォルダーへ移動し、`py -m http.server 8000` を実行して `http://localhost:8000/Nango-neo.v02.2.0.html` を開いてください。サーバーを使う場合、`file://` で保存したデータとは保存領域が異なります。
+
+## 単語一覧機能
+
+画面上部の「📚 単語一覧」から登録済み単語を一覧表示できます。単語名・読み・分類・タグを確認でき、登録順／五十音順の切り替えと一覧内検索が可能です。単語名を選択すると、その単語の詳細画面へ移動します。
+
+## 表示名の表記ルール（v5.13）
+
+- 外来語・外国語・略語・記号、または難読漢字で読みを示す必要がある場合は `見出し語（読み）` とします。
+- 括弧は全角の `（ ）` を使い、括弧内は日本語の読みだけにします。
+- 原語・正式名称は `english`、読みは `reading` に保存します。括弧内と `reading` は一致させます。
+- 読みが自明で括弧が不要な語に、機械的に括弧を付ける必要はありません。
+- 例：`カスケード（かすけーど）`、`URI（ゆーあーるあい）`、`啓蒙（けいもう）`。
+
+## データ形式
+
+JSON Schema Draft 2020-12を基準にし、単語名を `words` オブジェクトのキーとして保持します。1語の中に `meanings` 配列を置き、意味ごとに定義・背景・ニュアンス・分野タグ・例文・類義語を保存します。登録日時の `datetime` は RFC 3339形式です。
+
+```json
+{
+  "words": {
+    "単語名": {
+      "id": 1,
+      "datetime": "2026-10-09T10:00:00+09:00",
+      "category": "カテゴリ",
+      "meanings": [
+        {
+          "definition": "必須の意味・定義",
+          "fieldTag": ["分野タグ"],
+          "examples": [],
+          "synonyms": []
+        }
+      ]
+    }
+  },
+  "additional_data": []
+}
 ```
 
-## DB
+`words` はオブジェクトであり、キーが表示名です。単語名を別の `word` / `word(any)` 項目として重複保存しません。各単語には1つ以上の `meanings`、各意味には空でない `definition` が必要です。IDは追加・インポート時に登録順に合わせて採番し直します。
 
-保存形式:`JSON`
-形式設定:`JSON schema Draft 2020-12`
-保存場所:未決定 `flask`によるpythonサーバーの作成をしながら決めます。
+## インポート時の扱い
 
-詳細なFMTは`Nango-neo\DTformats\`を確認してください。
+- DTformats.neo.v5.13形式を読み込みます。旧版の単語配列JSONも移行用として受け付けます。
+- 複数のJSONファイルを一度に選択できます。いずれかのファイルが不正なら、現データを変更せずに取り込みを中止します。
+- 既存辞書へ追加する場合、単語名・括弧内表記の重複を判定してマージします。リスト型タグ・例文・類義語は自動統合し、テキスト項目が競合するときは選択を求めます。
+- JSON貼り付け欄からも同じ取り込み処理を利用できます。
+- エクスポートはDTformats.neo.v5.13形式です。
 
-### 操作
+## テスト
 
-python module
+開発用に `jsonschema`（Draft 2020-12対応）とNode.jsを用います。
 
-|用途|module名|備考|
-|---|---|---|
-|jsonの読み込み|json(標準)||
-|FMTチェック|jsonschema|Draft2020-12に対応しているv4.0.0以降|
-|差分抽出(重複時)|DeepDiff||
+```powershell
+node test_or_future/phase1_smoke.test.js
+python -m unittest test_or_future.test_phase1_format -v
+```
 
-### `additional data`について
+ブラウザーのデータは定期的にエクスポートしてください。Phase 1ではアカウント同期・サーバー保存は提供していません。
 
-本プロジェクトにおいて、JSONのデータファイルに規定されていない項目を保存することは認めています。そしてそれは、`JSON>root`の`"additional":iterable`内に`list[string]`で収納してください。
 
-これは、`DeepDiff module`の仕様によって、重複処理をする際に`words`のデータの`key`が大きく変わることは避ける必要があるためです。
+## v02.2.0 / DTformats.neo.v5.13: 表示名の読み表記統一
+
+- 外来語・外国語・略語・記号や難読漢字の表示名は、必要に応じて `見出し語（読み）` に統一する。
+- 括弧は全角 `（ ）`、括弧内は `reading` と一致する日本語の読みとする。
+- 原語・正式名称は `english` に保持し、表示名の括弧内へ混在させない。
+- インポート、ローカル保存データ読み込み、新規登録時に既存の括弧表記を正規化する。
+
+
+## v02.3.0 / DTformats.neo.v5.14
+- 単語名から読みを括弧で付ける形式を廃止し、reading フィールドに分離。原語は english に保存。
+- タグ一覧のタグ名から該当単語一覧へ移動できる機能を追加。単語詳細・単語一覧のタグもクリック可能。
+- 単語一覧に昇順・降順切替を追加。

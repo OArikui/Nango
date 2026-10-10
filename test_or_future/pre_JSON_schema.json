@@ -1,74 +1,122 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Nango-neo pre_JSON_schema",
-  "description": "this is test",
+  "$id": "https://example.invalid/nango/DTformats.neo.v5.12/schema.json",
+  "title": "Nango-neo DTformats.neo.v5.12",
+  "description": "Nango-neo canonical dictionary document format. Word names are keys under words; multiple definitions live in each word's meanings array.",
   "type": "object",
-  "required": ["words"],
+  "required": [
+    "words"
+  ],
   "properties": {
     "words": {
       "type": "object",
-      "patternProperties": {
-        ".*": {
-          "type": "object",
-          "required": ["meanings"],
-          "properties": {
-            "id": { "type": "integer" },
-            "datetime": {
-              "type": "string",
-              "format": "datetime",
-              "description": "format is RFC3339"
-            },
-            "category": { "type": "string" },
-            "eraTag": { "type": "string" },
-            "reading": { "type": "string" },
-            "kanji": { "type": "string" },
-            "english": { "type": "string" },
-            "column": { "type": "string" },
-            "memo": { "type": "string" },
-            "gemini_note": { "type": "string" },
-            "other_tags": {
-              "type": "array",
-              "items": { "type": "string" }
-            },
-            "meanings": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "required": ["definition"],
-                "properties": {
-                  "definition": { "type": "string" },
-                  "background": { "type": "string" },
-                  "nuance": { "type": "string" },
-                  "fieldTag": {
-                    "type": "array",
-                    "items": { "type": "string" }
-                  },
-                  "examples": {
-                    "type": "array",
-                    "items": { "type": "string" }
-                  },
-                  "synonyms": {
-                    "type": "array",
-                    "items": { "type": "string" }
-                  }
-                }
-              }
-            }
-          }
-        }
+      "description": "Dictionary keyed by the display word. The key is the word itself, not a word/any field.",
+      "additionalProperties": {
+        "$ref": "#/$defs/word"
       }
     },
     "additional_data": {
-      "anyOf": [
-        { "type": "string" },
-        {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "word": {
+      "type": "object",
+      "required": [
+        "meanings"
+      ],
+      "properties": {
+        "id": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Assigned by Nango on import/add."
+        },
+        "datetime": {
+          "type": "string",
+          "format": "date-time",
+          "description": "RFC 3339 date-time."
+        },
+        "category": {
+          "type": "string"
+        },
+        "eraTag": {
+          "type": "string"
+        },
+        "reading": {
+          "type": "string"
+        },
+        "kanji": {
+          "type": "string"
+        },
+        "english": {
+          "type": "string"
+        },
+        "column": {
+          "type": "string"
+        },
+        "memo": {
+          "type": "string"
+        },
+        "gemini_note": {
+          "type": "string"
+        },
+        "other_tags": {
           "type": "array",
           "items": {
-            "type": "string",
-            "pattern": ".{6}_.{4}\n.*"
+            "type": "string"
+          }
+        },
+        "meanings": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/meaning"
           }
         }
-      ]
+      },
+      "additionalProperties": true
+    },
+    "meaning": {
+      "type": "object",
+      "required": [
+        "definition"
+      ],
+      "properties": {
+        "definition": {
+          "type": "string",
+          "minLength": 1
+        },
+        "background": {
+          "type": "string"
+        },
+        "nuance": {
+          "type": "string"
+        },
+        "fieldTag": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "examples": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "synonyms": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": true
     }
   }
 }
