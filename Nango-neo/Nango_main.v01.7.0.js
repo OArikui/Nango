@@ -923,7 +923,7 @@ function mergeLimitedTags(existing, incoming, limit, label) {
 function mergeWord(existing, incoming) {
     const merged = { ...existing };
     const conflicts = [];
-    for (const field of ['category', 'eraTag', 'reading', 'kanji', 'english', 'pronunciation', 'column', 'memo', 'gemini_note']) {
+    for (const field of ['eraTag', 'reading', 'kanji', 'english', 'pronunciation', 'column', 'memo', 'gemini_note']) {
         const oldValue = asString(existing[field]);
         const newValue = asString(incoming[field]);
         if (!newValue || newValue === oldValue) continue;
