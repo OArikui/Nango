@@ -27,8 +27,8 @@
 
         <div class="toolbar">
             <div class="page-navigation" aria-label="ページ内移動">
-                <button class="btn btn-icon" id="pageBackBtn" type="button" aria-label="戻る" title="戻る" onclick="navigateAppHistory(-1)" disabled>←</button>
-                <button class="btn btn-icon" id="pageForwardBtn" type="button" aria-label="進む" title="進む" onclick="navigateAppHistory(1)" disabled>→</button>
+                <button class="btn btn-icon" id="pageBackBtn" type="button" aria-label="戻る" title="戻る" onclick="navigateAppHistory(-1)" disabled><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"></path><path d="m12 19-7-7 7-7"></path></svg></button>
+                <button class="btn btn-icon" id="pageForwardBtn" type="button" aria-label="進む" title="進む" onclick="navigateAppHistory(1)" disabled><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></button>
             </div>
             <div class="toolbar-actions">
                 <details class="toolbar-menu"><summary class="btn btn-secondary">JSON操作</summary><div class="toolbar-menu-items">
@@ -62,13 +62,13 @@
                         <div class="sidebar-control"><button class="btn-sm filter-trigger" id="categoryFilterTrigger" type="button" onclick="toggleCategoryFilterPopup()" aria-expanded="false">分類で絞り込み <span id="categoryFilterBadge">0</span></button><div id="categoryFilterPopover" class="filter-popover" style="display:none"></div></div>
                         <div class="sidebar-control"><button class="btn-sm filter-trigger" id="hierarchyTrigger" type="button" onclick="toggleHierarchyPopup()" aria-expanded="false">階層基準: <span id="hierarchyCurrentLabel">分類</span> ▾</button>
                             <div id="hierarchyPopup" class="filter-popover compact-popover" style="display:none">
-                                <button class="btn-sm" id="struct-field" type="button" onclick="setHierarchyStructure('fieldTag')">分野</button><button class="btn-sm" id="struct-era" type="button" onclick="setHierarchyStructure('eraTag')">時代</button><button class="btn-sm" id="struct-initial" type="button" onclick="setHierarchyStructure('initial')">頭文字</button>
+                                <button class="btn-sm active" id="struct-field" type="button" onclick="setHierarchyStructure('fieldTag')">分野</button><button class="btn-sm" id="struct-era" type="button" onclick="setHierarchyStructure('eraTag')">時代</button><button class="btn-sm" id="struct-initial" type="button" onclick="setHierarchyStructure('initial')">頭文字</button>
                             </div>
                         </div>
                         <div class="sidebar-control"><button class="btn-sm filter-trigger" id="sortTrigger" type="button" onclick="toggleSortPopup()" aria-expanded="false">並び替え: <span id="sortCurrentLabel">登録順</span> ▾</button>
                             <div id="sortPopup" class="filter-popover compact-popover" style="display:none"><button class="btn-sm active" id="sort-id" type="button" onclick="setSort('id')">登録順</button><button class="btn-sm" id="sort-alpha" type="button" onclick="setSort('alpha')">五十音順</button></div>
                         </div>
-                        <div class="sidebar-group-controls"><label class="inline-check"><input id="groupDisplayToggle" type="checkbox" onchange="setGroupDisplay(this.checked)"> グループ表示</label><div class="sidebar-group-buttons"><button class="btn-sm" type="button" onclick="toggleAllGroups(true)">すべて展開</button><button class="btn-sm" type="button" onclick="toggleAllGroups(false)">すべて格納</button></div></div>
+                        <div class="sidebar-group-controls"><label class="inline-check"><input id="groupDisplayToggle" type="checkbox" checked onchange="setGroupDisplay(this.checked)"> グループ表示</label><div class="sidebar-group-buttons"><button class="btn-sm" type="button" onclick="toggleAllGroups(true)">すべて展開</button><button class="btn-sm" type="button" onclick="toggleAllGroups(false)">すべて格納</button></div></div>
                     </div>
                     </div>
                 </div>
