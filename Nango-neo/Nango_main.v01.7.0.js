@@ -817,7 +817,7 @@ function showEditForm() {
     if (!word) return;
     isNewWord = false;
     $('formTitle').textContent = '単語の編集';
-    $('viewMode').style.display = 'none'; $('managePanelMode').style.display = 'none'; $('pastePanelMode').style.display = 'none'; $('wordListMode').style.display = 'none'; $('editMode').style.display = 'block';
+    $('viewMode').style.display = 'none'; $('managePanelMode').style.display = 'none'; $('pastePanelMode').style.display = 'none'; $('wordListMode').style.display = 'none'; $('settingsPanelMode').style.display = 'none'; $('toolsPanelMode').style.display = 'none'; $('formatPanelMode').style.display = 'none'; $('editMode').style.display = 'block';
     populateEditor(word);
 }
 function showNewForm() {
@@ -1267,6 +1267,165 @@ function showTodaysWord() {
     currentWordId = selected.id;
     renderSidebarTree(); showViewMode();
     $('todaysWordBanner').innerHTML = `<strong>今日の単語:</strong> ${escapeHtml(selected.word)} <span>（日付に基づいて毎日同じ単語を表示します）</span>`;
+}
+
+function loadDisplaySettings() {
+    try {
+        const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+        displaySettings = { ...SETTINGS_DEFAULTS, ...(saved && typeof saved === 'object' ? saved : {}) };
+    } catch (_) { displaySettings = { ...SETTINGS_DEFAULTS }; }
+    const aiToggle = $('showGeminiNoteToggle');
+    const modeSelect = $('defaultWordDisplayMode');
+    if (aiToggle) aiToggle.checked = Boolean(displaySettings.showGeminiNote);
+    if (modeSelect) modeSelect.value = displaySettings.defaultDisplayMode || 'word';
+    const detailMode = $('wordDisplayMode');
+    if (detailMode) { detailMode.value = displaySettings.defaultDisplayMode || 'word'; detailMode.dataset.ready = 'true'; }
+}
+function saveDisplaySettings() {
+    displaySettings = {
+        showGeminiNote: $('showGeminiNoteToggle') ? $('showGeminiNoteToggle').checked : displaySettings.showGeminiNote,
+        defaultDisplayMode: $('defaultWordDisplayMode') ? $('defaultWordDisplayMode').value : displaySettings.defaultDisplayMode
+    };
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(displaySettings));
+    const detailMode = $('wordDisplayMode');
+    if (detailMode) { detailMode.value = displaySettings.defaultDisplayMode; detailMode.dataset.ready = 'true'; }
+    renderCurrentWordDetails();
+}
+function showAuxPanel(panelId, screen, recordHistory = true) {
+    if (recordHistory) recordAppNavigation(screen);
+    ['viewMode','editMode','managePanelMode','pastePanelMode','wordListMode','settingsPanelMode','toolsPanelMode','formatPanelMode'].forEach(id => {
+        if ($(id)) $(id).style.display = 'none';
+    });
+    $(panelId).style.display = 'block';
+}
+async function showSettingsPanel(recordHistory = true) {
+    showAuxPanel('settingsPanelMode', 'settings', recordHistory);
+    loadDisplaySettings();
+    const input = $('dataSavePath'), status = $('dataPathStatus');
+    if (!input) return;
+    try {
+        const response = await fetch('/api/data-path', { cache: 'no-store' });
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        const data = await response.json();
+        input.value = data.path || '';
+        if (status) status.textContent = data.path ? '現在の保存先を読み込みました。' : '標準の保存先を使用中です。';
+    } catch (_) {
+        if (status) status.textContent = '保存先変更は Python ランチャーで起動した場合に利用できます。';
+    }
+}
+async function saveDataPath() {
+    const input = $('dataSavePath'), status = $('dataPathStatus');
+    const path = input ? input.value.trim() : '';
+    if (!path) { if (status) status.textContent = '保存先の絶対パスを入力してください。'; return; }
+    if (status) status.textContent = '保存先を変更しています…';
+    try {
+        const response = await fetch('/api/data-path', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json; charset=utf-8' },
+            body: JSON.stringify({ path, data: serializeNangoDocument() })
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || ('HTTP ' + response.status));
+        if (status) status.textContent = '保存先を変更しました: ' + result.path;
+        showStorageStatus('指定した JSON ファイルに保存', false);
+    } catch (error) {
+        if (status) status.textContent = '変更できませんでした: ' + error.message;
+    }
+}
+function buildTagPromptContext() {
+    const categoryTags = unique(wordData.flatMap(getWordCategoryTags)).sort((a,b)=>a.localeCompare(b,'ja'));
+    const fieldTags = unique(wordData.flatMap(word => word.meanings.flatMap(meaning => meaning.fieldTag || []))).sort((a,b)=>a.localeCompare(b,'ja'));
+    const eraTags = unique(wordData.map(word => word.eraTag).filter(Boolean)).sort((a,b)=>a.localeCompare(b,'ja'));
+    return [
+        'タグ運用規則',
+        '分類タグ: 言葉そのものの種類・由来・形式を表す。個々の意味がどの分野で使われるかとは独立して判断する。単語ごとに最大3個。',
+        '分野タグ: その単語の特定の意味が使われる状況・領域を表し、単語全体ではなく meanings の各要素に付与する。意味あたり最大2個。',
+        '時代タグ: 主に成立・使用される時代区分を単語単位で表す。',
+        'その他タグ: 単語に表示するハッシュタグ。分類・分野・時代タグの代用にしない。',
+        '',
+        '既存の分類タグ: ' + (categoryTags.join('、') || '（なし）'),
+        '既存の分野タグ: ' + (fieldTags.join('、') || '（なし）'),
+        '既存の時代タグ: ' + (eraTags.join('、') || '（なし）'),
+        '',
+        'まず既存タグが適合するか確認する。新しい語で既存分類が合わない場合のみ、新しいタグ候補を提案する。似たタグを安易に増やさず、意味が異なる場合は既存タグの範囲を無理に広げない。'
+    ].join('\n');
+}
+function showToolsPanel(recordHistory = true) {
+    showAuxPanel('toolsPanelMode', 'tools', recordHistory);
+    const meanings = wordData.reduce((count, word) => count + word.meanings.length, 0);
+    const categories = unique(wordData.flatMap(getWordCategoryTags)).length;
+    const fields = unique(wordData.flatMap(word => word.meanings.flatMap(meaning => meaning.fieldTag || []))).length;
+    const eras = unique(wordData.map(word => word.eraTag).filter(Boolean)).length;
+    $('toolsStats').innerHTML = [
+        ['単語数', wordData.length], ['意味の数', meanings], ['分類タグ', categories], ['分野タグ', fields], ['時代タグ', eras]
+    ].map(([label,value]) => '<div class="stat-card"><span class="stat-value">' + value + '</span><span class="stat-label">' + label + '</span></div>').join('');
+    $('tagPromptContext').value = buildTagPromptContext();
+}
+async function copyTagPromptContext() {
+    const input = $('tagPromptContext');
+    if (!input) return;
+    input.value = buildTagPromptContext();
+    try {
+        await navigator.clipboard.writeText(input.value);
+        alert('タグ運用規則と既存タグ一覧をコピーしました。');
+    } catch (_) {
+        input.focus(); input.select();
+        const ok = document.execCommand('copy');
+        alert(ok ? 'タグ運用規則と既存タグ一覧をコピーしました。' : 'テキストを選択しました。手動でコピーしてください。');
+    }
+}
+function showFormatPanel(recordHistory = true) {
+    showAuxPanel('formatPanelMode', 'format', recordHistory);
+    renderFormatViewer();
+}
+function setFormatMode(mode) {
+    formatMode = mode === 'raw' ? 'raw' : 'readable';
+    $('formatRawBtn')?.classList.toggle('active', formatMode === 'raw');
+    $('formatReadableBtn')?.classList.toggle('active', formatMode === 'readable');
+    renderFormatViewer();
+}
+function appendJsonTree(parent, key, value) {
+    const node = document.createElement('div'); node.className = 'json-node';
+    const label = document.createElement('span'); label.className = 'json-key'; label.textContent = key;
+    node.appendChild(label);
+    if (value && typeof value === 'object') {
+        const child = document.createElement('div'); child.className = 'json-children';
+        const entries = Array.isArray(value) ? value.map((item,index)=>[String(index),item]) : Object.entries(value);
+        if (!entries.length) { const empty = document.createElement('span'); empty.className='json-scalar'; empty.textContent=Array.isArray(value)?' []':' {}'; node.appendChild(empty); }
+        for (const [childKey, childValue] of entries) appendJsonTree(child, childKey, childValue);
+        node.appendChild(child);
+    } else {
+        const scalar = document.createElement('span'); scalar.className = 'json-scalar';
+        scalar.textContent = ': ' + (typeof value === 'string' ? JSON.stringify(value) : String(value));
+        node.appendChild(scalar);
+    }
+    parent.appendChild(node);
+}
+async function renderFormatViewer() {
+    const selected = $('dtFormatSelect') ? $('dtFormatSelect').value : 'schema';
+    const status = $('dtFormatStatus'), raw = $('dtFormatRaw'), readable = $('dtFormatReadable');
+    try {
+        let value;
+        if (selected === 'current') value = serializeNangoDocument();
+        else if (Object.prototype.hasOwnProperty.call(formatDataCache, selected)) value = formatDataCache[selected];
+        else {
+            const response = await fetch('/api/format?name=' + encodeURIComponent(selected), { cache: 'no-store' });
+            if (!response.ok) throw new Error('HTTP ' + response.status);
+            value = await response.json();
+            formatDataCache[selected] = value;
+        }
+        const textValue = JSON.stringify(value, null, 2);
+        raw.textContent = textValue;
+        readable.replaceChildren();
+        appendJsonTree(readable, selected === 'current' ? '現在のデータ' : selected, value);
+        raw.style.display = formatMode === 'raw' ? 'block' : 'none';
+        readable.style.display = formatMode === 'readable' ? 'block' : 'none';
+        if (status) status.textContent = '読み取り専用です。表示中: ' + ({schema:'JSON Schema',instruction:'AI指示',template:'テンプレート',current:'現在のデータ'}[selected] || selected);
+    } catch (error) {
+        raw.style.display = 'none'; readable.style.display = 'block'; readable.textContent = '';
+        const message = document.createElement('p'); message.textContent = 'DT-FMT の読み込みに失敗しました: ' + error.message; readable.appendChild(message);
+        if (status) status.textContent = 'Pythonランチャー経由のローカル起動を確認してください。';
+    }
 }
 
 // Expose small pure helpers for browser console/manual tests.
