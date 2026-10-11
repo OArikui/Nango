@@ -915,13 +915,29 @@ function mergeList(target, incoming) { return unique([...asStringArray(target), 
 function mergeWord(existing, incoming) {
     const merged = { ...existing };
     const conflicts = [];
-    for (const field of ['category', 'eraTag', 'reading', 'kanji', 'english', 'column', 'memo', 'gemini_note']) {
+    for (const field of ['category', 'eraTag', 'reading', 'kanji', 'english', 'pronunciation', 'column', 'memo', 'gemini_note']) {
         const oldValue = asString(existing[field]);
         const newValue = asString(incoming[field]);
         if (!newValue || newValue === oldValue) continue;
         if (!oldValue) merged[field] = newValue;
         else conflicts.push({ field, oldValue, newValue });
     }
+    // Classification tags are independent of meaning-level domain tags.
+    const currentCategories = getWordCategoryTags(existing);
+    const incomingCategories = getWordCategoryTags(incoming);
+    let mergedCategories = mergeList(currentCategories, incomingCategories);
+    if (mergedCategories.length > 3) {
+        const useIncomingFirst = confirm(
+            '分類タグのマージ候補が3個を超えています。最大3個に収める必要があります。\\n\\n候補: ' +
+            mergedCategories.join('、') +
+            '\\n\\nOK: 取込データの分類タグを優先\\nキャンセル: 現在の分類タグを優先'
+        );
+        mergedCategories = (useIncomingFirst
+            ? mergeList(incomingCategories, currentCategories)
+            : mergeList(currentCategories, incomingCategories)).slice(0, 3);
+    }
+    merged.categoryTags = mergedCategories;
+    merged.category = mergedCategories[0] || '指定なし';
     // Word name variants are useful: preserve the existing display title and add incoming spelling to other_tags.
     if (normalizeText(existing.word) !== normalizeText(incoming.word)) merged.other_tags = mergeList(merged.other_tags, [incoming.word]);
     merged.other_tags = mergeList(merged.other_tags, incoming.other_tags);
