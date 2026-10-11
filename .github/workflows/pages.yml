@@ -1,0 +1,40 @@
+name: Deploy Nango-neo to GitHub Pages
+
+on:
+  push:
+    branches: [NEO]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build site
+        run: |
+          mkdir -p _site
+          cp -r Nango-neo/* _site/
+          # 一番新しい Nango-neo.vXX.X.X.html を index.html として配信する
+          LATEST=$(ls Nango-neo/Nango-neo.v*.html | sort -V | tail -1)
+          cp "$LATEST" _site/index.html
+          touch _site/.nojekyll
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
