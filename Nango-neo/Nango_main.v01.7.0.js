@@ -912,6 +912,14 @@ function findDuplicateIndex(incoming, existing) {
     return existing.findIndex(word => [...wordIdentities(word)].some(identity => incomingIds.has(identity)));
 }
 function mergeList(target, incoming) { return unique([...asStringArray(target), ...asStringArray(incoming)]); }
+function mergeLimitedTags(existing, incoming, limit, label) {
+    const current = mergeList(existing, []);
+    const added = mergeList([], incoming);
+    const combined = mergeList(current, added);
+    if (combined.length <= limit) return combined;
+    const preferIncoming = confirm(label + ' のマージ候補が上限 ' + limit + ' 個を超えています。\\n\\n候補: ' + combined.join('、') + '\\n\\nOK: 取込データのタグを優先\\nキャンセル: 現在のタグを優先');
+    return (preferIncoming ? mergeList(added, current) : mergeList(current, added)).slice(0, limit);
+}
 function mergeWord(existing, incoming) {
     const merged = { ...existing };
     const conflicts = [];
@@ -923,19 +931,7 @@ function mergeWord(existing, incoming) {
         else conflicts.push({ field, oldValue, newValue });
     }
     // Classification tags are independent of meaning-level domain tags.
-    const currentCategories = getWordCategoryTags(existing);
-    const incomingCategories = getWordCategoryTags(incoming);
-    let mergedCategories = mergeList(currentCategories, incomingCategories);
-    if (mergedCategories.length > 3) {
-        const useIncomingFirst = confirm(
-            '分類タグのマージ候補が3個を超えています。最大3個に収める必要があります。\\n\\n候補: ' +
-            mergedCategories.join('、') +
-            '\\n\\nOK: 取込データの分類タグを優先\\nキャンセル: 現在の分類タグを優先'
-        );
-        mergedCategories = (useIncomingFirst
-            ? mergeList(incomingCategories, currentCategories)
-            : mergeList(currentCategories, incomingCategories)).slice(0, 3);
-    }
+    const mergedCategories = mergeLimitedTags(getWordCategoryTags(existing), getWordCategoryTags(incoming), 3, '分類タグ');
     merged.categoryTags = mergedCategories;
     merged.category = mergedCategories[0] || '指定なし';
     // Word name variants are useful: preserve the existing display title and add incoming spelling to other_tags.
@@ -949,7 +945,7 @@ function mergeWord(existing, incoming) {
                 if (!exact[field]) exact[field] = incomingMeaning[field];
                 else if (incomingMeaning[field] && normalizeText(exact[field]) !== normalizeText(incomingMeaning[field])) conflicts.push({ field: `意味「${exact.definition}」の${field}`, oldValue: exact[field], newValue: incomingMeaning[field], meaning: exact });
             }
-            exact.fieldTag = mergeList(exact.fieldTag, incomingMeaning.fieldTag);
+            exact.fieldTag = mergeLimitedTags(exact.fieldTag, incomingMeaning.fieldTag, 2, '意味「' + exact.definition + '」の分野タグ');
             exact.examples = mergeList(exact.examples, incomingMeaning.examples);
             exact.synonyms = mergeList(exact.synonyms, incomingMeaning.synonyms);
         } else meanings.push(clone(incomingMeaning));
