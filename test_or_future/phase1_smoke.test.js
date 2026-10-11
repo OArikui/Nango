@@ -127,9 +127,9 @@ assert.equal(api.getInitial({ word: 'カタカナ' }), 'カ', 'katakana words gr
 assert.equal(api.getInitial({ word: '漢字', reading: 'かんじ' }), '漢字', 'kanji words use the shared kanji group rather than their reading');
 assert.equal(api.getInitial({ word: '#tag' }), '記号・その他', 'symbols share the symbol-and-other group');
 assert.equal(api.getWordListGroupLabel({ word: '漢字' }, 'word'), '漢字', 'word-sort groups use headword character classes');
-assert.match(html, /data-column-sort="fieldTags">分野タグ/, 'domain tags have their own word-list column');
-assert.match(html, /data-column-sort="eraTag">時代タグ/, 'era tags have their own word-list column');
-assert.match(html, /data-column-sort="other">その他タグ/, 'other tags remain separately visible');
+assert.match(source, /data-column-sort="fieldTags">分野タグ/, 'domain tags have their own word-list column');
+assert.match(source, /data-column-sort="eraTag">時代タグ/, 'era tags have their own word-list column');
+assert.match(source, /data-column-sort="other">その他タグ/, 'other tags remain separately visible');
 assert.match(html, /onclick="showFormatPanel\(\)">DT-FMT定義を確認/, 'DT-FMT is accessible from settings');
 assert.match(css, /\.toolbar::after \{ display: none; \}/, 'the redundant lower toolbar separator is removed');
 assert.match(css, /--nango-sticky-group-top/, 'group headings stay visible during table scrolling');

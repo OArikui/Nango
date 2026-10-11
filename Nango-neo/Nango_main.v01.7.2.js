@@ -456,10 +456,10 @@ function getInitial(word, source = 'word') {
     const value = Array.from(asString(rawValue).trim().normalize('NFKC'))[0] || '';
     if (!value) return '記号・その他';
     if (/^[A-Za-z]$/.test(value)) return value.toLocaleUpperCase('en');
-    if (/^[0-9]$/.test(value)) return value;
+    if (/^\p{Decimal_Number}$/u.test(value)) return value;
     if (/^[\u3040-\u309F]$/u.test(value)) return value;
     if (/^[\u30A0-\u30FF\u31F0-\u31FF]$/u.test(value)) return value;
-    if (/^[\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF]$/u.test(value)) return '漢字';
+    if (/^\p{Script=Han}$/u.test(value)) return '漢字';
     return '記号・その他';
 }
 function formatDate(value) {
@@ -1309,6 +1309,11 @@ function renderWordList() {
             jump.appendChild(link);
         });
     }
+    const categoryTagsHtml = word => {
+        const tags = getWordCategoryTags(word);
+        const html = tags.map(tag => '<button type="button" class="custom-tag tag-link" data-tag-type="categoryTags" data-tag-value="' + escapeHtml(tag) + '">' + escapeHtml(tag) + '</button>').join('');
+        return '<div class="word-list-tags">' + (html || '指定なし') + '</div>';
+    };
     const fieldTagsHtml = word => {
         const tags = unique(word.meanings.flatMap(meaning => meaning.fieldTag || []));
         const html = tags.map(tag => '<button type="button" class="custom-tag tag-field tag-link" data-tag-type="fieldTag" data-tag-value="' + escapeHtml(tag) + '">' + escapeHtml(tag) + '</button>').join('');
@@ -1331,7 +1336,7 @@ function renderWordList() {
             rows += '<tr>' +
                 '<td><button class="word-list-open" type="button" data-word-id="' + word.id + '">' + escapeHtml(word.word) + '</button></td>' +
                 '<td>' + escapeHtml(word.reading || '—') + '</td>' +
-                '<td>' + escapeHtml(getWordCategoryTags(word).join(' / ') || '指定なし') + '</td>' +
+                '<td>' + categoryTagsHtml(word) + '</td>' +
                 '<td>' + fieldTagsHtml(word) + '</td>' +
                 '<td>' + eraTagHtml(word) + '</td>' +
                 '<td>' + otherTagsHtml(word) + '</td>' +
