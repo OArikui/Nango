@@ -1,0 +1,44 @@
+name: Nango-NEO smoke checks
+
+on:
+  push:
+    branches:
+      - NEO
+      - neo.v2.7.0-review
+  pull_request:
+    branches:
+      - NEO
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Run data and UI smoke tests
+        run: node test_or_future/phase1_smoke.test.js
+      - name: Compile Python launcher
+        run: python -m py_compile run.py
+      - name: Validate DT-FMT JSON files
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          paths = [
+              Path("Nango-neo/DTformats.neo.v5.15/DF-FMT_schema.v01.15.json"),
+              Path("Nango-neo/DTformats.neo.v5.15/DT-FMT_instruction_AI.v01.15.json"),
+              Path("Nango-neo/DTformats.neo.v5.15/DT-FMT_template.v02.15.json"),
+          ]
+          for path in paths:
+              json.loads(path.read_text(encoding="utf-8"))
+              print(f"Valid JSON: {path}")
+          PY
