@@ -213,7 +213,7 @@ function normalizeFieldTags(value) {
 }
 
 function normalizeCategoryTags(value, fallback = '') {
-    const candidate = Array.isArray(value) ? value : (typeof value === 'string' && value.trim() ? value.split(/[,，、\\n]/) : []);
+    const candidate = Array.isArray(value) ? value : (typeof value === 'string' && value.trim() ? value.split(/[,，、\n]/) : []);
     const normalized = unique(candidate.map(asString));
     return normalized.length ? normalized : (asString(fallback).trim() ? [asString(fallback).trim()] : []);
 }
@@ -417,7 +417,7 @@ ${error.message}
     refreshOpenState();
     currentWordId = wordData.length ? wordData[0].id : -1;
     renderSidebarTree();
-    showViewMode();
+    if (wordData.length) showTodaysWord(); else showViewMode();
     if (serverStorageAvailable) showStorageStatus('ローカルファイル保存を使用中');
 }
 
@@ -583,7 +583,7 @@ function renderSidebarTree() {
     const processed = getProcessedWords();
     if (!processed.length) {
         container.innerHTML = '<div class="empty-message">該当する単語はありません</div>';
-        $('exportBtn').disabled = wordData.length === 0;
+        if ($('exportBtn')) $('exportBtn').disabled = wordData.length === 0;
         return;
     }
     const appendWord = (parent, word) => {
@@ -830,7 +830,7 @@ function showNewForm() {
     recordAppNavigation('new');
     isNewWord = true;
     $('formTitle').textContent = '新規単語追加';
-    $('viewMode').style.display = 'none'; $('managePanelMode').style.display = 'none'; $('pastePanelMode').style.display = 'none'; $('wordListMode').style.display = 'none'; $('editMode').style.display = 'block';
+    $('viewMode').style.display = 'none'; $('managePanelMode').style.display = 'none'; $('pastePanelMode').style.display = 'none'; $('wordListMode').style.display = 'none'; $('settingsPanelMode').style.display = 'none'; $('toolsPanelMode').style.display = 'none'; $('formatPanelMode').style.display = 'none'; $('editMode').style.display = 'block';
     populateEditor({ word: '', category: '指定なし', categoryTags: ['指定なし'], eraTag: '', reading: '', kanji: '', english: '', pronunciation: '', column: '', memo: '', gemini_note: '', other_tags: [], meanings: [{}] });
 }
 function cancelEdit() { showViewMode(); }
