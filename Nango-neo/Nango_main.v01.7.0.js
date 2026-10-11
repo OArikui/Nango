@@ -5,6 +5,8 @@
 'use strict';
 
 const STORAGE_KEY = 'nango_data';
+const SETTINGS_KEY = 'nango_settings_v270';
+const SETTINGS_DEFAULTS = { showGeminiNote: true, defaultDisplayMode: 'word' };
 const LOCAL_DATA_API = '/api/data';
 let serverSaveQueue = Promise.resolve();
 let serverStorageAvailable = false;
@@ -74,7 +76,7 @@ let currentWordId = -1;
 let isNewWord = false;
 let searchQuery = '';
 let currentSort = 'id';
-let currentHierarchy = 'category';
+let currentHierarchy = 'fieldTag';
 let openCategories = {};
 let pastePanelOpen = false;
 let meaningClipboard = null;
@@ -84,6 +86,12 @@ let appNavigationIndex = -1;
 let restoringNavigation = false;
 const tagTableSortState = {};
 let wordListColumnSort = { key: null, direction: 'asc' };
+let selectedCategoryFilters = [];
+let wordListSelectedCategories = [];
+let groupDisplayEnabled = true;
+let displaySettings = { ...SETTINGS_DEFAULTS };
+let formatMode = 'readable';
+const formatDataCache = {};
 
 function currentScreenSnapshot(screen, extra = {}) {
     return {
@@ -198,6 +206,12 @@ function normalizeFieldTags(value) {
     return unique(source.flatMap(item => asString(item).split(/[・,，、\n]/)));
 }
 
+function normalizeCategoryTags(value, fallback = '') {
+    const candidate = Array.isArray(value) ? value : (typeof value === 'string' && value.trim() ? value.split(/[,，、\\n]/) : []);
+    const normalized = unique(candidate.map(asString));
+    return normalized.length ? normalized : (asString(fallback).trim() ? [asString(fallback).trim()] : []);
+}
+
 function normalizeMeaning(raw = {}) {
     return {
         definition: asString(raw.definition),
@@ -257,11 +271,13 @@ function normalizeWord(raw = {}, key = '') {
         id: Number.isInteger(item.id) && item.id > 0 ? item.id : 0,
         datetime: isRfc3339DateTime(item.datetime) ? asString(item.datetime) : nowIso(),
         word,
-        category: asString(item.category).trim() || '指定なし',
+        category: normalizeCategoryTags(item.categoryTags, item.category)[0] || '指定なし',
+        categoryTags: normalizeCategoryTags(item.categoryTags, item.category),
         eraTag: asString(item.eraTag),
         reading: asString(item.reading),
         kanji: asString(item.kanji),
         english: asString(item.english),
+        pronunciation: asString(item.pronunciation),
         column: asString(item.column),
         memo: asString(item.memo),
         gemini_note: asString(item.gemini_note),
@@ -306,12 +322,13 @@ function parseNangoDocument(documentValue) {
 
 function validateCanonicalWord(wordName, raw) {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error(`「${wordName}」のデータはオブジェクトである必要があります。`);
-    const stringFields = ['datetime', 'category', 'eraTag', 'reading', 'kanji', 'english', 'column', 'memo', 'gemini_note'];
+    const stringFields = ['datetime', 'category', 'eraTag', 'reading', 'kanji', 'english', 'pronunciation', 'column', 'memo', 'gemini_note'];
     for (const field of stringFields) {
         if (raw[field] !== undefined && typeof raw[field] !== 'string') throw new Error(`「${wordName}」の ${field} は文字列である必要があります。`);
     }
     if (raw.id !== undefined && (!Number.isInteger(raw.id) || raw.id < 1)) throw new Error(`「${wordName}」の id は1以上の整数である必要があります。`);
     if (raw.datetime !== undefined && !isRfc3339DateTime(raw.datetime)) throw new Error(`「${wordName}」の datetime は RFC 3339形式である必要があります。`);
+    if (raw.categoryTags !== undefined && (!Array.isArray(raw.categoryTags) || !raw.categoryTags.every(value => typeof value === 'string'))) throw new Error(`「${wordName}」の categoryTags は文字列配列である必要があります。`);
     if (raw.other_tags !== undefined && (!Array.isArray(raw.other_tags) || !raw.other_tags.every(value => typeof value === 'string'))) {
         throw new Error(`「${wordName}」の other_tags は文字列配列である必要があります。`);
     }
@@ -331,6 +348,7 @@ function validateCanonicalWord(wordName, raw) {
 }
 
 function validateWord(word) {
+    if (!Array.isArray(word.categoryTags || []) || !(word.categoryTags || []).every(value => typeof value === 'string')) throw new Error(`「${word.word}」の分類タグは文字列配列である必要があります。`);
     if (!word.word.trim()) throw new Error('単語名は必須です。');
     if (!Array.isArray(word.meanings) || word.meanings.length === 0) throw new Error(`「${word.word}」には意味が1つ以上必要です。`);
     for (let i = 0; i < word.meanings.length; i++) {
@@ -376,19 +394,20 @@ async function initApp() {
             additionalData = parsed.additional_data;
             try { saveToLocalStorage(); } catch (saveError) { console.warn('保存データの形式変換を保存できませんでした:', saveError); }
         } else {
-            wordData = reassignIds(clone(defaultData));
+            wordData = reassignIds(clone(defaultData).map(word => ({ ...word, categoryTags: normalizeCategoryTags(word.categoryTags, word.category) })));
             additionalData = [];
             saveToLocalStorage();
         }
     } catch (error) {
         console.error('Nangoデータの読み込みに失敗しました:', error);
-        wordData = reassignIds(clone(defaultData));
+        wordData = reassignIds(clone(defaultData).map(word => ({ ...word, categoryTags: normalizeCategoryTags(word.categoryTags, word.category) })));
         additionalData = [];
         try { saveToLocalStorage(); } catch (saveError) { console.error('初期データを保存できません:', saveError); }
         alert(`保存データを読み込めなかったため、初期データで起動しました。
 ${error.message}
 必要であれば、保存ファイルをバックアップしてください。`);
     }
+    loadDisplaySettings();
     refreshOpenState();
     currentWordId = wordData.length ? wordData[0].id : -1;
     renderSidebarTree();
