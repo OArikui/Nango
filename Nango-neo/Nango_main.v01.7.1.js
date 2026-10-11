@@ -1375,6 +1375,7 @@ function renderWordList() {
         jumpMenu.style.top = top + 'px';
         jumpMenu.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - menuWidth - 8)) + 'px';
     }));
+}
 
 function showTodaysWord() {
     if (!wordData.length) { alert('辞書に単語がありません。'); return; }
