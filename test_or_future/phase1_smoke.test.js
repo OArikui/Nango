@@ -4,15 +4,15 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const root = path.join(__dirname, '..');
-const jsPath = path.join(root, 'Nango-neo', 'Nango_main.v01.7.1.js');
-const htmlPath = path.join(root, 'Nango-neo', 'Nango-neo.v02.7.1.html');
-const cssPath = path.join(root, 'Nango-neo', 'style.v02.7.1.css');
+const jsPath = path.join(root, 'Nango-neo', 'Nango_main.v01.7.2.js');
+const htmlPath = path.join(root, 'Nango-neo', 'Nango-neo.v02.7.2.html');
+const cssPath = path.join(root, 'Nango-neo', 'style.v02.7.2.css');
 const schemaPath = path.join(root, 'Nango-neo', 'DTformats.neo.v5.15', 'DF-FMT_schema.v01.15.json');
 const instructionPath = path.join(root, 'Nango-neo', 'DTformats.neo.v5.15', 'DT-FMT_instruction_AI.v01.15.json');
 
 let source = fs.readFileSync(jsPath, 'utf8');
 source = source.replace(/\/\/ Expose small pure helpers for browser console\/manual tests\.[\s\S]*$/, '');
-const api = new Function(source + '\nreturn { parseNangoDocument, serializeNangoDocument, normalizeWord, normalizeCategoryTags, normalizeMeaning, validateWord, findDuplicateIndex, mergeWord, reassignIds };')();
+const api = new Function(source + '\nreturn { parseNangoDocument, serializeNangoDocument, normalizeWord, normalizeCategoryTags, normalizeMeaning, validateWord, findDuplicateIndex, mergeWord, reassignIds, getInitial, getWordListGroupLabel };')();
 
 const canonical = {
   words: {
@@ -108,9 +108,9 @@ const html = fs.readFileSync(htmlPath, 'utf8');
 const css = fs.readFileSync(cssPath, 'utf8');
 const schema = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
 const instructions = JSON.parse(fs.readFileSync(instructionPath, 'utf8'));
-assert.match(html, /NANGO-NEO <strong>v2\.7\.1<\/strong>/, 'HTML version is updated');
-assert.match(html, /Nango_main\.v01\.7\.1\.js/, 'HTML references the versioned JavaScript');
-assert.match(html, /style\.v02\.7\.1\.css/, 'HTML references the versioned stylesheet');
+assert.match(html, /NANGO-NEO <strong>v2\.7\.2<\/strong>/, 'HTML version is updated');
+assert.match(html, /Nango_main\.v01\.7\.2\.js/, 'HTML references the versioned JavaScript');
+assert.match(html, /style\.v02\.7\.2\.css/, 'HTML references the versioned stylesheet');
 assert.match(html, /id="wordListAlphabetJump"/, 'word list includes initial navigation');
 assert.match(html, /id="formatPanelMode"/, 'read-only DT-FMT view is included');
 assert.match(css, /\.section-block-ai/, 'AI note has a distinct style');
@@ -119,6 +119,21 @@ assert.equal(schema.$defs.meaning.properties.fieldTag.maxItems, 2, 'schema caps 
 assert.match(instructions['//comment_classification'], /分類タグは/,'AI instructions define classification tags');
 assert.match(instructions['//comment_classification'], /分野タグは/,'AI instructions separate domain tags');
 assert.match(instructions['//comment_tags'], /ハッシュタグ/,'AI instructions separate other hashtag tags');
+
+assert.equal(api.getInitial({ word: 'Alpha', reading: 'あるふぁ' }), 'A', 'Latin initials are grouped one letter at a time');
+assert.equal(api.getInitial({ word: '２番' }), '2', 'full-width digits normalize to individual numeric groups');
+assert.equal(api.getInitial({ word: 'あいう' }), 'あ', 'hiragana words group by the first character');
+assert.equal(api.getInitial({ word: 'カタカナ' }), 'カ', 'katakana words group by the first character');
+assert.equal(api.getInitial({ word: '漢字', reading: 'かんじ' }), '漢字', 'kanji words use the shared kanji group rather than their reading');
+assert.equal(api.getInitial({ word: '#tag' }), '記号・その他', 'symbols share the symbol-and-other group');
+assert.equal(api.getWordListGroupLabel({ word: '漢字' }, 'word'), '漢字', 'word-sort groups use headword character classes');
+assert.match(html, /data-column-sort="fieldTags">分野タグ/, 'domain tags have their own word-list column');
+assert.match(html, /data-column-sort="eraTag">時代タグ/, 'era tags have their own word-list column');
+assert.match(html, /data-column-sort="other">その他タグ/, 'other tags remain separately visible');
+assert.match(html, /onclick="showFormatPanel\(\)">DT-FMT定義を確認/, 'DT-FMT is accessible from settings');
+assert.match(css, /\.toolbar::after \{ display: none; \}/, 'the redundant lower toolbar separator is removed');
+assert.match(css, /--nango-sticky-group-top/, 'group headings stay visible during table scrolling');
+assert.match(css, /\.sidebar-filter-zone/, 'sidebar tag search sits under the search box');
 
 assert.match(source, /function toggleCategoryFilterPopup\(/, 'sidebar classification filtering is implemented');
 assert.match(source, /function renderWordListCategoryFilters\(/, 'word list category filtering is implemented');
@@ -134,4 +149,4 @@ assert.match(source, /data-jump-group/, 'group jump menu targets another group')
 assert.match(source, /function setHierarchyStructure[\s\S]*setGroupDisplay\(true\)/, 'setting a hierarchy automatically enables grouping');
 assert.match(css, /\.toolbar\s*\{[^}]*position:\s*sticky/s, 'toolbar remains visible while scrolling');
 assert.match(css, /\.filter-popover\s*\{[^}]*position:\s*absolute/s, 'filter popovers do not shift page layout');
-console.log('Nango-NEO v2.7.1 smoke tests passed.');
+console.log('Nango-NEO v2.7.2 smoke tests passed.');
