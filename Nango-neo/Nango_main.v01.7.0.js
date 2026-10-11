@@ -143,7 +143,7 @@ function restoreAppNavigation(state) {
         $('editMode').style.display = 'block';
     } else if (state.screen === 'new') {
         isNewWord = true; $('formTitle').textContent = '新規単語追加';
-        populateEditor({ word: '', category: '指定なし', eraTag: '', reading: '', kanji: '', english: '', column: '', memo: '', gemini_note: '', other_tags: [], meanings: [{}] });
+        populateEditor({ word: '', category: '指定なし', categoryTags: ['指定なし'], eraTag: '', reading: '', kanji: '', english: '', pronunciation: '', column: '', memo: '', gemini_note: '', other_tags: [], meanings: [{}] });
         $('editMode').style.display = 'block';
     } else if (state.screen === 'manage') {
         $('managePanelMode').style.display = 'block'; renderTagManagementTables();
@@ -743,7 +743,7 @@ function renderMeaningEditor(meaning = {}, index = 0) {
         <div class="form-group"><label>意味・定義 *必須</label><textarea class="form-control meaning-definition" required>${escapeHtml(normalized.definition)}</textarea></div>
         <div class="form-group"><label>背景 / 由来</label><textarea class="form-control meaning-background">${escapeHtml(normalized.background)}</textarea></div>
         <div class="form-group"><label>ニュアンス</label><textarea class="form-control meaning-nuance">${escapeHtml(normalized.nuance)}</textarea></div>
-        <div class="form-group"><label>分野タグ（タグごとに入力。カンマ・中点「・」・改行で区切り）</label><input class="form-control meaning-fieldTag" value="${escapeHtml(normalized.fieldTag.join(', '))}"></div>
+        <div class="form-group"><label>分野タグ（この意味に最大2個。カンマ・中点「・」・改行で区切り）</label><input class="form-control meaning-fieldTag" value="${escapeHtml(normalized.fieldTag.join(', '))}"></div>
         <div class="form-group"><label>例文（1行に1文）</label><textarea class="form-control meaning-examples">${escapeHtml(normalized.examples.join('\n'))}</textarea></div>
         <div class="form-group"><label>類義語（カンマ、読点、改行区切り）</label><textarea class="form-control meaning-synonyms">${escapeHtml(normalized.synonyms.join('\n'))}</textarea></div>`;
     section.querySelectorAll('[data-action]').forEach(button => {
@@ -798,11 +798,12 @@ function handleMeaningAction(card, action) {
 
 function populateEditor(word) {
     $('editWord').value = word.word || '';
-    $('editCategory').value = word.category || '指定なし';
+    $('editCategory').value = getWordCategoryTags(word).join(', ') || '指定なし';
     $('editEraTag').value = word.eraTag || '';
     $('editReading').value = word.reading || '';
     $('editKanji').value = word.kanji || '';
     $('editEnglish').value = word.english || '';
+    $('editPronunciation').value = word.pronunciation || '';
     $('editColumn').value = word.column || '';
     $('editMemo').value = word.memo || '';
     $('editGeminiNote').value = word.gemini_note || '';
@@ -824,7 +825,7 @@ function showNewForm() {
     isNewWord = true;
     $('formTitle').textContent = '新規単語追加';
     $('viewMode').style.display = 'none'; $('managePanelMode').style.display = 'none'; $('pastePanelMode').style.display = 'none'; $('wordListMode').style.display = 'none'; $('editMode').style.display = 'block';
-    populateEditor({ word: '', category: '指定なし', eraTag: '', reading: '', kanji: '', english: '', column: '', memo: '', gemini_note: '', other_tags: [], meanings: [{}] });
+    populateEditor({ word: '', category: '指定なし', categoryTags: ['指定なし'], eraTag: '', reading: '', kanji: '', english: '', pronunciation: '', column: '', memo: '', gemini_note: '', other_tags: [], meanings: [{}] });
 }
 function cancelEdit() { showViewMode(); }
 
@@ -833,10 +834,13 @@ function collectEditorWord() {
     if (!wordName) throw new Error('単語（表記）は必須入力です。');
     const meanings = readMeaningEditors();
     if (!meanings.length || meanings.some(meaning => !meaning.definition)) throw new Error('各意味の「意味・定義」は必須入力です。');
+    const categoryTags = normalizeCategoryTags($('editCategory').value, '指定なし');
+    if (categoryTags.length > 3) throw new Error('分類タグは単語ごとに最大3個までです。');
+    if (meanings.some(meaning => meaning.fieldTag.length > 2)) throw new Error('分野タグは意味ごとに最大2個までです。');
     const collected = {
-        word: wordName, id: 0, datetime: nowIso(), category: $('editCategory').value || '指定なし',
+        word: wordName, id: 0, datetime: nowIso(), category: categoryTags[0] || '指定なし', categoryTags,
         eraTag: $('editEraTag').value.trim(), reading: $('editReading').value.trim(),
-        kanji: $('editKanji').value.trim(), english: $('editEnglish').value.trim(),
+        kanji: $('editKanji').value.trim(), english: $('editEnglish').value.trim(), pronunciation: $('editPronunciation').value.trim(),
         column: $('editColumn').value.trim(), memo: $('editMemo').value.trim(),
         gemini_note: $('editGeminiNote').value.trim(), other_tags: splitList($('editOtherTags').value), meanings
     };
@@ -1003,9 +1007,9 @@ function exportJSON() {
 function resetToDefault() {
     if (!confirm('辞書を初期データに戻しますか？\n追加・編集したデータは失われます。先にエクスポートしてください。')) return;
     wordData = reassignIds(clone(defaultData)); additionalData = []; currentWordId = wordData[0]?.id ?? -1;
-    currentSort = 'id'; currentHierarchy = 'category'; searchQuery = ''; $('searchInput').value = '';
+    currentSort = 'id'; currentHierarchy = 'fieldTag'; searchQuery = ''; $('searchInput').value = '';
     $('sort-id').classList.add('active'); $('sort-alpha').classList.remove('active');
-    $('struct-cat').classList.add('active'); $('struct-field').classList.remove('active'); $('struct-era').classList.remove('active');
+    $('struct-field')?.classList.add('active'); $('struct-era')?.classList.remove('active'); $('struct-initial')?.classList.remove('active');
     saveToLocalStorage(); refreshOpenState(); renderSidebarTree(); showViewMode();
 }
 
