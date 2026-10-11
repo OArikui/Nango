@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="app-name" content="© 2026 Nango-neo (base: v3.10) - Version 2.7.0">
+    <meta name="html-version" content="neo.v02.7.0">
+    <meta name="json-version" content="DTformats.neo.v5.14">
+    <meta name="javascript-version" content="v01.7.0">
+    <title>Nango-neo — Phase 1</title>
+    <link rel="stylesheet" href="style.v02.7.0.css">
+</head>
+
+<body>
+
+    <div class="container">
+        <header class="app-heading">
+            <div class="brand-mark" aria-hidden="true">N</div>
+            <div class="brand-copy">
+                <p class="eyebrow">PERSONAL KNOWLEDGE BASE</p>
+                <h1>難語データビューアー <span>Pro</span></h1>
+                <p class="brand-subtitle">言葉を集め、意味をつなぎ、知識を育てる。</p>
+            </div>
+            <div class="version-chip">NANGO-NEO <strong>v2.7.0</strong></div>
+        </header>
+
+        <div class="toolbar">
+            <div class="page-navigation" aria-label="ページ内移動">
+                <button class="btn btn-icon" id="pageBackBtn" type="button" aria-label="戻る" title="戻る" onclick="navigateAppHistory(-1)" disabled>←</button>
+                <button class="btn btn-icon" id="pageForwardBtn" type="button" aria-label="進む" title="進む" onclick="navigateAppHistory(1)" disabled>→</button>
+            </div>
+            <div class="toolbar-actions">
+                <details class="toolbar-menu"><summary class="btn btn-secondary">JSON操作</summary><div class="toolbar-menu-items">
+                    <button class="btn btn-secondary" type="button" onclick="triggerImport()">JSONをインポート</button>
+                    <button class="btn btn-success" type="button" onclick="exportJSON()">JSONをエクスポート</button>
+                    <button class="btn btn-secondary" type="button" onclick="togglePastePanel()">JSONを貼り付け</button>
+                    <button class="btn btn-danger" type="button" onclick="resetToDefault()">初期状態にリセット</button>
+                </div></details>
+                <input type="file" id="fileInput" accept=".json" onchange="importJSON(event)" multiple>
+                <button class="btn btn-secondary" type="button" onclick="showManagePanel()">タグ一覧</button>
+                <button class="btn btn-secondary" type="button" onclick="showTodaysWord()">今日の単語</button>
+                <button class="btn btn-secondary" type="button" onclick="showWordList()">単語一覧</button>
+                <button class="btn btn-secondary" type="button" onclick="showSettingsPanel()">設定</button>
+                <button class="btn btn-secondary" type="button" onclick="showToolsPanel()">ツール</button>
+                <button class="btn btn-secondary" type="button" onclick="showFormatPanel()">DT-FMT</button>
+            </div>
+            <div class="toolbar-primary"><button class="btn btn-primary" type="button" onclick="showNewForm()">＋ 新規単語追加</button></div>
+        </div>
+
+
+        <div id="todaysWordBanner" class="todays-word-banner" aria-live="polite"></div>
+
+        <div class="main-layout">
+
+            <div class="sidebar">
+                <div class="search-box">
+                    <input type="text" id="searchInput" class="search-input" placeholder="検索 (かな, 漢字, タグ, 本文...)"
+                        oninput="handleSearch()">
+
+                    <div class="control-group">
+                        <div class="sidebar-control"><button class="btn-sm filter-trigger" id="categoryFilterTrigger" type="button" onclick="toggleCategoryFilterPopup()" aria-expanded="false">分類で絞り込み <span id="categoryFilterBadge">0</span></button><div id="categoryFilterPopover" class="filter-popover" style="display:none"></div></div>
+                        <div class="sidebar-control"><button class="btn-sm filter-trigger" id="hierarchyTrigger" type="button" onclick="toggleHierarchyPopup()" aria-expanded="false">階層基準: <span id="hierarchyCurrentLabel">分類</span> ▾</button>
+                            <div id="hierarchyPopup" class="filter-popover compact-popover" style="display:none">
+                                <button class="btn-sm active" id="struct-cat" type="button" onclick="setHierarchyStructure('category')">分類</button><button class="btn-sm" id="struct-field" type="button" onclick="setHierarchyStructure('fieldTag')">分野</button><button class="btn-sm" id="struct-era" type="button" onclick="setHierarchyStructure('eraTag')">時代</button><button class="btn-sm" id="struct-initial" type="button" onclick="setHierarchyStructure('initial')">頭文字</button>
+                            </div>
+                        </div>
+                        <div class="sidebar-control"><button class="btn-sm filter-trigger" id="sortTrigger" type="button" onclick="toggleSortPopup()" aria-expanded="false">並び替え: <span id="sortCurrentLabel">登録順</span> ▾</button>
+                            <div id="sortPopup" class="filter-popover compact-popover" style="display:none"><button class="btn-sm active" id="sort-id" type="button" onclick="setSort('id')">登録順</button><button class="btn-sm" id="sort-alpha" type="button" onclick="setSort('alpha')">五十音順</button></div>
+                        </div>
+                        <div class="sidebar-group-controls"><label class="inline-check"><input id="groupDisplayToggle" type="checkbox" onchange="setGroupDisplay(this.checked)"> グループ表示</label><div class="sidebar-group-buttons"><button class="btn-sm" type="button" onclick="toggleAllGroups(true)">すべて展開</button><button class="btn-sm" type="button" onclick="toggleAllGroups(false)">すべて格納</button></div></div>
+                    </div>
+                    </div>
+                </div>
+
+                <div class="tree-controls"><span class="form-help">グループは既定で格納されます。グループ表示をオフにすると単語を直接一覧表示します。</span></div><div class="tree-container" id="treeContainer">
+                </div>
+            </div>
+
+            <div class="main-content">
+                <div id="viewMode">
+                    <div class="detail-toolbar"><label for="wordDisplayMode">表示モード</label><select id="wordDisplayMode" class="form-control display-mode-select" onchange="renderCurrentWordDetails()"><option value="word">単語表記</option><option value="reading">読み</option><option value="kanji">漢字</option><option value="pronunciation">発音記号</option></select></div>
+                    <div style="float: right;">
+                        <button class="btn btn-secondary" id="editBtn" onclick="showEditForm()">この単語を編集</button>
+                        <button class="btn btn-danger" id="deleteBtn" style="padding: 8px 12px;"
+                            onclick="deleteCurrentWord()">削除</button>
+                    </div>
+                    <div id="viewTarget"></div>
+                </div>
+
+                <div id="editMode" class="edit-form">
+                    <h2 id="formTitle" style="margin-top:0; color: var(--primary-color);">単語の編集</h2>
+
+                    <div class="form-row">
+                        <div class="form-group" style="flex: 2; min-width: 250px;">
+                            <label for="editWord">単語（表示名）*必須</label>
+                            <input type="text" id="editWord" class="form-control" placeholder="例: カスケード"><small>単語名には読みを括弧で付けません。読みは「よみがな」、原語は「英語・スペル」に入力してください。</small>
+                        </div>
+                        <div class="form-group" style="flex: 1; min-width: 150px;">
+                            <label for="editCategory">単語分類</label>
+                            <input type="text" id="editCategory" class="form-control" placeholder="例: 外来語、古語・大和言葉、専門用語">
+                        </div>
+                    </div>
+
+                    <div class="form-row"
+                        style="background: #edf2f7; padding: 12px; border-radius: 6px; margin-bottom: 15px;">
+                        <div class="form-group">
+                            <label for="editEraTag">時代タグ (例: 近代、中世、現代)</label>
+                            <input type="text" id="editEraTag" class="form-control" placeholder="例: 現代">
+                        </div>
+                        <div class="form-group">
+                            <label for="editOtherTags">その他タグ（1タグずつ。カンマ、読点、改行区切り）</label>
+                            <input type="text" id="editOtherTags" class="form-control" placeholder="例: 学習用, 要確認">
+                        </div>
+                    </div>
+
+                    <div class="form-row"
+                        style="background: #f7fafc; padding: 10px; border-radius: 6px; border: 1px dashed var(--border-color);">
+                        <div class="form-group">
+                            <label for="editReading">よみがな (ひらがな) 【検索用】</label>
+                            <input type="text" id="editReading" class="form-control" placeholder="例: かすけーど">
+                        </div>
+                        <div class="form-group">
+                            <label for="editKanji">漢字表記 【検索用】</label>
+                            <input type="text" id="editKanji" class="form-control" placeholder="例: 傅く">
+                        </div>
+                        <div class="form-group"><label for="editEnglish">英語・スペル 【検索用】</label><input type="text" id="editEnglish" class="form-control" placeholder="例: cascade"></div>
+                        <div class="form-group"><label for="editPronunciation">発音記号（IPAなど）</label><input type="text" id="editPronunciation" class="form-control" placeholder="例: /ˈkæskeɪd/"></div>
+                    </div>
+
+                    <div class="meaning-editor-section">
+                        <div class="meaning-editor-toolbar">
+                            <h3>意味（meaning）</h3>
+                            <button class="btn btn-primary" type="button" onclick="addMeaningEditor()">＋ 意味を追加</button>
+                            <button class="btn btn-secondary" id="pasteMeaningBtn" type="button" onclick="pasteMeaningEditor()" disabled>意味を貼り付け</button>
+                        </div>
+                        <p class="form-help">単語1件に複数の意味を登録できます。意味ごとに定義・背景・ニュアンス・分野タグ・例文・類義語を管理します。定義は必須です。</p>
+                        <div id="meaningsEditor"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="editColumn">コラム（豆知識・補足）</label>
+                        <textarea id="editColumn" class="form-control" placeholder="言葉にまつわる豆知識や、さらに深掘りしたエピソード"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="editMemo">メモ</label>
+                        <textarea id="editMemo" class="form-control" placeholder="個人的なメモ。生物分類・地理座標・文字コードなどの補足にも使用"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="editGeminiNote">AIからの一言</label>
+                        <textarea id="editGeminiNote" class="form-control" placeholder="親しみやすく、要点を捉えた一言"></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button class="btn btn-success" onclick="saveWord()">保存</button>
+                        <button class="btn btn-secondary" onclick="cancelEdit()">キャンセル</button>
+                    </div>
+                </div>
+
+                <div id="wordListMode" class="word-list-panel" style="display:none;">
+                    <div class="word-list-heading">
+                        <div>
+                            <h2 style="margin-top:0; color: var(--primary-color);">📚 単語一覧</h2>
+                            <p class="form-help">登録済みの単語を一覧表示します。単語を選択すると詳細画面を開きます。</p>
+                        </div>
+                        <button class="btn btn-secondary" type="button" onclick="showViewMode()">詳細画面へ戻る</button>
+                    </div>
+                    <div class="word-list-controls">
+                        <input id="wordListSearch" type="search" class="form-control" placeholder="単語・読み・分類・タグで絞り込み" oninput="renderWordList()" aria-label="単語一覧を検索">
+                        <select id="wordListSort" class="form-control" onchange="setWordListSort()" aria-label="単語一覧の並び順">
+                            <option value="id">登録順</option>
+                            <option value="alpha">五十音順</option>
+                        </select>
+                        <select id="wordListDirection" class="form-control" onchange="setWordListSort()" aria-label="単語一覧の昇順・降順">
+                            <option value="asc">昇順</option>
+                            <option value="desc">降順</option>
+                        </select>
+                    </div>
+                    <div id="wordListTagFilter" class="word-list-tag-filter" style="display:none" aria-live="polite"></div><div id="wordListCategoryFilters" class="word-list-category-filters" aria-label="分類タグで絞り込み"></div><nav id="wordListAlphabetJump" class="alphabet-jump" aria-label="頭文字へジャンプ"></nav>
+                    <p id="wordListCount" class="word-list-count" aria-live="polite"></p>
+                    <div id="wordListContainer"></div>
+                </div>
+
+                <div id="managePanelMode" class="manage-panel">
+                    <h2 style="margin-top:0;color:var(--primary-color);">タグ一覧</h2>
+                    <p class="form-help">分類タグは言葉の種類、分野タグは各意味が使われる分野を表します。その他タグはハッシュタグとして単語上に表示し、管理対象から分離します。</p>
+                    <section class="tag-overview-section"><h3>タグ概要</h3><div id="tagOverview" class="tag-overview"></div></section>
+                    <section class="tag-table-section"><h3>分類タグ</h3><div id="categoryTagsTableContainer"></div></section>
+                    <section class="tag-table-section"><h3>分野タグ（意味単位）</h3><div id="fieldTagsTableContainer"></div></section>
+                    <section class="tag-table-section"><h3>時代タグ</h3><div id="eraTagsTableContainer"></div></section>
+                    <div class="form-actions"><button class="btn btn-secondary" type="button" onclick="closeManagePanel()">閉じる</button></div>
+                </div>
+
+                <div id="settingsPanelMode" class="app-panel" style="display:none;">
+                    <div class="panel-heading"><div><h2>設定</h2><p>表示方法とローカル保存先を設定します。</p></div><button class="btn btn-secondary" type="button" onclick="showViewMode()">閉じる</button></div>
+                    <section class="settings-section"><h3>表示</h3><label class="inline-check"><input id="showGeminiNoteToggle" type="checkbox" checked onchange="saveDisplaySettings()"> AIからの一言を表示する</label><p class="form-help">オフにすると詳細画面の「AIからの一言」を非表示にします。</p>
+                        <label for="defaultWordDisplayMode">既定の単語表示モード</label><select id="defaultWordDisplayMode" class="form-control" onchange="saveDisplaySettings()"><option value="word">単語表記</option><option value="reading">読み</option><option value="kanji">漢字</option><option value="pronunciation">発音記号</option></select></section>
+                    <section class="settings-section"><h3>ファイル保存先</h3><label for="dataSavePath">保存する JSON ファイルの絶対パス</label><input id="dataSavePath" class="form-control" type="text" placeholder="例: E:\Nango\user_data\nango_data.json"><p class="form-help">Pythonランチャー（RUN_NANGO.bat / run.py）起動時に利用できます。アプリから指定先に既存データを書き込みます。</p><div class="form-actions"><button class="btn btn-primary" type="button" onclick="saveDataPath()">保存先を変更</button><span id="dataPathStatus" aria-live="polite"></span></div></section>
+                </div>
+
+                <div id="toolsPanelMode" class="app-panel" style="display:none;">
+                    <div class="panel-heading"><div><h2>ツール</h2><p>統計とクイズ機能をまとめるページです。</p></div><button class="btn btn-secondary" type="button" onclick="showViewMode()">閉じる</button></div>
+                    <div id="toolsStats" class="tools-stats"></div>
+                    <section class="settings-section"><h3>クイズ</h3><p>本格的な出題・採点機能は後続バージョンで実装予定です。</p><button class="btn btn-secondary" type="button" onclick="showTodaysWord()">今日の単語を復習する</button></section>
+                    <section class="settings-section"><h3>AI指示に渡すタグ一覧</h3><p class="form-help">既存タグを再利用し、新しいタグの乱立を抑えるための参照情報です。</p><textarea id="tagPromptContext" class="form-control" rows="8" readonly></textarea><button class="btn btn-secondary" type="button" onclick="copyTagPromptContext()">タグ一覧をコピー</button></section>
+                </div>
+
+                <div id="formatPanelMode" class="app-panel" style="display:none;">
+                    <div class="panel-heading"><div><h2>DT-FMT 確認</h2><p>フォーマット定義と指示を読み取り専用で表示します。</p></div><button class="btn btn-secondary" type="button" onclick="showViewMode()">閉じる</button></div>
+                    <div class="format-viewer-controls"><label for="dtFormatSelect">参照するファイル</label><select id="dtFormatSelect" class="form-control" onchange="renderFormatViewer()"><option value="schema">JSON Schema</option><option value="instruction">AI指示</option><option value="template">テンプレート</option><option value="current">現在のデータ</option></select>
+                        <div class="segmented-buttons" role="group" aria-label="表示形式"><button type="button" class="btn-sm active" id="formatRawBtn" onclick="setFormatMode('raw')">Raw</button><button type="button" class="btn-sm" id="formatReadableBtn" onclick="setFormatMode('readable')">見やすい表示</button></div></div>
+                    <div id="dtFormatStatus" class="form-help" aria-live="polite"></div><div id="dtFormatRaw" class="format-raw" style="display:none;"></div><div id="dtFormatReadable" class="format-readable"></div>
+                </div>
+
+
+                <div id="pastePanelMode" class="paste-panel">
+                    <h2>JSON貼り付けインポート</h2>
+                    <p class="form-help">DTformats.neo.v5.14形式、または旧版の単語配列JSONを貼り付けられます。追加・マージか置き換えを選択できます。</p>
+                    <textarea id="jsonPasteInput" class="form-control json-paste-input" spellcheck="false" placeholder="{
+  &quot;words&quot;: { ... },
+  &quot;additional_data&quot;: []
+}"></textarea>
+                    <div class="form-actions">
+                        <button class="btn btn-success" type="button" onclick="importPastedJSON()">貼り付けデータを取り込む</button>
+                        <button class="btn btn-secondary" type="button" onclick="showViewMode()">キャンセル</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script src="Nango_main.v01.7.0.js" defer></script>
+</body>
+</html>
