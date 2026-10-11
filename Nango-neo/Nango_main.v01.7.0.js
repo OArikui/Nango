@@ -1020,15 +1020,42 @@ function showManagePanel() {
 }
 function closeManagePanel() { showViewMode(); }
 function renderTagManagementTables() {
-    const fieldMap = new Map(), eraMap = new Map(), otherMap = new Map();
+    const categoryMap = new Map(), fieldMap = new Map(), eraMap = new Map();
     for (const word of wordData) {
-        for (const tag of unique(word.meanings.flatMap(m => m.fieldTag || []))) fieldMap.set(tag, (fieldMap.get(tag) || 0) + 1);
+        for (const tag of getWordCategoryTags(word)) categoryMap.set(tag, (categoryMap.get(tag) || 0) + 1);
+        for (const tag of unique(word.meanings.flatMap(meaning => meaning.fieldTag || []))) fieldMap.set(tag, (fieldMap.get(tag) || 0) + 1);
         if (word.eraTag) eraMap.set(word.eraTag, (eraMap.get(word.eraTag) || 0) + 1);
-        for (const tag of word.other_tags || []) otherMap.set(tag, (otherMap.get(tag) || 0) + 1);
     }
+    renderTagOverview(categoryMap, fieldMap, eraMap);
+    renderTagTable('categoryTagsTableContainer', categoryMap, 'categoryTags');
     renderTagTable('fieldTagsTableContainer', fieldMap, 'fieldTag');
     renderTagTable('eraTagsTableContainer', eraMap, 'eraTag');
-    renderTagTable('otherTagsTableContainer', otherMap, 'other_tags');
+}
+function renderTagOverview(categoryMap, fieldMap, eraMap) {
+    const box = $('tagOverview');
+    if (!box) return;
+    box.replaceChildren();
+    const groups = [
+        ['分類', 'categoryTags', categoryMap],
+        ['分野', 'fieldTag', fieldMap],
+        ['時代', 'eraTag', eraMap]
+    ];
+    for (const [label, type, map] of groups) {
+        const heading = document.createElement('div');
+        heading.className = 'tag-overview-group';
+        heading.textContent = label;
+        box.appendChild(heading);
+        for (const tag of [...map.keys()].sort((a, b) => a.localeCompare(b, 'ja'))) {
+            const link = document.createElement('button');
+            link.type = 'button'; link.className = 'tag-overview-link'; link.textContent = tag;
+            link.title = 'このタグが付いた単語を表示';
+            link.addEventListener('click', () => showWordsForTag(type, tag));
+            box.appendChild(link);
+        }
+        if (!map.size) {
+            const empty = document.createElement('span'); empty.className = 'form-help'; empty.textContent = 'なし'; box.appendChild(empty);
+        }
+    }
 }
 function renderTagTable(containerId, tagMap, type) {
     const container = $(containerId);
@@ -1039,41 +1066,42 @@ function renderTagTable(containerId, tagMap, type) {
         const primary = sort.key === 'count' ? countA - countB : tagA.localeCompare(tagB, 'ja');
         return primary * direction || tagA.localeCompare(tagB, 'ja');
     });
-    container.innerHTML = '';
+    container.replaceChildren();
     const table = document.createElement('table'); table.className = 'tag-table';
-    table.innerHTML = `<thead><tr>
-        <th><button type="button" class="table-sort-button" data-sort="tag">タグ名 ${sort.key === 'tag' ? (sort.direction === 'asc' ? '▲' : '▼') : '↕'}</button></th>
-        <th><button type="button" class="table-sort-button" data-sort="count">該当単語数 ${sort.key === 'count' ? (sort.direction === 'asc' ? '▲' : '▼') : '↕'}</button></th>
-        <th>操作</th></tr></thead>`;
+    table.innerHTML = '<thead><tr><th><button type="button" class="table-sort-button" data-sort="tag">タグ名</button></th><th><button type="button" class="table-sort-button" data-sort="count">該当単語数</button></th><th>操作</th></tr></thead>';
     table.querySelectorAll('[data-sort]').forEach(button => {
+        const key = button.dataset.sort;
+        button.textContent = (key === 'tag' ? 'タグ名' : '該当単語数') + (sort.key === key ? (sort.direction === 'asc' ? ' ▲' : ' ▼') : ' ↕');
         button.addEventListener('click', () => {
-            const key = button.dataset.sort;
             const old = tagTableSortState[type] || { key: 'tag', direction: 'asc' };
             tagTableSortState[type] = { key, direction: old.key === key && old.direction === 'asc' ? 'desc' : 'asc' };
             renderTagTable(containerId, tagMap, type);
         });
     });
     const tbody = document.createElement('tbody');
-    if (!entries.length) { tbody.innerHTML = '<tr><td colspan="3">登録されているタグはありません</td></tr>'; }
-    else entries.forEach(([tag, count]) => {
+    if (!entries.length) {
+        tbody.innerHTML = '<tr><td colspan="3">登録されているタグはありません</td></tr>';
+    } else entries.forEach(([tag, count]) => {
         const row = document.createElement('tr');
-        row.innerHTML = `<td><button type="button" class="tag-table-link">${escapeHtml(tag)}</button></td><td>${count} 件</td><td><button class="btn-sm" type="button">名称一括変更</button></td>`;
+        row.innerHTML = '<td><button type="button" class="tag-table-link">' + escapeHtml(tag) + '</button></td><td>' + count + ' 件</td><td><button class="btn-sm" type="button">名称一括変更</button></td>';
         row.querySelector('.tag-table-link').onclick = () => showWordsForTag(type, tag);
         row.querySelector('.btn-sm').onclick = () => renameTag(type, tag);
         tbody.appendChild(row);
     });
     table.appendChild(tbody); container.appendChild(table);
 }
-
 function renameTag(type, oldTag) {
-    const label = type === 'fieldTag' ? '分野タグ' : type === 'eraTag' ? '時代タグ' : 'その他タグ';
-    const newName = prompt(`現在の${label}: 「${oldTag}」\n新しい名前（空欄なら削除）`, oldTag);
+    const label = type === 'categoryTags' ? '分類タグ' : type === 'fieldTag' ? '分野タグ' : '時代タグ';
+    const newName = prompt('現在の' + label + ': 「' + oldTag + '」\n新しい名前（空欄なら削除）', oldTag);
     if (newName === null) return;
     const value = newName.trim();
     for (const word of wordData) {
-        if (type === 'fieldTag') word.meanings.forEach(m => { m.fieldTag = unique(m.fieldTag.map(t => t === oldTag ? value : t)); });
-        else if (type === 'eraTag' && word.eraTag === oldTag) word.eraTag = value;
-        else if (type === 'other_tags') word.other_tags = unique(word.other_tags.map(t => t === oldTag ? value : t));
+        if (type === 'categoryTags') {
+            word.categoryTags = unique(getWordCategoryTags(word).map(tag => tag === oldTag ? value : tag).filter(Boolean));
+            word.category = word.categoryTags[0] || '指定なし';
+        } else if (type === 'fieldTag') {
+            word.meanings.forEach(meaning => { meaning.fieldTag = unique((meaning.fieldTag || []).map(tag => tag === oldTag ? value : tag).filter(Boolean)); });
+        } else if (type === 'eraTag' && word.eraTag === oldTag) word.eraTag = value;
     }
     saveToLocalStorage(); refreshOpenState(); renderSidebarTree(); renderTagManagementTables();
 }
