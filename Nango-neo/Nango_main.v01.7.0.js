@@ -149,6 +149,12 @@ function restoreAppNavigation(state) {
         $('managePanelMode').style.display = 'block'; renderTagManagementTables();
     } else if (state.screen === 'paste') {
         $('pastePanelMode').style.display = 'block'; $('jsonPasteInput').value = state.pasteText || '';
+    } else if (state.screen === 'settings') {
+        showSettingsPanel(false);
+    } else if (state.screen === 'tools') {
+        showToolsPanel(false);
+    } else if (state.screen === 'format') {
+        showFormatPanel(false);
     } else if (state.screen === 'wordList' || state.screen === 'tagWords') {
         $('wordListMode').style.display = 'block';
         $('wordListSearch').value = state.wordListSearch || '';
@@ -556,7 +562,7 @@ function handleSearch() {
 }
 
 function searchableText(word) {
-    return [word.word, word.reading, word.kanji, word.english, word.category, word.eraTag, word.column,
+    return [word.word, word.reading, word.kanji, word.english, word.category, ...(word.categoryTags || []), word.eraTag, word.column,
         word.memo, word.gemini_note, ...(word.other_tags || []), ...word.meanings.flatMap(m => [
             m.definition, m.background, m.nuance, ...m.fieldTag, ...m.examples, ...m.synonyms
         ])].join(' ').toLocaleLowerCase('ja');
@@ -1007,7 +1013,7 @@ function exportJSON() {
 function resetToDefault() {
     if (!confirm('辞書を初期データに戻しますか？\n追加・編集したデータは失われます。先にエクスポートしてください。')) return;
     wordData = reassignIds(clone(defaultData)); additionalData = []; currentWordId = wordData[0]?.id ?? -1;
-    currentSort = 'id'; currentHierarchy = 'fieldTag'; searchQuery = ''; $('searchInput').value = '';
+    currentSort = 'id'; currentHierarchy = 'fieldTag'; searchQuery = ''; selectedCategoryFilters = []; $('searchInput').value = '';
     $('sort-id').classList.add('active'); $('sort-alpha').classList.remove('active');
     $('struct-field')?.classList.add('active'); $('struct-era')?.classList.remove('active'); $('struct-initial')?.classList.remove('active');
     saveToLocalStorage(); refreshOpenState(); renderSidebarTree(); showViewMode();
