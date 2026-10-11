@@ -1551,7 +1551,7 @@ function buildAiPrompt() {
         '',
         '対象語: （ここに単語名を入力）',
         '不明な情報は推測で断定せず、必要なら空文字または空配列にしてください。'
-    ].join('\\n');
+    ].join('\n');
 }
 async function copyAiPrompt() {
     const promptText = buildAiPrompt();
