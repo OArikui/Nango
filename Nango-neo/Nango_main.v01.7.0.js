@@ -643,16 +643,19 @@ function escapeRegex(value) {
 }
 function linkifyRegisteredWords(html) {
     const terms = [...wordData].filter(word => word.word && word.word.length > 1).sort((a, b) => b.word.length - a.word.length);
+    if (!terms.length) return html;
+    const expressions = terms.map(word => escapeRegex(escapeHtml(word.word)));
+    const pattern = new RegExp(expressions.join('|'), 'g');
+    const byRenderedName = new Map(terms.map(word => [escapeHtml(word.word), word]));
     return html.replace(/(<code>[\s\S]*?<\/code>|<[^>]+>|[^<]+)/g, part => {
         if (part.startsWith('<')) return part;
-        let result = part;
-        for (const word of terms) {
-            const pattern = new RegExp(escapeRegex(escapeHtml(word.word)), 'g');
-            result = result.replace(pattern, match => '<button type="button" class="word-reference" data-word-id="' + word.id + '">' + match + '</button>');
-        }
-        return result;
+        return part.replace(pattern, match => {
+            const word = byRenderedName.get(match);
+            return word ? '<button type="button" class="word-reference" data-word-id="' + word.id + '">' + match + '</button>' : match;
+        });
     });
 }
+
 function markdownInline(value) {
     let textValue = escapeHtml(asString(value));
     textValue = textValue.replace(/\x60([^\x60]+)\x60/g, '<code>$1</code>');
@@ -1016,7 +1019,7 @@ function resetToDefault() {
     currentSort = 'id'; currentHierarchy = 'fieldTag'; searchQuery = ''; selectedCategoryFilters = []; $('searchInput').value = '';
     $('sort-id').classList.add('active'); $('sort-alpha').classList.remove('active');
     $('struct-field')?.classList.add('active'); $('struct-era')?.classList.remove('active'); $('struct-initial')?.classList.remove('active');
-    saveToLocalStorage(); refreshOpenState(); renderSidebarTree(); showViewMode();
+    saveToLocalStorage(); refreshOpenState(); renderSidebarTree(); if (wordData.length) showTodaysWord(); else showViewMode();
 }
 
 function showManagePanel() {
