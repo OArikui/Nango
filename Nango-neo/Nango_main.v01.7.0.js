@@ -1097,106 +1097,137 @@ async function importPastedJSON() {
 }
 function showWordList() {
     wordListTagFilter = null;
+    wordListSelectedCategories = [];
     $('wordListSearch').value = '';
     $('wordListTagFilter').textContent = '';
     $('wordListTagFilter').style.display = 'none';
+    wordListColumnSort = { key: null, direction: 'asc' };
     recordAppNavigation('wordList');
-    $('viewMode').style.display = 'none';
-    $('editMode').style.display = 'none';
-    $('managePanelMode').style.display = 'none';
-    $('pastePanelMode').style.display = 'none';
+    ['viewMode','editMode','managePanelMode','pastePanelMode','settingsPanelMode','toolsPanelMode','formatPanelMode'].forEach(id => { if ($(id)) $(id).style.display = 'none'; });
     $('wordListMode').style.display = 'block';
     renderWordList();
 }
-
 function showWordsForTag(type, tag) {
     wordListTagFilter = { type, tag };
+    wordListSelectedCategories = [];
     $('wordListSearch').value = '';
     recordAppNavigation('tagWords');
-    $('viewMode').style.display = 'none';
-    $('editMode').style.display = 'none';
-    $('managePanelMode').style.display = 'none';
-    $('pastePanelMode').style.display = 'none';
+    ['viewMode','editMode','managePanelMode','pastePanelMode','settingsPanelMode','toolsPanelMode','formatPanelMode'].forEach(id => { if ($(id)) $(id).style.display = 'none'; });
     $('wordListMode').style.display = 'block';
     $('wordListTagFilter').style.display = 'flex';
-    $('wordListTagFilter').innerHTML = `タグ「<strong>${escapeHtml(tag)}</strong>」が付いた単語 <button type="button" class="btn-sm" id="clearWordListTagFilter">タグ絞り込み解除</button>`;
+    $('wordListTagFilter').innerHTML = 'タグ「<strong>' + escapeHtml(tag) + '</strong>」が付いた単語 <button type="button" class="btn-sm" id="clearWordListTagFilter">タグ絞り込み解除</button>';
     $('clearWordListTagFilter').onclick = () => { wordListTagFilter = null; $('wordListTagFilter').style.display = 'none'; renderWordList(); };
     renderWordList();
 }
-
 function wordHasTag(word, filter) {
     if (!filter) return true;
+    if (filter.type === 'categoryTags' || filter.type === 'category') return getWordCategoryTags(word).includes(filter.tag);
     if (filter.type === 'fieldTag') return word.meanings.some(meaning => (meaning.fieldTag || []).includes(filter.tag));
     if (filter.type === 'eraTag') return word.eraTag === filter.tag;
-    if (filter.type === 'other_tags') return (word.other_tags || []).includes(filter.tag);
     return true;
 }
-
 function setWordListSort() { wordListColumnSort = { key: null, direction: 'asc' }; renderWordList(); }
-
+function renderWordListCategoryFilters() {
+    const box = $('wordListCategoryFilters');
+    if (!box) return;
+    const all = unique(wordData.flatMap(getWordCategoryTags)).sort((a, b) => a.localeCompare(b, 'ja'));
+    box.replaceChildren();
+    const heading = document.createElement('div'); heading.className = 'filter-actions';
+    heading.innerHTML = '<strong>分類タグで絞り込み</strong> <button type="button" class="btn-sm" id="selectAllWordCategories">全選択</button> <button type="button" class="btn-sm" id="clearWordCategories">全選択解除</button>';
+    box.appendChild(heading);
+    const options = document.createElement('div'); options.className = 'filter-options';
+    for (const category of all) {
+        const label = document.createElement('label'); label.className = 'filter-option';
+        const input = document.createElement('input'); input.type = 'checkbox';
+        input.checked = wordListSelectedCategories.includes(category);
+        input.addEventListener('change', () => {
+            if (input.checked) wordListSelectedCategories = unique([...wordListSelectedCategories, category]);
+            else wordListSelectedCategories = wordListSelectedCategories.filter(value => value !== category);
+            renderWordList();
+        });
+        label.append(input, document.createTextNode(category)); options.appendChild(label);
+    }
+    box.appendChild(options);
+    $('selectAllWordCategories').onclick = () => { wordListSelectedCategories = [...all]; renderWordList(); };
+    $('clearWordCategories').onclick = () => { wordListSelectedCategories = []; renderWordList(); };
+}
 function renderWordList() {
     const container = $('wordListContainer');
     if (!container) return;
+    renderWordListCategoryFilters();
     const query = normalizeText($('wordListSearch')?.value || '');
     const sort = $('wordListSort')?.value || 'id';
     const direction = $('wordListDirection')?.value || 'asc';
     const multiplier = direction === 'desc' ? -1 : 1;
     const columnSort = wordListColumnSort;
-    let items = wordData.filter(word => (!query || normalizeText(searchableText(word)).includes(query)) && wordHasTag(word, wordListTagFilter));
-    items = [...items].sort((a, b) => {
-        let result;
+    let items = wordData.filter(word =>
+        (!query || normalizeText(searchableText(word)).includes(query)) &&
+        wordHasTag(word, wordListTagFilter) &&
+        (!wordListSelectedCategories.length || getWordCategoryTags(word).some(tag => wordListSelectedCategories.includes(tag)))
+    );
+    const initialCompare = (a, b) => getInitial(a).localeCompare(getInitial(b), 'ja');
+    const selectedCompare = (a, b) => {
+        let result = 0;
         if (columnSort.key === 'reading') result = (a.reading || '').localeCompare(b.reading || '', 'ja') || a.word.localeCompare(b.word, 'ja');
-        else if (columnSort.key === 'category') result = (a.category || '').localeCompare(b.category || '', 'ja') || a.word.localeCompare(b.word, 'ja');
+        else if (columnSort.key === 'category') result = getWordCategoryTags(a).join(' ').localeCompare(getWordCategoryTags(b).join(' '), 'ja') || a.word.localeCompare(b.word, 'ja');
         else if (columnSort.key === 'tags') {
-            const tagsA = [...unique(a.meanings.flatMap(m => m.fieldTag || [])), a.eraTag, ...(a.other_tags || [])].filter(Boolean).sort((x,y)=>x.localeCompare(y,'ja')).join(' ');
-            const tagsB = [...unique(b.meanings.flatMap(m => m.fieldTag || [])), b.eraTag, ...(b.other_tags || [])].filter(Boolean).sort((x,y)=>x.localeCompare(y,'ja')).join(' ');
+            const tagsA = [...unique(a.meanings.flatMap(m => m.fieldTag || [])), a.eraTag].filter(Boolean).sort((x,y)=>x.localeCompare(y,'ja')).join(' ');
+            const tagsB = [...unique(b.meanings.flatMap(m => m.fieldTag || [])), b.eraTag].filter(Boolean).sort((x,y)=>x.localeCompare(y,'ja')).join(' ');
             result = tagsA.localeCompare(tagsB, 'ja') || a.word.localeCompare(b.word, 'ja');
         } else if (columnSort.key === 'word') result = a.word.localeCompare(b.word, 'ja');
+        else if (columnSort.key === 'date') result = asString(a.datetime).localeCompare(asString(b.datetime));
         else result = sort === 'alpha' ? (a.reading || a.word).localeCompare(b.reading || b.word, 'ja') || a.word.localeCompare(b.word, 'ja') : a.id - b.id;
         return result * (columnSort.key ? (columnSort.direction === 'desc' ? -1 : 1) : multiplier);
+    };
+    items = [...items].sort((a, b) => initialCompare(a, b) || selectedCompare(a, b));
+    $('wordListCount').textContent = items.length + '件 / 登録総数 ' + wordData.length + '件';
+    if (!items.length) { container.innerHTML = '<div class="empty-message">条件に一致する単語はありません。</div>'; $('wordListAlphabetJump').replaceChildren(); return; }
+    const initials = unique(items.map(getInitial));
+    const jump = $('wordListAlphabetJump');
+    jump.replaceChildren();
+    initials.forEach((initial, index) => {
+        const link = document.createElement('a'); link.href = '#word-initial-' + index; link.textContent = initial; jump.appendChild(link);
     });
-    $('wordListCount').textContent = `${items.length}件 / 登録総数 ${wordData.length}件`;
-    if (!items.length) {
-        container.innerHTML = '<div class="empty-message">条件に一致する単語はありません。</div>';
-        return;
+    const tagsHtml = word => {
+        const classification = getWordCategoryTags(word).map(tag => '<button type="button" class="custom-tag tag-link" data-tag-type="categoryTags" data-tag-value="' + escapeHtml(tag) + '">' + escapeHtml(tag) + '</button>').join('');
+        const field = unique(word.meanings.flatMap(m => m.fieldTag || [])).map(tag => '<button type="button" class="custom-tag tag-field tag-link" data-tag-type="fieldTag" data-tag-value="' + escapeHtml(tag) + '">' + escapeHtml(tag) + '</button>').join('');
+        const era = word.eraTag ? '<button type="button" class="custom-tag tag-era tag-link" data-tag-type="eraTag" data-tag-value="' + escapeHtml(word.eraTag) + '">' + escapeHtml(word.eraTag) + '</button>' : '';
+        const other = (word.other_tags || []).map(tag => '<span class="hashtag">#' + escapeHtml(tag) + '</span>').join('');
+        return '<div class="word-list-tags">' + (classification + field + era + other || '—') + '</div>';
+    };
+    let rows = '', previousInitial = null, initialIndex = -1;
+    for (const word of items) {
+        const initial = getInitial(word);
+        if (initial !== previousInitial) {
+            initialIndex += 1; previousInitial = initial;
+            rows += '<tr class="alphabet-divider" id="word-initial-' + initialIndex + '"><td colspan="5">' + escapeHtml(initial) + '</td></tr>';
+        }
+        rows += '<tr>' +
+            '<td><button class="word-list-open" type="button" data-word-id="' + word.id + '">' + escapeHtml(word.word) + '</button></td>' +
+            '<td>' + escapeHtml(word.reading || '—') + '</td>' +
+            '<td>' + escapeHtml(getWordCategoryTags(word).join(' / ') || '指定なし') + '</td>' +
+            '<td>' + tagsHtml(word) + '</td>' +
+            '<td class="word-list-date">' + escapeHtml(formatDate(word.datetime)) + '</td></tr>';
     }
-    const rows = items.map(word => {
-        const tags = [
-            ...unique(word.meanings.flatMap(m => m.fieldTag || [])).map(tag => `<button type="button" class="custom-tag tag-field tag-link" data-tag-type="fieldTag" data-tag-value="${escapeHtml(tag)}">${escapeHtml(tag)}</button>`),
-            ...(word.eraTag ? [`<button type="button" class="custom-tag tag-era tag-link" data-tag-type="eraTag" data-tag-value="${escapeHtml(word.eraTag)}">${escapeHtml(word.eraTag)}</button>`] : []),
-            ...(word.other_tags || []).map(tag => `<button type="button" class="custom-tag tag-other tag-link" data-tag-type="other_tags" data-tag-value="${escapeHtml(tag)}">${escapeHtml(tag)}</button>`)
-        ].join('');
-        return `<tr>
-            <td><button class="word-list-open" type="button" data-word-id="${word.id}">${escapeHtml(word.word)}</button></td>
-            <td>${escapeHtml(word.reading || '—')}</td>
-            <td>${escapeHtml(word.category || '指定なし')}</td>
-            <td><div class="word-list-tags">${tags || '—'}</div></td>
-        </tr>`;
-    }).join('');
-    container.innerHTML = `<div class="word-list-table-wrap"><table class="word-list-table">
-        <thead><tr>
-          <th><button type="button" class="table-sort-button" data-column-sort="word">単語 ${columnSort.key === 'word' ? (columnSort.direction === 'asc' ? '▲' : '▼') : '↕'}</button></th>
-          <th><button type="button" class="table-sort-button" data-column-sort="reading">読み ${columnSort.key === 'reading' ? (columnSort.direction === 'asc' ? '▲' : '▼') : '↕'}</button></th>
-          <th><button type="button" class="table-sort-button" data-column-sort="category">分類 ${columnSort.key === 'category' ? (columnSort.direction === 'asc' ? '▲' : '▼') : '↕'}</button></th>
-          <th><button type="button" class="table-sort-button" data-column-sort="tags">タグ ${columnSort.key === 'tags' ? (columnSort.direction === 'asc' ? '▲' : '▼') : '↕'}</button></th>
-        </tr></thead><tbody>${rows}</tbody></table></div>`;
+    container.innerHTML = '<div class="word-list-table-wrap"><table class="word-list-table"><thead><tr>' +
+        '<th><button type="button" class="table-sort-button" data-column-sort="word">単語</button></th>' +
+        '<th><button type="button" class="table-sort-button" data-column-sort="reading">読み</button></th>' +
+        '<th><button type="button" class="table-sort-button" data-column-sort="category">分類</button></th>' +
+        '<th><button type="button" class="table-sort-button" data-column-sort="tags">分野・時代タグ</button></th>' +
+        '<th><button type="button" class="table-sort-button" data-column-sort="date">登録日</button></th>' +
+        '</tr></thead><tbody>' + rows + '</tbody></table></div>';
     container.querySelectorAll('[data-column-sort]').forEach(button => {
+        const key = button.dataset.columnSort;
+        button.textContent = ({word:'単語',reading:'読み',category:'分類',tags:'分野・時代タグ',date:'登録日'})[key] + (columnSort.key === key ? (columnSort.direction === 'asc' ? ' ▲' : ' ▼') : ' ↕');
         button.addEventListener('click', () => {
-            const key = button.dataset.columnSort;
             wordListColumnSort = { key, direction: wordListColumnSort.key === key && wordListColumnSort.direction === 'asc' ? 'desc' : 'asc' };
             renderWordList();
         });
     });
-    container.querySelectorAll('[data-word-id]').forEach(button => {
-        button.addEventListener('click', () => {
-            currentWordId = Number(button.dataset.wordId);
-            renderSidebarTree();
-            showViewMode();
-        });
-    });
-    container.querySelectorAll('[data-tag-type][data-tag-value]').forEach(tagButton => {
-        tagButton.addEventListener('click', () => showWordsForTag(tagButton.dataset.tagType, tagButton.dataset.tagValue));
-    });
+    container.querySelectorAll('[data-word-id]').forEach(button => button.addEventListener('click', () => {
+        currentWordId = Number(button.dataset.wordId); renderSidebarTree(); showViewMode();
+    }));
+    container.querySelectorAll('[data-tag-type][data-tag-value]').forEach(button => button.addEventListener('click', () => showWordsForTag(button.dataset.tagType, button.dataset.tagValue)));
 }
 
 function showTodaysWord() {
