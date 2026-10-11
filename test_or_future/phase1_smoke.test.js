@@ -12,7 +12,10 @@ const instructionPath = path.join(root, 'Nango-neo', 'DTformats.neo.v5.16', 'DT-
 
 let source = fs.readFileSync(jsPath, 'utf8');
 source = source.replace(/\/\/ Expose small pure helpers for browser console\/manual tests\.[\s\S]*$/, '');
-const api = new Function(source + '\nreturn { parseNangoDocument, serializeNangoDocument, normalizeWord, normalizeCategoryTags, normalizeMeaning, validateWord, findDuplicateIndex, mergeWord, reassignIds, getInitial, getWordListGroupLabel };')();
+const api = new Function(source + '\nreturn { parseNangoDocument, serializeNangoDocument, normalizeWord, normalizeCategoryTags, normalizeMeaning, validateWord, findDuplicateIndex, mergeWord, reassignIds, getInitial, getWordListGroupLabel, buildAiPrompt };')();
+const generatedPrompt = api.buildAiPrompt();
+assert.ok(generatedPrompt.includes('\n'), 'AI prompt is separated with actual newlines');
+assert.equal(generatedPrompt.includes('\\n'), false, 'AI prompt does not contain escaped newline text');
 
 const canonical = {
   words: {
