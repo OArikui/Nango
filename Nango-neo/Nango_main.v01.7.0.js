@@ -625,50 +625,106 @@ function renderSidebarTree() {
 
 function showViewMode(recordHistory = true) {
     if (recordHistory) recordAppNavigation('view');
-    $('editMode').style.display = 'none';
-    $('managePanelMode').style.display = 'none';
-    $('pastePanelMode').style.display = 'none';
-    $('wordListMode').style.display = 'none';
+    ['editMode','managePanelMode','pastePanelMode','wordListMode','settingsPanelMode','toolsPanelMode','formatPanelMode'].forEach(id => { if ($(id)) $(id).style.display = 'none'; });
     $('viewMode').style.display = 'block';
-    const target = $('viewTarget');
     const current = wordData.find(item => item.id === currentWordId);
     $('editBtn').style.display = current ? 'inline-block' : 'none';
     $('deleteBtn').style.display = current ? 'inline-block' : 'none';
-    if (!current) {
-        target.innerHTML = '<div class="empty-message">表示する単語がありません。JSONをインポートするか、新規単語を追加してください。</div>';
-        return;
-    }
-    const fieldTags = unique(current.meanings.flatMap(m => m.fieldTag || []));
-    const metadata = [
-        current.reading ? `よみがな: ${current.reading}` : '', current.kanji ? `漢字: ${current.kanji}` : '',
-        current.english ? `スペル: ${current.english}` : '', `ID: ${current.id}`
-    ].filter(Boolean).join(' | ');
-    const badges = [
-        ...fieldTags.map(tag => `<button type="button" class="custom-tag tag-field tag-link" data-tag-type="fieldTag" data-tag-value="${escapeHtml(tag)}">分野: ${escapeHtml(tag)}</button>`),
-        current.eraTag ? `<button type="button" class="custom-tag tag-era tag-link" data-tag-type="eraTag" data-tag-value="${escapeHtml(current.eraTag)}">時代: ${escapeHtml(current.eraTag)}</button>` : '',
-        ...(current.other_tags || []).map(tag => `<button type="button" class="custom-tag tag-other tag-link" data-tag-type="other_tags" data-tag-value="${escapeHtml(tag)}">${escapeHtml(tag)}</button>`)
-    ].filter(Boolean).join('');
-    const meaningsHtml = current.meanings.map((meaning, index) => `
-        <section class="meaning-card">
-            <h3>意味 ${index + 1}</h3>
-            <div class="section-title">意味・定義</div><div class="meaning-box">${escapeHtml(meaning.definition)}</div>
-            ${meaning.background ? `<div class="section-title">背景 / 由来</div><div class="text-content">${escapeHtml(meaning.background)}</div>` : ''}
-            ${meaning.nuance ? `<div class="section-title">ニュアンス</div><div class="text-content">${escapeHtml(meaning.nuance)}</div>` : ''}
-            ${meaning.examples.length ? `<div class="section-title">例文</div><ul class="example-list">${meaning.examples.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>` : ''}
-            ${meaning.synonyms.length ? `<div class="section-title">類義語</div><div class="synonym-container">${meaning.synonyms.map(item => `<span class="synonym-tag">${escapeHtml(item)}</span>`).join('')}</div>` : ''}
-            ${meaning.fieldTag.length ? `<div class="section-title">分野タグ</div><div class="tag-container">${meaning.fieldTag.map(tag => `<button type="button" class="custom-tag tag-field tag-link" data-tag-type="fieldTag" data-tag-value="${escapeHtml(tag)}">${escapeHtml(tag)}</button>`).join('')}</div>` : ''}
-        </section>`).join('');
-    target.innerHTML = `
-        <div class="word-header-container"><div class="word-title-row"><h2 class="word-title">${escapeHtml(current.word)}</h2><span class="category-badge">${escapeHtml(current.category || '指定なし')}</span></div>
-        ${badges ? `<div class="tag-container">${badges}</div>` : ''}${metadata ? `<div class="word-sub-info">${escapeHtml(metadata)}</div>` : ''}</div>
-        ${meaningsHtml}
-        ${current.column ? `<div class="section-title">コラム</div><div class="text-content">${escapeHtml(current.column)}</div>` : ''}
-        ${current.memo ? `<div class="section-title">メモ</div><div class="text-content">${escapeHtml(current.memo)}</div>` : ''}
-        ${current.gemini_note ? `<div class="section-title">AIからの一言</div><div class="text-content">${escapeHtml(current.gemini_note)}</div>` : ''}
-        <div class="word-sub-info">登録日時: ${escapeHtml(current.datetime)}</div>`;
-    target.querySelectorAll('[data-tag-type][data-tag-value]').forEach(tagButton => {
-        tagButton.addEventListener('click', () => showWordsForTag(tagButton.dataset.tagType, tagButton.dataset.tagValue));
+    renderCurrentWordDetails();
+}
+function escapeRegex(value) {
+    return value.split('').map(ch => /[.*+?^{}()|[\]\\$]/.test(ch) ? '\\' + ch : ch).join('');
+}
+function linkifyRegisteredWords(html) {
+    const terms = [...wordData].filter(word => word.word && word.word.length > 1).sort((a, b) => b.word.length - a.word.length);
+    return html.replace(/(<code>[\s\S]*?<\/code>|<[^>]+>|[^<]+)/g, part => {
+        if (part.startsWith('<')) return part;
+        let result = part;
+        for (const word of terms) {
+            const pattern = new RegExp(escapeRegex(escapeHtml(word.word)), 'g');
+            result = result.replace(pattern, match => '<button type="button" class="word-reference" data-word-id="' + word.id + '">' + match + '</button>');
+        }
+        return result;
     });
+}
+function markdownInline(value) {
+    let textValue = escapeHtml(asString(value));
+    textValue = textValue.replace(/\x60([^\x60]+)\x60/g, '<code>$1</code>');
+    textValue = textValue.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/__([^_]+)__/g, '<strong>$1</strong>');
+    textValue = textValue.replace(/(^|[^*])\*([^*]+)\*/g, '$1<em>$2</em>').replace(/(^|_)_([^_]+)_(?!_)/g, '$1<em>$2</em>');
+    return linkifyRegisteredWords(textValue);
+}
+function renderRichText(value) {
+    const lines = asString(value).replace(/\r\n?/g, '\n').split('\n');
+    const output = [];
+    let listType = null;
+    const closeList = () => { if (listType) { output.push(listType === 'ul' ? '</ul>' : '</ol>'); listType = null; } };
+    for (const rawLine of lines) {
+        if (!rawLine.trim()) { closeList(); continue; }
+        const leading = (rawLine.match(/^[ \t]+/) || [''])[0].replace(/\t/g, '    ').length;
+        const line = rawLine.trim();
+        const heading = /^(#{1,4})\s+(.+)$/.exec(line);
+        if (heading) { closeList(); const level = Math.min(5, heading[1].length + 1); output.push('<h' + level + '>' + markdownInline(heading[2]) + '</h' + level + '>'); continue; }
+        const bullet = /^[-*+]\s+(.+)$/.exec(line);
+        const numbered = /^\d+[.)]\s+(.+)$/.exec(line);
+        if (bullet || numbered) {
+            const nextType = bullet ? 'ul' : 'ol';
+            if (listType && listType !== nextType) closeList();
+            if (!listType) { output.push(nextType === 'ul' ? '<ul>' : '<ol>'); listType = nextType; }
+            output.push('<li>' + markdownInline((bullet || numbered)[1]) + '</li>');
+            continue;
+        }
+        closeList();
+        if (line.startsWith('>')) { output.push('<blockquote>' + markdownInline(line.replace(/^>\s?/, '')) + '</blockquote>'); continue; }
+        const rendered = markdownInline(line);
+        output.push(leading ? '<div class="markdown-indent" style="--indent-level:' + Math.min(8, Math.floor(leading / 2)) + '">' + rendered + '</div>' : '<p>' + rendered + '</p>');
+    }
+    closeList();
+    return '<div class="rich-text">' + output.join('') + '</div>';
+}
+function renderCurrentWordDetails() {
+    const target = $('viewTarget');
+    if (!target) return;
+    const current = wordData.find(item => item.id === currentWordId);
+    const selector = $('wordDisplayMode');
+    if (selector && selector.dataset.ready !== 'true') {
+        selector.value = displaySettings.defaultDisplayMode || 'word';
+        selector.dataset.ready = 'true';
+    }
+    if (!current) { target.innerHTML = '<div class="empty-message">表示する単語がありません。JSONをインポートするか、新規単語を追加してください。</div>'; return; }
+    const mode = selector ? selector.value : (displaySettings.defaultDisplayMode || 'word');
+    const titleValue = ({ word: current.word, reading: current.reading, kanji: current.kanji, pronunciation: current.pronunciation })[mode] || current.word;
+    const categoryTags = getWordCategoryTags(current);
+    const badges = categoryTags.map(tag => '<button type="button" class="custom-tag tag-link" data-tag-type="categoryTags" data-tag-value="' + escapeHtml(tag) + '">' + escapeHtml(tag) + '</button>').join('') +
+        (current.eraTag ? '<button type="button" class="custom-tag tag-era tag-link" data-tag-type="eraTag" data-tag-value="' + escapeHtml(current.eraTag) + '">時代: ' + escapeHtml(current.eraTag) + '</button>' : '');
+    const hashtags = (current.other_tags || []).map(tag => '<span class="hashtag">#' + escapeHtml(tag) + '</span>').join('');
+    const meaningsHtml = current.meanings.map((meaning, index) => {
+        const fieldTags = unique(meaning.fieldTag || []);
+        return '<section class="meaning-card"><h3 class="meaning-number">意味 ' + (index + 1) + '</h3>' +
+            '<div class="section-title">意味・定義</div><div class="meaning-box">' + renderRichText(meaning.definition) + '</div>' +
+            (meaning.background ? '<div class="section-title">背景 / 由来</div>' + renderRichText(meaning.background) : '') +
+            (meaning.nuance ? '<div class="section-title">ニュアンス</div>' + renderRichText(meaning.nuance) : '') +
+            (meaning.examples.length ? '<div class="section-title">例文</div><ul class="example-list">' + meaning.examples.map(example => '<li>' + renderRichText(example) + '</li>').join('') + '</ul>' : '') +
+            (meaning.synonyms.length ? '<div class="section-title">類義語</div><div class="synonym-container">' + meaning.synonyms.map(term => '<span class="synonym-tag">' + escapeHtml(term) + '</span>').join('') + '</div>' : '') +
+            (fieldTags.length ? '<div class="section-title">分野タグ（この意味）</div><div class="tag-container">' + fieldTags.map(tag => '<button type="button" class="custom-tag tag-field tag-link" data-tag-type="fieldTag" data-tag-value="' + escapeHtml(tag) + '">' + escapeHtml(tag) + '</button>').join('') + '</div>' : '') +
+            '</section>';
+    }).join('');
+    const metadata = [
+        current.reading ? '読み: ' + current.reading : '',
+        current.kanji ? '漢字: ' + current.kanji : '',
+        current.english ? '原語・スペル: ' + current.english : '',
+        current.pronunciation ? '発音記号: ' + current.pronunciation : '',
+        '登録日: ' + formatDate(current.datetime), 'ID: ' + current.id
+    ].filter(Boolean).join(' | ');
+    target.innerHTML = '<div class="word-header-container"><div class="word-title-row"><h2 class="word-title">' + escapeHtml(titleValue || '（未登録）') + '</h2><span class="category-badge">' + escapeHtml(current.category || '指定なし') + '</span></div>' +
+        (badges ? '<div class="tag-container">' + badges + '</div>' : '') + (hashtags ? '<div class="hashtag-list" aria-label="ハッシュタグ">' + hashtags + '</div>' : '') +
+        (metadata ? '<div class="word-sub-info">' + escapeHtml(metadata) + '</div>' : '') + '</div>' + meaningsHtml +
+        (current.column ? '<section class="section-block section-block-column"><div class="section-title">コラム</div>' + renderRichText(current.column) + '</section>' : '') +
+        (current.memo ? '<section class="section-block section-block-memo"><div class="section-title">メモ</div>' + renderRichText(current.memo) + '</section>' : '') +
+        (current.gemini_note && displaySettings.showGeminiNote ? '<section class="section-block section-block-ai"><div class="section-title">AIからの一言</div>' + renderRichText(current.gemini_note) + '</section>' : '') +
+        '<div class="word-sub-info">登録日時: ' + escapeHtml(current.datetime) + '</div>';
+    target.querySelectorAll('[data-tag-type][data-tag-value]').forEach(button => button.addEventListener('click', () => showWordsForTag(button.dataset.tagType, button.dataset.tagValue)));
+    target.querySelectorAll('[data-word-id]').forEach(button => button.addEventListener('click', () => { currentWordId = Number(button.dataset.wordId); renderSidebarTree(); showViewMode(); }));
 }
 
 function renderMeaningEditor(meaning = {}, index = 0) {
