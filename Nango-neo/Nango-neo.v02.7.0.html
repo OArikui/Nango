@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="app-name" content="© 2026 Nango-neo (base: v3.10) - Version 2.7.0">
     <meta name="html-version" content="neo.v02.7.0">
-    <meta name="json-version" content="DTformats.neo.v5.14">
+    <meta name="json-version" content="DTformats.neo.v5.15">
     <meta name="javascript-version" content="v01.7.0">
     <title>Nango-neo — Phase 1</title>
     <link rel="stylesheet" href="style.v02.7.0.css">
@@ -62,7 +62,7 @@
                         <div class="sidebar-control"><button class="btn-sm filter-trigger" id="categoryFilterTrigger" type="button" onclick="toggleCategoryFilterPopup()" aria-expanded="false">分類で絞り込み <span id="categoryFilterBadge">0</span></button><div id="categoryFilterPopover" class="filter-popover" style="display:none"></div></div>
                         <div class="sidebar-control"><button class="btn-sm filter-trigger" id="hierarchyTrigger" type="button" onclick="toggleHierarchyPopup()" aria-expanded="false">階層基準: <span id="hierarchyCurrentLabel">分類</span> ▾</button>
                             <div id="hierarchyPopup" class="filter-popover compact-popover" style="display:none">
-                                <button class="btn-sm active" id="struct-cat" type="button" onclick="setHierarchyStructure('category')">分類</button><button class="btn-sm" id="struct-field" type="button" onclick="setHierarchyStructure('fieldTag')">分野</button><button class="btn-sm" id="struct-era" type="button" onclick="setHierarchyStructure('eraTag')">時代</button><button class="btn-sm" id="struct-initial" type="button" onclick="setHierarchyStructure('initial')">頭文字</button>
+                                <button class="btn-sm" id="struct-field" type="button" onclick="setHierarchyStructure('fieldTag')">分野</button><button class="btn-sm" id="struct-era" type="button" onclick="setHierarchyStructure('eraTag')">時代</button><button class="btn-sm" id="struct-initial" type="button" onclick="setHierarchyStructure('initial')">頭文字</button>
                             </div>
                         </div>
                         <div class="sidebar-control"><button class="btn-sm filter-trigger" id="sortTrigger" type="button" onclick="toggleSortPopup()" aria-expanded="false">並び替え: <span id="sortCurrentLabel">登録順</span> ▾</button>
@@ -97,7 +97,7 @@
                             <input type="text" id="editWord" class="form-control" placeholder="例: カスケード"><small>単語名には読みを括弧で付けません。読みは「よみがな」、原語は「英語・スペル」に入力してください。</small>
                         </div>
                         <div class="form-group" style="flex: 1; min-width: 150px;">
-                            <label for="editCategory">単語分類</label>
+                            <label for="editCategory">分類タグ（最大3個。カンマ区切り）</label>
                             <input type="text" id="editCategory" class="form-control" placeholder="例: 外来語、古語・大和言葉、専門用語">
                         </div>
                     </div>
