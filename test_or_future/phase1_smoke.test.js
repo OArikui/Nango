@@ -90,6 +90,17 @@ assert.equal('word' in exported.words['カスケード'], false, 'headword is no
 assert.deepEqual(exported.words['カスケード'].categoryTags, ['外来語', '専門用語'], 'category tags survive round-trip');
 assert.equal(exported.words['カスケード'].pronunciation, '/ˈkæskeɪd/', 'pronunciation survives round-trip');
 
+const mergeCandidate = api.normalizeWord({
+  word: 'カスケード',
+  category: '略語',
+  categoryTags: ['略語'],
+  pronunciation: '/ˈkæskeɪd/',
+  meanings: [{ definition: '意味A', fieldTag: ['工学'] }]
+}, 'カスケード');
+const merged = api.mergeWord(parsed.words[0], mergeCandidate);
+assert.deepEqual(merged.categoryTags, ['外来語', '専門用語', '略語'], 'classification tags merge within the three-tag cap');
+assert.deepEqual(merged.meanings[0].fieldTag, ['IT', '工学'], 'domain tags merge within the two-tag per-meaning cap');
+
 assert.throws(() => api.parseNangoDocument({ words: { '未定義': { meanings: [{ background: '定義なし' }] } } }), /definition/, 'missing required definition is rejected');
 assert.throws(() => api.parseNangoDocument({ words: { '日時不正': { datetime: 'yyyymmdd_HHMM', meanings: [{ definition: '定義' }] } } }), /RFC 3339/, 'invalid canonical date is rejected');
 
