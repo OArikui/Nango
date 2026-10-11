@@ -34,9 +34,9 @@ jobs:
           import json
           from pathlib import Path
           paths = [
-              Path("Nango-neo/DTformats.neo.v5.15/DF-FMT_schema.v01.15.json"),
-              Path("Nango-neo/DTformats.neo.v5.15/DT-FMT_instruction_AI.v01.15.json"),
-              Path("Nango-neo/DTformats.neo.v5.15/DT-FMT_template.v02.15.json"),
+              Path("Nango-neo/DTformats.neo.v5.16/DF-FMT_schema.v01.16.json"),
+              Path("Nango-neo/DTformats.neo.v5.16/DT-FMT_instruction_AI.v01.16.json"),
+              Path("Nango-neo/DTformats.neo.v5.16/DT-FMT_template.v02.16.json"),
           ]
           for path in paths:
               json.loads(path.read_text(encoding="utf-8"))
