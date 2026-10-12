@@ -5,7 +5,7 @@ const path = require('node:path');
 
 const root = path.join(__dirname, '..');
 const jsPath = path.join(root, 'Nango-neo', 'Nango_main.v01.7.3.js');
-const htmlPath = path.join(root, 'Nango-neo', 'Nango-neo.v02.7.3.html');
+const htmlPath = path.join(root, 'Nango-neo', 'Nango-neo.v02.7.4.html');
 const cssPath = path.join(root, 'Nango-neo', 'style.v02.7.3.css');
 const schemaPath = path.join(root, 'Nango-neo', 'DTformats.neo.v5.16', 'DF-FMT_schema.v01.16.json');
 const instructionPath = path.join(root, 'Nango-neo', 'DTformats.neo.v5.16', 'DT-FMT_instruction_AI.v01.16.json');
@@ -108,11 +108,15 @@ assert.throws(() => api.parseNangoDocument({ words: { '未定義': { meanings: [
 assert.throws(() => api.parseNangoDocument({ words: { '日時不正': { datetime: 'yyyymmdd_HHMM', meanings: [{ definition: '定義' }] } } }), /RFC 3339/, 'invalid canonical date is rejected');
 
 const html = fs.readFileSync(htmlPath, 'utf8');
+const faviconPath = path.join(root, 'Nango-neo', 'nango-logo.svg');
+const favicon = fs.readFileSync(faviconPath, 'utf8');
+assert.ok(html.includes('href="nango-logo.svg"'), 'browser tab references the Nango favicon');
+assert.ok(favicon.includes('<svg'), 'favicon is an SVG image');
 const css = fs.readFileSync(cssPath, 'utf8');
 const schema = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
 const instructions = JSON.parse(fs.readFileSync(instructionPath, 'utf8'));
 const template = JSON.parse(fs.readFileSync(path.join(root, 'Nango-neo', 'DTformats.neo.v5.16', 'DT-FMT_template.v02.16.json'), 'utf8'));
-assert.match(html, /NANGO-NEO <strong>v2\.7\.3<\/strong>/, 'HTML version is updated');
+assert.match(html, /NANGO-NEO <strong>v2\.7\.4<\/strong>/, 'HTML version is updated');
 assert.match(html, /Nango_main\.v01\.7\.3\.js/, 'HTML references the versioned JavaScript');
 assert.match(html, /style\.v02\.7\.3\.css/, 'HTML references the versioned stylesheet');
 assert.match(html, /id="wordListAlphabetJump"/, 'word list includes initial navigation');
