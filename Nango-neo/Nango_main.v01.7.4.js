@@ -1028,22 +1028,37 @@ async function applyImportedWords(incoming, extra = []) {
         }
         wordData = reassignIds(deduped);
         additionalData = mergeList(extra, []);
+        const importedWordIds = wordData.map(item => item.id);
         const first = wordData[0]; currentWordId = first ? first.id : -1;
-        saveToLocalStorage(); refreshOpenState(); renderSidebarTree(); showViewMode();
-        return { added: wordData.length, merged: 0, skipped };
+        saveToLocalStorage(); refreshOpenState(); renderSidebarTree();
+        if (importedWordIds.length) showWordListForWords(importedWordIds);
+        else showViewMode();
+        return { added: wordData.length, merged: 0, skipped, wordIds: importedWordIds };
     }
     const candidate = wordData.map(clone);
+    const importedWordIds = [];
     let added = 0, mergedCount = 0, skipped = 0;
     for (const word of incoming) {
         const index = findDuplicateIndex(word, candidate);
-        if (index < 0) { candidate.push({ ...clone(word), id: nextId(candidate) }); added++; }
-        else { candidate[index] = mergeWord(candidate[index], word); mergedCount++; }
+        if (index < 0) {
+            const imported = { ...clone(word), id: nextId(candidate) };
+            candidate.push(imported);
+            importedWordIds.push(imported.id);
+            added++;
+        } else {
+            candidate[index] = mergeWord(candidate[index], word);
+            importedWordIds.push(candidate[index].id);
+            mergedCount++;
+        }
     }
     wordData = candidate;
     additionalData = mergeList(additionalData, extra);
+    const uniqueImportedWordIds = [...new Set(importedWordIds)];
     if (!wordData.some(item => item.id === currentWordId)) currentWordId = wordData[0]?.id ?? -1;
-    saveToLocalStorage(); refreshOpenState(); renderSidebarTree(); showViewMode();
-    return { added, merged: mergedCount, skipped };
+    saveToLocalStorage(); refreshOpenState(); renderSidebarTree();
+    if (uniqueImportedWordIds.length) showWordListForWords(uniqueImportedWordIds);
+    else showViewMode();
+    return { added, merged: mergedCount, skipped, wordIds: uniqueImportedWordIds };
 }
 
 function exportJSON() {
@@ -1168,19 +1183,18 @@ async function readClipboardToPaste() {
     if (!input) return;
     if (!navigator.clipboard || typeof navigator.clipboard.readText !== 'function') {
         input.focus();
-        alert('このブラウザーではクリップボード読み取り機能を利用できません。テキスト欄をクリックし、Ctrl+V で貼り付けてください。');
+        alert('このブラウザーではクリップボード読み取り機能を利用できません。テキスト欄で Ctrl+V を押してください。');
         return;
     }
     try {
         const clipboardText = await navigator.clipboard.readText();
-        if (!clipboardText) {
+        if (!clipboardText.trim()) {
             input.focus();
             alert('クリップボードは空です。コピーした JSON を確認してください。');
             return;
         }
         input.value = clipboardText;
-        input.focus();
-        input.selectionStart = input.selectionEnd = input.value.length;
+        await importPastedJSON();
     } catch (error) {
         input.focus();
         alert('クリップボードへのアクセスが許可されませんでした。ブラウザーの権限を確認するか、テキスト欄で Ctrl+V を押してください。');
@@ -1223,9 +1237,12 @@ function renderWordListFilterBanner() {
     }
     const isSingleWord = wordListTagFilter.type === 'wordId';
     box.style.display = 'flex';
-    box.innerHTML = isSingleWord
-        ? '追加した単語「<strong>' + escapeHtml(wordListTagFilter.tag) + '</strong>」のみ表示中 <button type="button" class="btn-sm" id="clearWordListTagFilter">絞り込みを解除</button>'
-        : 'タグ「<strong>' + escapeHtml(wordListTagFilter.tag) + '</strong>」で検索中 <button type="button" class="btn-sm" id="clearWordListTagFilter">タグ検索を解除</button>';
+    const isImportedBatch = wordListTagFilter.type === 'wordIds';
+    box.innerHTML = isImportedBatch
+        ? '取り込み後の単語 ' + wordListTagFilter.wordIds.length + ' 件を表示中 <button type="button" class="btn-sm" id="clearWordListTagFilter">絞り込みを解除</button>'
+        : isSingleWord
+            ? '追加した単語「<strong>' + escapeHtml(wordListTagFilter.tag) + '</strong>」のみ表示中 <button type="button" class="btn-sm" id="clearWordListTagFilter">絞り込みを解除</button>'
+            : 'タグ「<strong>' + escapeHtml(wordListTagFilter.tag) + '</strong>」で検索中 <button type="button" class="btn-sm" id="clearWordListTagFilter">タグ検索を解除</button>';
     $('clearWordListTagFilter').onclick = () => {
         wordListTagFilter = null;
         renderWordListFilterBanner();
@@ -1236,7 +1253,17 @@ function renderWordListFilterBanner() {
 function showWordListForWord(wordId) {
     const word = wordData.find(item => item.id === wordId);
     if (!word) { showViewMode(); return; }
-    wordListTagFilter = { type: 'wordId', tag: word.word, wordId: word.id };
+    showWordListForWords([word.id], 'single');
+}
+function showWordListForWords(wordIds, mode = 'import') {
+    const ids = [...new Set((wordIds || []).map(Number))]
+        .filter(id => wordData.some(item => item.id === id));
+    if (!ids.length) { showViewMode(); return; }
+    const words = wordData.filter(item => ids.includes(item.id));
+    currentWordId = ids[0];
+    wordListTagFilter = mode === 'single' && words.length === 1
+        ? { type: 'wordId', tag: words[0].word, wordId: words[0].id }
+        : { type: 'wordIds', tag: String(ids.length), wordIds: ids };
     wordListSelectedCategories = [];
     $('wordListSearch').value = '';
     wordListFiltersOpen = false;
@@ -1263,6 +1290,7 @@ function showWordsForTag(type, tag) {
 function wordHasTag(word, filter) {
     if (!filter) return true;
     if (filter.type === 'wordId') return Number(word.id) === Number(filter.wordId);
+    if (filter.type === 'wordIds') return filter.wordIds.includes(Number(word.id));
     if (filter.type === 'categoryTags' || filter.type === 'category') return getWordCategoryTags(word).includes(filter.tag);
     if (filter.type === 'fieldTag') return word.meanings.some(meaning => (meaning.fieldTag || []).includes(filter.tag));
     if (filter.type === 'eraTag') return word.eraTag === filter.tag;
