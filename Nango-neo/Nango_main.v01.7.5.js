@@ -1028,22 +1028,37 @@ async function applyImportedWords(incoming, extra = []) {
         }
         wordData = reassignIds(deduped);
         additionalData = mergeList(extra, []);
+        const importedWordIds = wordData.map(item => item.id);
         const first = wordData[0]; currentWordId = first ? first.id : -1;
-        saveToLocalStorage(); refreshOpenState(); renderSidebarTree(); showViewMode();
-        return { added: wordData.length, merged: 0, skipped };
+        saveToLocalStorage(); refreshOpenState(); renderSidebarTree();
+        if (importedWordIds.length) showWordListForWords(importedWordIds);
+        else showViewMode();
+        return { added: wordData.length, merged: 0, skipped, wordIds: importedWordIds };
     }
     const candidate = wordData.map(clone);
+    const importedWordIds = [];
     let added = 0, mergedCount = 0, skipped = 0;
     for (const word of incoming) {
         const index = findDuplicateIndex(word, candidate);
-        if (index < 0) { candidate.push({ ...clone(word), id: nextId(candidate) }); added++; }
-        else { candidate[index] = mergeWord(candidate[index], word); mergedCount++; }
+        if (index < 0) {
+            const imported = { ...clone(word), id: nextId(candidate) };
+            candidate.push(imported);
+            importedWordIds.push(imported.id);
+            added++;
+        } else {
+            candidate[index] = mergeWord(candidate[index], word);
+            importedWordIds.push(candidate[index].id);
+            mergedCount++;
+        }
     }
     wordData = candidate;
     additionalData = mergeList(additionalData, extra);
+    const uniqueImportedWordIds = [...new Set(importedWordIds)];
     if (!wordData.some(item => item.id === currentWordId)) currentWordId = wordData[0]?.id ?? -1;
-    saveToLocalStorage(); refreshOpenState(); renderSidebarTree(); showViewMode();
-    return { added, merged: mergedCount, skipped };
+    saveToLocalStorage(); refreshOpenState(); renderSidebarTree();
+    if (uniqueImportedWordIds.length) showWordListForWords(uniqueImportedWordIds);
+    else showViewMode();
+    return { added, merged: mergedCount, skipped, wordIds: uniqueImportedWordIds };
 }
 
 function exportJSON() {
@@ -1168,19 +1183,18 @@ async function readClipboardToPaste() {
     if (!input) return;
     if (!navigator.clipboard || typeof navigator.clipboard.readText !== 'function') {
         input.focus();
-        alert('このブラウザーではクリップボード読み取り機能を利用できません。テキスト欄をクリックし、Ctrl+V で貼り付けてください。');
+        alert('このブラウザーではクリップボード読み取り機能を利用できません。テキスト欄で Ctrl+V を押してください。');
         return;
     }
     try {
         const clipboardText = await navigator.clipboard.readText();
-        if (!clipboardText) {
+        if (!clipboardText.trim()) {
             input.focus();
             alert('クリップボードは空です。コピーした JSON を確認してください。');
             return;
         }
         input.value = clipboardText;
-        input.focus();
-        input.selectionStart = input.selectionEnd = input.value.length;
+        await importPastedJSON();
     } catch (error) {
         input.focus();
         alert('クリップボードへのアクセスが許可されませんでした。ブラウザーの権限を確認するか、テキスト欄で Ctrl+V を押してください。');
@@ -1223,9 +1237,12 @@ function renderWordListFilterBanner() {
     }
     const isSingleWord = wordListTagFilter.type === 'wordId';
     box.style.display = 'flex';
-    box.innerHTML = isSingleWord
-        ? '追加した単語「<strong>' + escapeHtml(wordListTagFilter.tag) + '</strong>」のみ表示中 <button type="button" class="btn-sm" id="clearWordListTagFilter">絞り込みを解除</button>'
-        : 'タグ「<strong>' + escapeHtml(wordListTagFilter.tag) + '</strong>」で検索中 <button type="button" class="btn-sm" id="clearWordListTagFilter">タグ検索を解除</button>';
+    const isImportedBatch = wordListTagFilter.type === 'wordIds';
+    box.innerHTML = isImportedBatch
+        ? '取り込み後の単語 ' + wordListTagFilter.wordIds.length + ' 件を表示中 <button type="button" class="btn-sm" id="clearWordListTagFilter">絞り込みを解除</button>'
+        : isSingleWord
+            ? '追加した単語「<strong>' + escapeHtml(wordListTagFilter.tag) + '</strong>」のみ表示中 <button type="button" class="btn-sm" id="clearWordListTagFilter">絞り込みを解除</button>'
+            : 'タグ「<strong>' + escapeHtml(wordListTagFilter.tag) + '</strong>」で検索中 <button type="button" class="btn-sm" id="clearWordListTagFilter">タグ検索を解除</button>';
     $('clearWordListTagFilter').onclick = () => {
         wordListTagFilter = null;
         renderWordListFilterBanner();
@@ -1236,7 +1253,17 @@ function renderWordListFilterBanner() {
 function showWordListForWord(wordId) {
     const word = wordData.find(item => item.id === wordId);
     if (!word) { showViewMode(); return; }
-    wordListTagFilter = { type: 'wordId', tag: word.word, wordId: word.id };
+    showWordListForWords([word.id], 'single');
+}
+function showWordListForWords(wordIds, mode = 'import') {
+    const ids = [...new Set((wordIds || []).map(Number))]
+        .filter(id => wordData.some(item => item.id === id));
+    if (!ids.length) { showViewMode(); return; }
+    const words = wordData.filter(item => ids.includes(item.id));
+    currentWordId = ids[0];
+    wordListTagFilter = mode === 'single' && words.length === 1
+        ? { type: 'wordId', tag: words[0].word, wordId: words[0].id }
+        : { type: 'wordIds', tag: String(ids.length), wordIds: ids };
     wordListSelectedCategories = [];
     $('wordListSearch').value = '';
     wordListFiltersOpen = false;
@@ -1263,6 +1290,7 @@ function showWordsForTag(type, tag) {
 function wordHasTag(word, filter) {
     if (!filter) return true;
     if (filter.type === 'wordId') return Number(word.id) === Number(filter.wordId);
+    if (filter.type === 'wordIds') return filter.wordIds.includes(Number(word.id));
     if (filter.type === 'categoryTags' || filter.type === 'category') return getWordCategoryTags(word).includes(filter.tag);
     if (filter.type === 'fieldTag') return word.meanings.some(meaning => (meaning.fieldTag || []).includes(filter.tag));
     if (filter.type === 'eraTag') return word.eraTag === filter.tag;
@@ -1635,11 +1663,11 @@ function buildAiPrompt() {
         'あなたは、信頼できる情報をもとに言葉の理解を深める辞書編集者です。対象語の意味だけでなく、背景・由来・用法・文化的／専門的文脈も調べ、学習者がその言葉を正確に理解し、使い分けられる資料を作成してください。',
         '出力はDT-FMT v5.17に準拠する有効なJSONのみです。Markdownコードフェンス、前置き、JSON外の解説は付けないでください。',
         'トップレベルは {"words": {"単語名": {"pronunciation": "", "id": 1, "datetime": "RFC 3339日時", "category": "", "eraTag": "", "reading": "", "kanji": "", "english": "", "column": "", "memo": "", "gemini_note": "", "other_tags": [], "meanings": [{"definition": "", "background": "", "nuance": "", "fieldTag": [], "examples": [], "synonyms": [], "antonyms": [], "similarWordsDifference": ""}], "categoryTags": []}}, "additional_data": []} の形にしてください。',
-        '必須ルール: 例示したすべての単語項目・意味項目を省略せず出力してください。情報が不明、確認できない、または該当しないときもキーを省略せず、文字列は空文字、配列は空配列にします。definition だけは空欄にせず、確認できる意味を必ず記載してください。id は正の整数、datetime は現在のRFC 3339日時にしてください。',
+        '必須ルール: 例示したすべての単語項目・意味項目を省略せず出力してください。情報が不明、確認できない、または該当しないときもキーを省略せず、文字列は空文字、配列は空配列にします。ただし memo はユーザー本人が後から記入する補足メモ欄なので、AI が内容を埋める必要はありません。形式維持のためキーは残し、値は必ず空文字にしてください。definition だけは空欄にせず、確認できる意味を必ず記載してください。id は正の整数、datetime は現在のRFC 3339日時にしてください。',
         'meanings は1件以上です。対象語に定着した異なる意味・用法が複数あれば、意味ごとに項目を分けて説明してください。意味の数を無理に増やしたり、同じ内容を言い換えて重複登録したりしないでください。各定義は簡素すぎる一言で終わらせず、対象や範囲、成立条件、典型的な使われ方が分かる程度に具体化してください。',
         'background には、判明する範囲で語源・語の成り立ち・歴史的変化・文化的背景・専門分野での発展を説明してください。根拠が弱い語源説は事実と断定せず、必要に応じて異説と不確実性を明記します。nuance には、丁寧さ、硬さ、感情的な含み、評価、使用場面、誤解しやすい点などを書きます。',
         'examples は意味・文体・使い方が伝わる自然な例文を挙げてください。synonyms は同義・近義の語、antonyms は意味上対照をなす対義語を挙げます。「似た言葉との違い」（similarWordsDifference）には、似た言葉を具体的に取り上げ、意味の範囲、強調点、語感、文体、使われる状況などの違いを説明してください。適切な対義語や比較対象が見つからない場合は、それぞれ空配列／空文字にします。',
-        '知識を拡充することが目的です。冗長な繰り返しは避けつつ、定義・背景・ニュアンス・比較説明は、理解に必要な具体例や理由を含む読み応えのある文章にしてください。column には、関連する文化・歴史・科学・社会・文学の話題、意外な用法、関連概念など、対象語の理解につながる余談を歓迎します。memo は補助情報、gemini_note は要点を親しみやすくまとめた短い一言にします。根拠のない作り話や架空の引用は書かないでください。',
+        '知識を拡充することが目的です。冗長な繰り返しは避けつつ、定義・背景・ニュアンス・比較説明は、理解に必要な具体例や理由を含む読み応えのある文章にしてください。column には、関連する文化・歴史・科学・社会・文学の話題、意外な用法、関連概念など、対象語の理解につながる余談を歓迎します。memo はユーザーが後から記入する個人用メモ欄なので、AI は内容を作成せず空文字にします。gemini_note は要点を親しみやすくまとめた短い一言にします。根拠のない作り話や架空の引用は書かないでください。',
         'pronunciation は単語オブジェクト直下の独立項目です。meanings 内には入れません。単語名には読みを括弧書きで付けず、読みは reading、漢字表記は kanji、原語・スペルは english、発音記号は pronunciation に分けます。',
         'categoryTags は単語そのものの種類・形式・由来（最大3個）、fieldTag は各意味が使われる領域・場面（意味あたり最大2個）、eraTag は単語全体の時代区分、other_tags は表示用ハッシュタグです。相互に代用せず、既存タグを優先して再利用してください。category は互換用に categoryTags の先頭と一致させてください。',
         '',
