@@ -71,7 +71,9 @@ const fieldTags = api.normalizeMeaning({
 assert.deepEqual(fieldTags.fieldTag, ['IT', '科学', '法律'], 'legacy joined meaning-level tags normalize to independent entries');
 assert.deepEqual(fieldTags.antonyms, ['逆語'], 'antonyms are retained');
 assert.equal(fieldTags.similarWordsDifference, '似た語Aよりも範囲が広い。', 'similar-word distinction is retained');
-assert.match(generatedPrompt, /すべての単語項目・意味項目/, 'AI prompt makes every field mandatory');
+assert.match(generatedPrompt, /すべての単語項目・意味項目を省略せず/, 'AI prompt preserves required schema keys');
+assert.match(generatedPrompt, /memo はユーザー本人が後から記入する補足メモ欄なので、AI が内容を埋める必要はありません/, 'memo content is not required from AI');
+assert.match(generatedPrompt, /値は必ず空文字にしてください/, 'AI prompt leaves memo empty');
 assert.match(generatedPrompt, /対義語/, 'AI prompt explains antonyms');
 assert.match(generatedPrompt, /似た言葉との違い/, 'AI prompt explains comparisons');
 assert.match(generatedPrompt, /読み応えのある文章/, 'AI prompt asks for substantive explanations');
