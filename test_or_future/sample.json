@@ -31,9 +31,13 @@
           "synonyms": [
             "類義語・言い換え表現1",
             "類義語・言い換え表現2"
-          ]
+          ],
+          "antonyms": [],
+          "similarWordsDifference": ""
         }
-      ]
+      ],
+      "pronunciation": "",
+      "categoryTags": []
     }
   },
   "additional_data": []
