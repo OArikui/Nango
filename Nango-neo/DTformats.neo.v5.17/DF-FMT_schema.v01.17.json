@@ -1,0 +1,173 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Nango-neo DTformats.neo.v5.17",
+  "description": "Canonical dictionary format v5.17. All defined word and meaning fields are required; unknown or inapplicable string values use an empty string and list values use an empty array. Adds meaning-level antonyms and similar-word distinctions.",
+  "type": "object",
+  "required": [
+    "words"
+  ],
+  "properties": {
+    "words": {
+      "type": "object",
+      "description": "Dictionary keyed by the display word. The key is the word itself, not a word/any field.",
+      "additionalProperties": {
+        "$ref": "#/$defs/word"
+      }
+    },
+    "additional_data": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "word": {
+      "type": "object",
+      "required": [
+        "pronunciation",
+        "id",
+        "datetime",
+        "category",
+        "eraTag",
+        "reading",
+        "kanji",
+        "english",
+        "column",
+        "memo",
+        "gemini_note",
+        "other_tags",
+        "meanings",
+        "categoryTags"
+      ],
+      "properties": {
+        "pronunciation": {
+          "type": "string",
+          "description": "Pronunciation transcription such as IPA. Store independently from word and reading."
+        },
+        "id": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Assigned by Nango on import/add."
+        },
+        "datetime": {
+          "type": "string",
+          "format": "date-time",
+          "description": "RFC 3339 date-time."
+        },
+        "category": {
+          "type": "string",
+          "description": "Compatibility field containing the first classification tag. Prefer categoryTags for new records."
+        },
+        "eraTag": {
+          "type": "string",
+          "description": "One era/time-period tag for the word. Not a linguistic classification or meaning-level domain tag."
+        },
+        "reading": {
+          "type": "string",
+          "description": "Japanese reading stored separately; do not append it to the display word in parentheses."
+        },
+        "kanji": {
+          "type": "string"
+        },
+        "english": {
+          "type": "string"
+        },
+        "column": {
+          "type": "string"
+        },
+        "memo": {
+          "type": "string"
+        },
+        "gemini_note": {
+          "type": "string"
+        },
+        "other_tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Hashtag-style related labels displayed on the word entry. Do not use as substitutes for categoryTags, fieldTag or eraTag."
+        },
+        "meanings": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/meaning"
+          }
+        },
+        "categoryTags": {
+          "type": "array",
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Classification tags based on the linguistic/type nature of the word, not the domains in which a specific meaning is used. Maximum 3 tags per word."
+        }
+      },
+      "additionalProperties": true,
+      "description": "A word entry. The word key is the headword only; reading belongs in reading, and original foreign spelling belongs in english."
+    },
+    "meaning": {
+      "type": "object",
+      "required": [
+        "definition",
+        "background",
+        "nuance",
+        "fieldTag",
+        "examples",
+        "synonyms",
+        "antonyms",
+        "similarWordsDifference"
+      ],
+      "properties": {
+        "definition": {
+          "type": "string",
+          "minLength": 1
+        },
+        "background": {
+          "type": "string"
+        },
+        "nuance": {
+          "type": "string"
+        },
+        "fieldTag": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Array of meaning-level domain/use-context tags, maximum 2 per meaning. Each tag is a separate item. These describe where/how this specific meaning is used, not what kind of word it is.",
+          "maxItems": 2
+        },
+        "examples": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "synonyms": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "antonyms": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Meaning-level antonyms or clearly contrasting words. Use an empty array when none is known or applicable."
+        },
+        "similarWordsDifference": {
+          "type": "string",
+          "description": "A concise but informative comparison with similar expressions, explaining differences in meaning, usage, register, nuance or context. Use an empty string when no reliable distinction can be stated."
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}
