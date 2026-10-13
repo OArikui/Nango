@@ -1,10 +1,12 @@
 # Nango-neo Phase 1 実装記録
 
-更新日: 2026-10-09
+更新日: 2026-10-09（v2.0.0 時点の記録。2026-10-13 の v2.8.0 で参照先のみ更新）
+
+> この文書は Phase 1 を実装した時点の記録です。その後のバージョンごとの変更は [neo-versions.md](neo-versions.md)、現行のデータ形式は [DT-FMT.md](DT-FMT.md) を参照してください。
 
 ## 概要
 
-Phase 1 のブラウザー辞書機能を、`Nango-neo/DTformats.neo.v5.13/` に定義されたデータ形式を基準に実装した。ブラウザー側の内部処理では単語配列を使うが、LocalStorage・インポート・エクスポートの境界で v5.12 のドキュメント形式に変換する。
+Phase 1 のブラウザー辞書機能を、`DTformats.neo.v5.12` として定義されたデータ形式を基準に実装した（その後 v5.16 まで更新。[neo-versions.md](neo-versions.md) 参照）。ブラウザー側の内部処理では単語配列を使うが、LocalStorage・インポート・エクスポートの境界で DT-FMT のドキュメント形式に変換する。
 
 ## v5.12形式
 
@@ -17,7 +19,7 @@ Phase 1 のブラウザー辞書機能を、`Nango-neo/DTformats.neo.v5.13/` に
 - `additional_data` は文字列配列。
 - 過去形式の必須キー末尾 `$` はインポート時に除去し、標準の必須項目チェックを行う。
 
-スキーマは `DF-FMT_schema.v01.13.json` に、AI向けひな形は `DT-FMT_instruction_AI.v01.13.json` に、データ例は `DT-FMT_template.v02.13.json` にある。
+現行のスキーマ・AI向けひな形・データ例は `Nango-neo/DTformats.neo.v5.16/` にある（[DT-FMT.md](DT-FMT.md)）。
 
 ## Phase 1 機能
 
@@ -51,12 +53,11 @@ Phase 1 のブラウザー辞書機能を、`Nango-neo/DTformats.neo.v5.13/` に
 
 ## テスト
 
-開発環境で以下を実行し、全項目成功を確認。
+当時、開発環境で以下を実行し、全項目成功を確認した（現行のテストは [CONTRIBUTING.md](CONTRIBUTING.md) を参照）。
 
 ```powershell
 node test_or_future/phase1_smoke.test.js
 python -m unittest test_or_future.test_phase1_format -v
-python test_or_future/json_test.py
 ```
 
 - JavaScript純粋ロジックのスモークテスト: 14 assertions（中点区切りのタグ移行・固有名詞タグの保持を追加）
@@ -77,29 +78,6 @@ python test_or_future/json_test.py
 - 既存データの `fieldTag` に含まれる中点連結値をインポート／読み込み時に分割し、重複を除去。`category` と `other_tags` は中点を含む分類名・固有名詞があり得るため、自動分割しない。
 - ユーザー提供の141語データを修正し、151個の連結済み `fieldTag` 値を配列要素に分割。JSON Schema検証に成功。
 
+## 以降の変更
 
-## v02.1.0 — 単語一覧機能
-
-- ツールバーに「単語一覧」を追加。
-- 登録済み単語を単語名・読み・分類・タグの表で表示。
-- 登録順／五十音順切り替え、一覧内キーワード検索、行から詳細画面への移動を実装。
-
-
-## v02.2.0 / DTformats.neo.v5.13: 表示名の読み表記統一
-
-- 外来語・外国語・略語・記号や難読漢字の表示名は、必要に応じて `見出し語（読み）` に統一する。
-- 括弧は全角 `（ ）`、括弧内は `reading` と一致する日本語の読みとする。
-- 原語・正式名称は `english` に保持し、表示名の括弧内へ混在させない。
-- インポート、ローカル保存データ読み込み、新規登録時に既存の括弧表記を正規化する。
-
-
-## v02.3.0 / DTformats.neo.v5.14
-- 単語名から読みを括弧で付ける形式を廃止し、reading フィールドに分離。原語は english に保存。
-- タグ一覧のタグ名から該当単語一覧へ移動できる機能を追加。単語詳細・単語一覧のタグもクリック可能。
-- 単語一覧に昇順・降順切替を追加。
-
-
-## v02.4.0 UI / Python launcher
-- `run.py` and `RUN_NANGO.bat` serve the app on localhost using Python standard library only.
-- Added in-app Back/Forward navigation history.
-- Tag tables sort by tag name or matching-word count; word list sorts by each displayed column.
+v2.1.0 以降の変更は [neo-versions.md](neo-versions.md) と [releases/](releases/) に記録しています。

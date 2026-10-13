@@ -1,3 +1,15 @@
-
 # Personal Nango-NEO data
 data/
+# Local launcher data (run.py autosave + settings): contains the user's dictionary
+user_data/
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Build output (GitHub Pages workflow)
+_site/
+
+# OS / editor
+.DS_Store
+Thumbs.db

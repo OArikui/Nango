@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - NEO
-      - neo.v2.7.1-ui-fixes
   pull_request:
     branches:
       - NEO
@@ -26,6 +25,12 @@ jobs:
           python-version: "3.x"
       - name: Run data and UI smoke tests
         run: node test_or_future/phase1_smoke.test.js
+      - name: Check documentation consistency
+        run: node test_or_future/docs_consistency.test.js
+      - name: Install schema test dependency
+        run: python -m pip install "jsonschema[format]"
+      - name: Run DT-FMT schema tests
+        run: python -m unittest test_or_future.test_phase1_format -v
       - name: Compile Python launcher
         run: python -m py_compile run.py
       - name: Validate DT-FMT JSON files

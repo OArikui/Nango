@@ -1,10 +1,10 @@
-# Nango-neo Nango開発ロードマップ
+# Nango-neo 開発ロードマップ
 
 ## phase 1. Nango-neo,辞書作成システムの作成
 
-### 実装状況（2026-10-09）
+### 実装状況（2026-10-13 時点、v2.8.0）
 
-Phase 1の初回実装を [`PHASE1_IMPLEMENTATION.md`](PHASE1_IMPLEMENTATION.md) にまとめました。v5.12形式への入出力統一、旧形式の移行、ID再採番、重複マージ、タグ検索・管理、意味単位編集、JSON貼り付け、「今日の単語」を実装しています。Node.jsのスモークテストとJSON Schemaテスト、ブラウザー操作テストを実施しています。
+Phase 1 のブラウザー辞書機能は実装済みです。初回実装の経緯は [`PHASE1_IMPLEMENTATION.md`](PHASE1_IMPLEMENTATION.md)、その後の変更は [`neo-versions.md`](neo-versions.md) にまとめています。DT-FMT は v5.16 が現行で、仕様は [`DT-FMT.md`](DT-FMT.md) を参照してください。Phase 2（サーバー・アカウント）は未着手です。
 
 
 ### What is **"Nango"** ?

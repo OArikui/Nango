@@ -6,13 +6,13 @@ from pathlib import Path
 from jsonschema import Draft202012Validator, FormatChecker
 
 ROOT = Path(__file__).resolve().parents[1]
-FORMAT_DIR = ROOT / "Nango-neo" / "DTformats.neo.v5.13"
+FORMAT_DIR = ROOT / "Nango-neo" / "DTformats.neo.v5.16"
 
 
 class Phase1FormatTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.schema = json.loads((FORMAT_DIR / "DF-FMT_schema.v01.13.json").read_text(encoding="utf-8"))
+        cls.schema = json.loads((FORMAT_DIR / "DF-FMT_schema.v01.16.json").read_text(encoding="utf-8"))
         Draft202012Validator.check_schema(cls.schema)
         cls.validator = Draft202012Validator(cls.schema, format_checker=FormatChecker())
 
@@ -20,15 +20,15 @@ class Phase1FormatTests(unittest.TestCase):
         return json.loads(path.read_text(encoding="utf-8"))
 
     def test_template_matches_schema(self):
-        template = self.load(FORMAT_DIR / "DT-FMT_template.v02.13.json")
+        template = self.load(FORMAT_DIR / "DT-FMT_template.v02.16.json")
         self.assertEqual(list(self.validator.iter_errors(template)), [])
 
     def test_ai_instruction_template_matches_schema(self):
-        template = self.load(FORMAT_DIR / "DT-FMT_instruction_AI.v01.13.json")
+        template = self.load(FORMAT_DIR / "DT-FMT_instruction_AI.v01.16.json")
         self.assertEqual(list(self.validator.iter_errors(template)), [])
 
     def test_meanings_support_multiple_definitions(self):
-        data = self.load(FORMAT_DIR / "DT-FMT_template.v02.13.json")
+        data = self.load(FORMAT_DIR / "DT-FMT_template.v02.16.json")
         word = next(iter(data["words"].values()))
         word["meanings"].append({"definition": "もう一つの意味", "fieldTag": ["分野A", "分野B"]})
         self.assertEqual(list(self.validator.iter_errors(data)), [])
@@ -43,15 +43,11 @@ class Phase1FormatTests(unittest.TestCase):
         self.assertTrue(list(self.validator.iter_errors(data)))
 
     def test_rfc3339_datetime_is_checked(self):
-        data = self.load(FORMAT_DIR / "DT-FMT_template.v02.13.json")
+        data = self.load(FORMAT_DIR / "DT-FMT_template.v02.16.json")
         word = next(iter(data["words"].values()))
         word["datetime"] = "yyyymmdd_HHMM"
         errors = list(self.validator.iter_errors(data))
         self.assertTrue(any("datetime" in error.path for error in errors))
-
-    def test_normalized_dictionary_dataset_matches_schema(self):
-        dataset = self.load(ROOT / "data" / "Nango-neo_DTformats.neo.v5.13.json")
-        self.assertEqual(list(self.validator.iter_errors(dataset)), [])
 
     def test_test_or_future_sample_stays_in_sync(self):
         sample = self.load(ROOT / "test_or_future" / "sample.json")
