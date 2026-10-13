@@ -1646,7 +1646,7 @@ function buildAiPrompt() {
         buildTagPromptContext(),
         '',
         '対象語: （ここに単語名を入力）'
-    ].join('\\n');
+    ].join('\n');
 }
 async function copyAiPrompt() {
     const promptText = buildAiPrompt();
