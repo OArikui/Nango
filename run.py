@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Launch Nango-neo v2.8.0 locally using only Python's standard library.
+"""Launch Nango-neo v2.8.1 locally using only Python's standard library.
 
 Usage: python run.py [--port 8765] [--no-browser]
 """
@@ -16,16 +16,16 @@ from urllib.parse import parse_qs, urlparse
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 ROOT = PROJECT_ROOT / "Nango-neo"
-ENTRY = "/Nango-neo.v02.8.0.html"
+ENTRY = "/Nango-neo.v02.8.1.html"
 DATA_DIR = PROJECT_ROOT / "user_data"
 DEFAULT_DATA_FILE = DATA_DIR / "nango_data.json"
 CONFIG_FILE = DATA_DIR / "settings.json"
 DATA_FILE = DEFAULT_DATA_FILE
 MAX_DATA_BYTES = 10 * 1024 * 1024
 FORMAT_FILES = {
-    "schema": ROOT / "DTformats.neo.v5.16" / "DF-FMT_schema.v01.16.json",
-    "instruction": ROOT / "DTformats.neo.v5.16" / "DT-FMT_instruction_AI.v01.16.json",
-    "template": ROOT / "DTformats.neo.v5.16" / "DT-FMT_template.v02.16.json",
+    "schema": ROOT / "DTformats.neo.v5.17" / "DF-FMT_schema.v01.17.json",
+    "instruction": ROOT / "DTformats.neo.v5.17" / "DT-FMT_instruction_AI.v01.17.json",
+    "template": ROOT / "DTformats.neo.v5.17" / "DT-FMT_template.v02.17.json",
 }
 
 

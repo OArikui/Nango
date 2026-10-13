@@ -9,11 +9,11 @@
 
 | 項目 | ファイル / バージョン |
 | ---- | ---------------------- |
-| アプリ | v2.8.0 |
-| 画面 (HTML) | `Nango-neo/Nango-neo.v02.8.0.html` |
-| JavaScript | `Nango-neo/Nango_main.v01.7.3.js` |
+| アプリ | v2.8.1 |
+| 画面 (HTML) | `Nango-neo/Nango-neo.v02.8.1.html` |
+| JavaScript | `Nango-neo/Nango_main.v01.7.4.js` |
 | CSS | `Nango-neo/style.v02.7.3.css` |
-| データ形式 (DT-FMT) | `Nango-neo/DTformats.neo.v5.16/`（[仕様](docs/DT-FMT.md)） |
+| データ形式 (DT-FMT) | `Nango-neo/DTformats.neo.v5.17/`（[仕様](docs/DT-FMT.md)） |
 | ローカルランチャー | `run.py` / `RUN_NANGO.bat`（Python 3.9 以降、標準ライブラリのみ） |
 
 JavaScript と CSS は、内容が変わったときだけ番号が上がります。そのためアプリのバージョンとファイル番号は一致しません。
@@ -37,7 +37,7 @@ python run.py --no-browser    # ブラウザーを自動で開かない
 
 ### 2. HTML を直接開く
 
-`Nango-neo/Nango-neo.v02.8.0.html` をブラウザーで開いても使えます。この場合の保存先はブラウザーの `localStorage` だけで、
+`Nango-neo/Nango-neo.v02.8.1.html` をブラウザーで開いても使えます。この場合の保存先はブラウザーの `localStorage` だけで、
 同じブラウザー・同じオリジンでしかデータを使えません。ファイルへの自動保存は動作しません。
 
 ### 3. GitHub Pages
@@ -52,7 +52,7 @@ python run.py --no-browser    # ブラウザーを自動で開かない
 | Python ランチャー | `user_data/nango_data.json`（ブラウザーの `localStorage` にも予備として保存） |
 | HTML 直接 / GitHub Pages | ブラウザーの `localStorage` のみ |
 
-- バックアップや別環境への移行には、ツールの「JSONエクスポート」を使ってください。出力は `Nango-neo_DTformats.neo.v5.16.json` です。
+- バックアップや別環境への移行には、ツールの「JSONエクスポート」を使ってください。出力は `Nango-neo_DTformats.neo.v5.17.json` です。
 - Python ランチャーを使う場合は、`user_data` フォルダーもバックアップしてください。
 - 保存先ファイルは、設定の「ファイル保存先」から変更できます（ランチャー利用時のみ）。
 - `user_data/` と `data/` は個人の辞書データのため、`.gitignore` で管理対象外にしています。
@@ -69,7 +69,7 @@ python run.py --no-browser    # ブラウザーを自動で開かない
 - **AI 入力支援**: 設定の「AIに送るプロンプトをコピー」で、DT-FMT の形式規則と登録済みタグ一覧をまとめてコピーできます。「DT-FMT定義を確認」で形式を画面上でも確認できます。
 - **画面履歴**: 画面上部の「戻る」「進む」でアプリ内の画面を移動できます。
 
-## データ形式（DT-FMT v5.16）
+## データ形式（DT-FMT v5.17）
 
 JSON Schema Draft 2020-12 に基づく形式です。単語名を `words` オブジェクトのキーにし、1 つの語の中に `meanings` 配列を置いて、意味ごとに定義・背景・ニュアンス・分野タグ・例文・類義語を保存します。
 全項目の説明は [docs/DT-FMT.md](docs/DT-FMT.md) にあります。最小の例は次のとおりです。
@@ -90,7 +90,9 @@ JSON Schema Draft 2020-12 に基づく形式です。単語名を `words` オブ
           "definition": "必須の意味・定義",
           "fieldTag": ["IT"],
           "examples": [],
-          "synonyms": []
+          "synonyms": [],
+          "antonyms": [],
+          "similarWordsDifference": ""
         }
       ]
     }
@@ -131,7 +133,7 @@ Node.js 20 と Python 3.9 以降を想定しています。上記は GitHub Acti
 ├── README.md                 このファイル
 ├── run.py / RUN_NANGO.bat    ローカルランチャー（標準ライブラリのみ）
 ├── Nango-neo/                アプリ本体（HTML / JS / CSS / ロゴ）
-│   └── DTformats.neo.v5.16/  DT-FMT のスキーマ・AI 指示・テンプレート
+│   └── DTformats.neo.v5.17/  DT-FMT のスキーマ・AI 指示・テンプレート
 ├── docs/                     ドキュメント
 │   ├── CONTRIBUTING.md       開発ルール・バージョン管理・リリース手順
 │   ├── DT-FMT.md             データ形式の仕様

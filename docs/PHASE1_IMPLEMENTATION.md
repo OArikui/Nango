@@ -19,7 +19,7 @@ Phase 1 のブラウザー辞書機能を、`DTformats.neo.v5.12` として定�
 - `additional_data` は文字列配列。
 - 過去形式の必須キー末尾 `$` はインポート時に除去し、標準の必須項目チェックを行う。
 
-現行のスキーマ・AI向けひな形・データ例は `Nango-neo/DTformats.neo.v5.16/` にある（[DT-FMT.md](DT-FMT.md)）。
+当時のスキーマ・AI向けひな形・データ例は `Nango-neo/DTformats.neo.v5.16/` にあり、現行形式は [DT-FMT.md](DT-FMT.md) を参照（[DT-FMT.md](DT-FMT.md)）。
 
 ## Phase 1 機能
 

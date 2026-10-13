@@ -4,11 +4,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const root = path.join(__dirname, '..');
-const jsPath = path.join(root, 'Nango-neo', 'Nango_main.v01.7.3.js');
-const htmlPath = path.join(root, 'Nango-neo', 'Nango-neo.v02.8.0.html');
+const jsPath = path.join(root, 'Nango-neo', 'Nango_main.v01.7.4.js');
+const htmlPath = path.join(root, 'Nango-neo', 'Nango-neo.v02.8.1.html');
 const cssPath = path.join(root, 'Nango-neo', 'style.v02.7.3.css');
-const schemaPath = path.join(root, 'Nango-neo', 'DTformats.neo.v5.16', 'DF-FMT_schema.v01.16.json');
-const instructionPath = path.join(root, 'Nango-neo', 'DTformats.neo.v5.16', 'DT-FMT_instruction_AI.v01.16.json');
+const schemaPath = path.join(root, 'Nango-neo', 'DTformats.neo.v5.17', 'DF-FMT_schema.v01.17.json');
+const instructionPath = path.join(root, 'Nango-neo', 'DTformats.neo.v5.17', 'DT-FMT_instruction_AI.v01.17.json');
 
 let source = fs.readFileSync(jsPath, 'utf8');
 source = source.replace(/\/\/ Expose small pure helpers for browser console\/manual tests\.[\s\S]*$/, '');
@@ -64,9 +64,17 @@ assert.deepEqual(categoryList, ['大和言葉', '専門用語', '略語', '外�
 
 const fieldTags = api.normalizeMeaning({
   definition: '定義',
-  fieldTag: ['IT・科学', '法律']
+  fieldTag: ['IT・科学', '法律'],
+  antonyms: ['逆語'],
+  similarWordsDifference: '似た語Aよりも範囲が広い。'
 });
 assert.deepEqual(fieldTags.fieldTag, ['IT', '科学', '法律'], 'legacy joined meaning-level tags normalize to independent entries');
+assert.deepEqual(fieldTags.antonyms, ['逆語'], 'antonyms are retained');
+assert.equal(fieldTags.similarWordsDifference, '似た語Aよりも範囲が広い。', 'similar-word distinction is retained');
+assert.match(generatedPrompt, /すべての単語項目・意味項目/, 'AI prompt makes every field mandatory');
+assert.match(generatedPrompt, /対義語/, 'AI prompt explains antonyms');
+assert.match(generatedPrompt, /似た言葉との違い/, 'AI prompt explains comparisons');
+assert.match(generatedPrompt, /読み応えのある文章/, 'AI prompt asks for substantive explanations');
 
 const legacyParentheses = api.parseNangoDocument({
   words: {
@@ -115,10 +123,10 @@ assert.ok(favicon.includes('<svg'), 'favicon is an SVG image');
 const css = fs.readFileSync(cssPath, 'utf8');
 const schema = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
 const instructions = JSON.parse(fs.readFileSync(instructionPath, 'utf8'));
-const template = JSON.parse(fs.readFileSync(path.join(root, 'Nango-neo', 'DTformats.neo.v5.16', 'DT-FMT_template.v02.16.json'), 'utf8'));
-assert.match(html, /NANGO-NEO <strong>v2\.8\.0<\/strong>/, 'HTML version is updated');
-assert.match(html, /Version 2\.8\.0"/, 'HTML app-name meta carries the app version');
-assert.match(html, /Nango_main\.v01\.7\.3\.js/, 'HTML references the versioned JavaScript');
+const template = JSON.parse(fs.readFileSync(path.join(root, 'Nango-neo', 'DTformats.neo.v5.17', 'DT-FMT_template.v02.17.json'), 'utf8'));
+assert.match(html, /NANGO-NEO <strong>v2\.8\.1<\/strong>/, 'HTML version is updated');
+assert.match(html, /Version 2\.8\.1"/, 'HTML app-name meta carries the app version');
+assert.match(html, /Nango_main\.v01\.7\.4\.js/, 'HTML references the versioned JavaScript');
 assert.match(html, /style\.v02\.7\.3\.css/, 'HTML references the versioned stylesheet');
 assert.match(html, /id="wordListAlphabetJump"/, 'word list includes initial navigation');
 assert.match(html, /id="formatPanelMode"/, 'read-only DT-FMT view is included');
@@ -166,9 +174,20 @@ assert.match(html, /id="pageBackBtn"[\s\S]*戻る/, 'back navigation is present 
 assert.match(html, /id="pageForwardBtn"[\s\S]*進む/, 'forward navigation is present with a label');
 assert.match(source, /function setSidebarWordDisplayMode\(/, 'sidebar display mode is implemented');
 assert.match(source, /function copyAiPrompt\(/, 'AI prompt copy action is implemented');
+assert.match(source, /function readClipboardToPaste\(/, 'clipboard read action is implemented');
+assert.match(html, /onclick="readClipboardToPaste\(\)">クリップボードから貼り付け/, 'clipboard read button is available');
+assert.match(source, /function installKeyboardNavigation\(/, 'left/right keyboard navigation is implemented');
+assert.match(source, /function showWordListForWord\(/, 'new entries open a filtered word list');
+assert.match(source, /if \(savedFromNewEntry\) showWordListForWord\(currentWordId\)/, 'saving a new entry transitions to its filtered list');
 assert.equal(Object.keys(schema.$defs.word.properties)[0], 'pronunciation', 'pronunciation leads word-level schema properties');
 assert.equal(Object.keys(template.words['単語名'])[0], 'pronunciation', 'pronunciation leads template properties');
 assert.equal(Object.keys(instructions.words['単語名（表記）'])[0], 'pronunciation', 'pronunciation leads AI example properties');
+assert.ok('antonyms' in template.words['単語名'].meanings[0], 'template includes antonyms');
+assert.ok('similarWordsDifference' in template.words['単語名'].meanings[0], 'template includes comparison field');
+assert.ok('antonyms' in instructions.words['単語名（表記）'].meanings[0], 'AI instruction includes antonyms');
+assert.ok('similarWordsDifference' in instructions.words['単語名（表記）'].meanings[0], 'AI instruction includes comparison field');
+assert.ok(schema.$defs.meaning.required.includes('antonyms'), 'schema requires antonyms');
+assert.ok(schema.$defs.meaning.required.includes('similarWordsDifference'), 'schema requires word distinctions');
 assert.match(css, /\.word-list-open\s*\{[^}]*border:\s*0/s, 'headword buttons are borderless');
 assert.match(css, /\.sidebar-control\s*\{[^}]*flex-direction:\s*column/s, 'sidebar popups use flow layout');
-console.log('Nango-NEO v2.8.0 smoke tests passed.');
+console.log('Nango-NEO v2.8.1 smoke tests passed.');

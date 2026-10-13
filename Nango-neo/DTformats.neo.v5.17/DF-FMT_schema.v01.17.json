@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Nango-neo DTformats.neo.v5.16",
-  "description": "Canonical dictionary format v5.16. Pronunciation is an independent word-level field, ordered before other word properties; classification, meaning-level domain tags and era tags remain separate.",
+  "title": "Nango-neo DTformats.neo.v5.17",
+  "description": "Canonical dictionary format v5.17. All defined word and meaning fields are required; unknown or inapplicable string values use an empty string and list values use an empty array. Adds meaning-level antonyms and similar-word distinctions.",
   "type": "object",
   "required": [
     "words"
@@ -27,7 +27,20 @@
     "word": {
       "type": "object",
       "required": [
-        "meanings"
+        "pronunciation",
+        "id",
+        "datetime",
+        "category",
+        "eraTag",
+        "reading",
+        "kanji",
+        "english",
+        "column",
+        "memo",
+        "gemini_note",
+        "other_tags",
+        "meanings",
+        "categoryTags"
       ],
       "properties": {
         "pronunciation": {
@@ -102,7 +115,14 @@
     "meaning": {
       "type": "object",
       "required": [
-        "definition"
+        "definition",
+        "background",
+        "nuance",
+        "fieldTag",
+        "examples",
+        "synonyms",
+        "antonyms",
+        "similarWordsDifference"
       ],
       "properties": {
         "definition": {
@@ -134,6 +154,17 @@
           "items": {
             "type": "string"
           }
+        },
+        "antonyms": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Meaning-level antonyms or clearly contrasting words. Use an empty array when none is known or applicable."
+        },
+        "similarWordsDifference": {
+          "type": "string",
+          "description": "A concise but informative comparison with similar expressions, explaining differences in meaning, usage, register, nuance or context. Use an empty string when no reliable distinction can be stated."
         }
       },
       "additionalProperties": true

@@ -1,5 +1,5 @@
 /* Nango-neo Phase 1
- * Canonical file format: DTformats.neo.v5.16 (words object keyed by displayed word).
+ * Canonical file format: DTformats.neo.v5.17 (words object keyed by displayed word).
  * The UI uses an internal array; conversion happens only at load/import/export boundaries.
  */
 'use strict';
@@ -37,7 +37,7 @@ async function loadServerData() {
         return null;
     }
 }
-const FORMAT_VERSION = 'DTformats.neo.v5.16';
+const FORMAT_VERSION = 'DTformats.neo.v5.17';
 const nowIso = () => new Date().toISOString();
 
 const defaultData = [
@@ -155,12 +155,7 @@ function restoreAppNavigation(state) {
     } else if (state.screen === 'wordList' || state.screen === 'tagWords') {
         $('wordListMode').style.display = 'block';
         $('wordListSearch').value = state.wordListSearch || '';
-        const filterBox = $('wordListTagFilter');
-        if (wordListTagFilter) {
-            filterBox.style.display = 'flex';
-            filterBox.innerHTML = `タグ「<strong>${escapeHtml(wordListTagFilter.tag)}</strong>」が付いた単語 <button type="button" class="btn-sm" id="clearWordListTagFilter">タグ絞り込み解除</button>`;
-            $('clearWordListTagFilter').onclick = () => { wordListTagFilter = null; filterBox.style.display = 'none'; renderWordList(); recordAppNavigation('wordList'); };
-        } else { filterBox.style.display = 'none'; filterBox.textContent = ''; }
+        renderWordListFilterBanner();
         renderWordList();
     } else {
         $('viewMode').style.display = 'block'; showViewMode(false);
@@ -220,7 +215,9 @@ function normalizeMeaning(raw = {}) {
         nuance: asString(raw.nuance),
         fieldTag: normalizeFieldTags(raw.fieldTag),
         examples: asStringArray(raw.examples),
-        synonyms: asStringArray(raw.synonyms)
+        synonyms: asStringArray(raw.synonyms),
+        antonyms: asStringArray(raw.antonyms),
+        similarWordsDifference: asString(raw.similarWordsDifference)
     };
 }
 
@@ -255,10 +252,11 @@ function normalizeWord(raw = {}, key = '') {
     let meanings;
     if (Array.isArray(item.meanings)) {
         meanings = item.meanings.map(normalizeMeaning);
-    } else if (item.meaning !== undefined || item.background !== undefined || item.nuance !== undefined || item.examples !== undefined || item.synonyms !== undefined) {
+    } else if (item.meaning !== undefined || item.background !== undefined || item.nuance !== undefined || item.examples !== undefined || item.synonyms !== undefined || item.antonyms !== undefined || item.similarWordsDifference !== undefined) {
         meanings = [normalizeMeaning({
             definition: item.meaning, background: item.background, nuance: item.nuance,
-            fieldTag: item.fieldTag, examples: item.examples, synonyms: item.synonyms
+            fieldTag: item.fieldTag, examples: item.examples, synonyms: item.synonyms,
+            antonyms: item.antonyms, similarWordsDifference: item.similarWordsDifference
         })];
     } else {
         meanings = [];
@@ -266,7 +264,7 @@ function normalizeWord(raw = {}, key = '') {
     if (!meanings.length) throw new Error(`「${word}」に meanings がありません。最低1つの意味を登録してください。`);
 
     const base = { ...item };
-    ['word', 'word(any)', 'word_any', 'meaning', 'background', 'nuance', 'fieldTag', 'examples', 'synonyms'].forEach(keyName => delete base[keyName]);
+    ['word', 'word(any)', 'word_any', 'meaning', 'background', 'nuance', 'fieldTag', 'examples', 'synonyms', 'antonyms', 'similarWordsDifference'].forEach(keyName => delete base[keyName]);
     return {
         ...base,
         id: Number.isInteger(item.id) && item.id > 0 ? item.id : 0,
@@ -337,10 +335,10 @@ function validateCanonicalWord(wordName, raw) {
     raw.meanings.forEach((meaning, index) => {
         if (!meaning || typeof meaning !== 'object' || Array.isArray(meaning)) throw new Error(`「${wordName}」の meanings[${index}] はオブジェクトである必要があります。`);
         if (typeof meaning.definition !== 'string' || !meaning.definition.trim()) throw new Error(`「${wordName}」の意味 ${index + 1}: definition は必須の文字列です。`);
-        for (const field of ['background', 'nuance']) {
+        for (const field of ['background', 'nuance', 'similarWordsDifference']) {
             if (meaning[field] !== undefined && typeof meaning[field] !== 'string') throw new Error(`「${wordName}」の意味 ${index + 1}: ${field} は文字列である必要があります。`);
         }
-        for (const field of ['fieldTag', 'examples', 'synonyms']) {
+        for (const field of ['fieldTag', 'examples', 'synonyms', 'antonyms']) {
             if (meaning[field] !== undefined && (!Array.isArray(meaning[field]) || !meaning[field].every(value => typeof value === 'string'))) {
                 throw new Error(`「${wordName}」の意味 ${index + 1}: ${field} は文字列配列である必要があります。`);
             }
@@ -355,11 +353,12 @@ function validateWord(word) {
     for (let i = 0; i < word.meanings.length; i++) {
         const meaning = word.meanings[i];
         if (!meaning.definition.trim()) throw new Error(`「${word.word}」の意味 ${i + 1}: definition は必須です。`);
-        for (const key of ['fieldTag', 'examples', 'synonyms']) {
+        for (const key of ['fieldTag', 'examples', 'synonyms', 'antonyms']) {
             if (!Array.isArray(meaning[key]) || !meaning[key].every(value => typeof value === 'string')) {
                 throw new Error(`「${word.word}」の意味 ${i + 1}: ${key} は文字列配列である必要があります。`);
             }
         }
+        if (typeof meaning.similarWordsDifference !== 'string') throw new Error(`「${word.word}」の意味 ${i + 1}: similarWordsDifference は文字列である必要があります。`);
     }
 }
 
@@ -388,7 +387,24 @@ function reassignIds(items, start = 1) {
     return items.map((item, index) => ({ ...item, id: start + index }));
 }
 
+
+function installKeyboardNavigation() {
+    document.addEventListener('keydown', event => {
+        if (event.defaultPrevented || event.isComposing || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+        const target = event.target;
+        if (target?.isContentEditable || target?.matches?.('input, textarea, select, [contenteditable="true"]')) return;
+        if (event.key === 'ArrowLeft' && appNavigationIndex > 0) {
+            event.preventDefault();
+            navigateAppHistory(-1);
+        } else if (event.key === 'ArrowRight' && appNavigationIndex >= 0 && appNavigationIndex < appNavigationHistory.length - 1) {
+            event.preventDefault();
+            navigateAppHistory(1);
+        }
+    });
+}
+
 async function initApp() {
+    installKeyboardNavigation();
     try {
         const serverData = await loadServerData();
         const browserSavedData = localStorage.getItem(STORAGE_KEY);
@@ -567,7 +583,7 @@ function handleSearch() {
 function searchableText(word) {
     return [word.word, word.reading, word.kanji, word.english, word.category, ...(word.categoryTags || []), word.eraTag, word.column,
         word.memo, word.gemini_note, ...(word.other_tags || []), ...word.meanings.flatMap(m => [
-            m.definition, m.background, m.nuance, ...m.fieldTag, ...m.examples, ...m.synonyms
+            m.definition, m.background, m.nuance, m.similarWordsDifference, ...m.fieldTag, ...m.examples, ...m.synonyms, ...(m.antonyms || [])
         ])].join(' ').toLocaleLowerCase('ja');
 }
 
@@ -715,6 +731,8 @@ function renderCurrentWordDetails() {
             (meaning.nuance ? '<div class="section-title">ニュアンス</div>' + renderRichText(meaning.nuance) : '') +
             (meaning.examples.length ? '<div class="section-title">例文</div><ul class="example-list">' + meaning.examples.map(example => '<li>' + renderRichText(example) + '</li>').join('') + '</ul>' : '') +
             (meaning.synonyms.length ? '<div class="section-title">類義語</div><div class="synonym-container">' + meaning.synonyms.map(term => '<span class="synonym-tag">' + escapeHtml(term) + '</span>').join('') + '</div>' : '') +
+            (meaning.antonyms.length ? '<div class="section-title">対義語</div><div class="synonym-container">' + meaning.antonyms.map(term => '<span class="synonym-tag">' + escapeHtml(term) + '</span>').join('') + '</div>' : '') +
+            (meaning.similarWordsDifference ? '<div class="section-title">似た言葉との違い</div>' + renderRichText(meaning.similarWordsDifference) : '') +
             (fieldTags.length ? '<div class="section-title">分野タグ（この意味）</div><div class="tag-container">' + fieldTags.map(tag => '<button type="button" class="custom-tag tag-field tag-link" data-tag-type="fieldTag" data-tag-value="' + escapeHtml(tag) + '">' + escapeHtml(tag) + '</button>').join('') + '</div>' : '') +
             '</section>';
     }).join('');
@@ -754,7 +772,9 @@ function renderMeaningEditor(meaning = {}, index = 0) {
         <div class="form-group"><label>ニュアンス</label><textarea class="form-control meaning-nuance">${escapeHtml(normalized.nuance)}</textarea></div>
         <div class="form-group"><label>分野タグ（この意味に最大2個。カンマ・中点「・」・改行で区切り）</label><input class="form-control meaning-fieldTag" value="${escapeHtml(normalized.fieldTag.join(', '))}"></div>
         <div class="form-group"><label>例文（1行に1文）</label><textarea class="form-control meaning-examples">${escapeHtml(normalized.examples.join('\n'))}</textarea></div>
-        <div class="form-group"><label>類義語（カンマ、読点、改行区切り）</label><textarea class="form-control meaning-synonyms">${escapeHtml(normalized.synonyms.join('\n'))}</textarea></div>`;
+        <div class="form-group"><label>類義語（カンマ、読点、改行区切り）</label><textarea class="form-control meaning-synonyms">${escapeHtml(normalized.synonyms.join('\n'))}</textarea></div>
+        <div class="form-group"><label>対義語（カンマ、読点、改行区切り。不明なら空欄）</label><textarea class="form-control meaning-antonyms">${escapeHtml(normalized.antonyms.join('\n'))}</textarea></div>
+        <div class="form-group"><label>似た言葉との違い（意味・用法・ニュアンス・場面の違い）</label><textarea class="form-control meaning-similarWordsDifference" placeholder="例：Aは〜を強調し、Bは〜を表すため、使用される場面が異なる">${escapeHtml(normalized.similarWordsDifference)}</textarea></div>`;
     section.querySelectorAll('[data-action]').forEach(button => {
         button.onclick = () => handleMeaningAction(section, button.dataset.action);
     });
@@ -770,7 +790,9 @@ function readMeaningEditors() {
         nuance: card.querySelector('.meaning-nuance').value.trim(),
         fieldTag: splitTagList(card.querySelector('.meaning-fieldTag').value),
         examples: asStringArray(card.querySelector('.meaning-examples').value.split('\n')),
-        synonyms: splitList(card.querySelector('.meaning-synonyms').value)
+        synonyms: splitList(card.querySelector('.meaning-synonyms').value),
+        antonyms: splitList(card.querySelector('.meaning-antonyms').value),
+        similarWordsDifference: card.querySelector('.meaning-similarWordsDifference').value.trim()
     }));
 }
 function refreshMeaningEditorTitles() {
@@ -857,6 +879,7 @@ function collectEditorWord() {
     return collected;
 }
 function saveWord() {
+    const savedFromNewEntry = isNewWord;
     try {
         const collected = collectEditorWord();
         if (isNewWord) {
@@ -880,7 +903,9 @@ function saveWord() {
             collected.datetime = wordData[index].datetime;
             wordData[index] = collected;
         }
-        saveToLocalStorage(); refreshOpenState(); renderSidebarTree(); showViewMode();
+        saveToLocalStorage(); refreshOpenState(); renderSidebarTree();
+        if (savedFromNewEntry) showWordListForWord(currentWordId);
+        else showViewMode();
     } catch (error) { alert(error.message); }
 }
 function nextId(items) { return items.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0) + 1; }
@@ -948,6 +973,11 @@ function mergeWord(existing, incoming) {
             exact.fieldTag = mergeLimitedTags(exact.fieldTag, incomingMeaning.fieldTag, 2, '意味「' + exact.definition + '」の分野タグ');
             exact.examples = mergeList(exact.examples, incomingMeaning.examples);
             exact.synonyms = mergeList(exact.synonyms, incomingMeaning.synonyms);
+            exact.antonyms = mergeList(exact.antonyms, incomingMeaning.antonyms);
+            if (!exact.similarWordsDifference) exact.similarWordsDifference = incomingMeaning.similarWordsDifference;
+            else if (incomingMeaning.similarWordsDifference && normalizeText(exact.similarWordsDifference) !== normalizeText(incomingMeaning.similarWordsDifference)) {
+                conflicts.push({ field: `意味「${exact.definition}」の似た言葉との違い`, key: 'similarWordsDifference', oldValue: exact.similarWordsDifference, newValue: incomingMeaning.similarWordsDifference, meaning: exact });
+            }
         } else meanings.push(clone(incomingMeaning));
     }
     merged.meanings = meanings;
@@ -955,7 +985,7 @@ function mergeWord(existing, incoming) {
         const details = conflicts.map((item, i) => `${i + 1}. ${item.field}\n現在: ${item.oldValue}\n取込: ${item.newValue}`).join('\n\n');
         const useImported = confirm(`「${existing.word}」のマージで競合があります。\n\n${details}\n\nOK: 競合する値は取り込みデータを採用\nキャンセル: 現在の値を維持`);
         if (useImported) conflicts.forEach(item => {
-            if (item.meaning) item.meaning[item.field.split('の').pop()] = item.newValue;
+            if (item.meaning) item.meaning[item.key || item.field.split('の').pop()] = item.newValue;
             else merged[item.field] = item.newValue;
         });
     }
@@ -1022,7 +1052,7 @@ function exportJSON() {
     try { blob = new Blob([JSON.stringify(serializeNangoDocument(), null, 2)], { type: 'application/json;charset=utf-8' }); }
     catch (error) { alert(`エクスポートできません: ${error.message}`); return; }
     const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'Nango-neo_DTformats.neo.v5.16.json';
+    const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'Nango-neo_DTformats.neo.v5.17.json';
     document.body.appendChild(anchor); anchor.click(); anchor.remove(); URL.revokeObjectURL(url);
 }
 function resetToDefault() {
@@ -1132,6 +1162,31 @@ function togglePastePanel() {
     showAuxPanel('pastePanelMode', 'paste');
     $('jsonPasteInput').focus();
 }
+
+async function readClipboardToPaste() {
+    const input = $('jsonPasteInput');
+    if (!input) return;
+    if (!navigator.clipboard || typeof navigator.clipboard.readText !== 'function') {
+        input.focus();
+        alert('このブラウザーではクリップボード読み取り機能を利用できません。テキスト欄をクリックし、Ctrl+V で貼り付けてください。');
+        return;
+    }
+    try {
+        const clipboardText = await navigator.clipboard.readText();
+        if (!clipboardText) {
+            input.focus();
+            alert('クリップボードは空です。コピーした JSON を確認してください。');
+            return;
+        }
+        input.value = clipboardText;
+        input.focus();
+        input.selectionStart = input.selectionEnd = input.value.length;
+    } catch (error) {
+        input.focus();
+        alert('クリップボードへのアクセスが許可されませんでした。ブラウザーの権限を確認するか、テキスト欄で Ctrl+V を押してください。');
+    }
+}
+
 async function importPastedJSON() {
     try {
         const raw = $('jsonPasteInput').value.trim();
@@ -1158,6 +1213,43 @@ function showWordList() {
     $('wordListMode').style.display = 'block';
     renderWordList();
 }
+function renderWordListFilterBanner() {
+    const box = $('wordListTagFilter');
+    if (!box) return;
+    if (!wordListTagFilter) {
+        box.style.display = 'none';
+        box.replaceChildren();
+        return;
+    }
+    const isSingleWord = wordListTagFilter.type === 'wordId';
+    box.style.display = 'flex';
+    box.innerHTML = isSingleWord
+        ? '追加した単語「<strong>' + escapeHtml(wordListTagFilter.tag) + '</strong>」のみ表示中 <button type="button" class="btn-sm" id="clearWordListTagFilter">絞り込みを解除</button>'
+        : 'タグ「<strong>' + escapeHtml(wordListTagFilter.tag) + '</strong>」で検索中 <button type="button" class="btn-sm" id="clearWordListTagFilter">タグ検索を解除</button>';
+    $('clearWordListTagFilter').onclick = () => {
+        wordListTagFilter = null;
+        renderWordListFilterBanner();
+        renderWordList();
+        recordAppNavigation('wordList');
+    };
+}
+function showWordListForWord(wordId) {
+    const word = wordData.find(item => item.id === wordId);
+    if (!word) { showViewMode(); return; }
+    wordListTagFilter = { type: 'wordId', tag: word.word, wordId: word.id };
+    wordListSelectedCategories = [];
+    $('wordListSearch').value = '';
+    wordListFiltersOpen = false;
+    $('wordListCategoryFilters').style.display = 'none';
+    $('wordListFiltersToggle')?.setAttribute('aria-expanded', 'false');
+    $('wordListGroupJumpMenu').hidden = true;
+    wordListColumnSort = { key: null, direction: 'asc' };
+    recordAppNavigation('wordList');
+    ['viewMode','editMode','managePanelMode','pastePanelMode','settingsPanelMode','toolsPanelMode','formatPanelMode'].forEach(id => { if ($(id)) $(id).style.display = 'none'; });
+    $('wordListMode').style.display = 'block';
+    renderWordListFilterBanner();
+    renderWordList();
+}
 function showWordsForTag(type, tag) {
     wordListTagFilter = { type, tag };
     wordListSelectedCategories = [];
@@ -1165,13 +1257,12 @@ function showWordsForTag(type, tag) {
     recordAppNavigation('tagWords');
     ['viewMode','editMode','managePanelMode','pastePanelMode','settingsPanelMode','toolsPanelMode','formatPanelMode'].forEach(id => { if ($(id)) $(id).style.display = 'none'; });
     $('wordListMode').style.display = 'block';
-    $('wordListTagFilter').style.display = 'flex';
-    $('wordListTagFilter').innerHTML = 'タグ「<strong>' + escapeHtml(tag) + '</strong>」で検索中 <button type="button" class="btn-sm" id="clearWordListTagFilter">タグ検索を解除</button>';
-    $('clearWordListTagFilter').onclick = () => { wordListTagFilter = null; $('wordListTagFilter').style.display = 'none'; renderWordList(); };
+    renderWordListFilterBanner();
     renderWordList();
 }
 function wordHasTag(word, filter) {
     if (!filter) return true;
+    if (filter.type === 'wordId') return Number(word.id) === Number(filter.wordId);
     if (filter.type === 'categoryTags' || filter.type === 'category') return getWordCategoryTags(word).includes(filter.tag);
     if (filter.type === 'fieldTag') return word.meanings.some(meaning => (meaning.fieldTag || []).includes(filter.tag));
     if (filter.type === 'eraTag') return word.eraTag === filter.tag;
@@ -1541,16 +1632,20 @@ async function copyTagPromptContext() {
 }
 function buildAiPrompt() {
     return [
-        'あなたは辞書データを作成するアシスタントです。提示された単語について、信頼できる情報に基づいて意味・用法を整理してください。',
-        '出力はDT-FMT v5.16に準拠した有効なJSONのみとし、Markdownコードフェンス、前置き、JSON外の解説は付けないでください。',
-        'トップレベルは {"words": {"単語名": {"pronunciation": "", "id": 1, "datetime": "RFC 3339日時", "category": "分類タグ", "eraTag": "", "reading": "", "kanji": "", "english": "", "column": "", "memo": "", "gemini_note": "", "other_tags": [], "meanings": [{"definition": "必須", "background": "", "nuance": "", "fieldTag": [], "examples": [], "synonyms": []}], "categoryTags": []}}, "additional_data": []} の形にしてください。',
-        'pronunciation は単語オブジェクト直下の独立項目です。meanings 内には入れないでください。単語名に読みを括弧書きで付けず、読みは reading、原語表記は english に記録してください。',
-        'meanings は1件以上必要で、各要素に空ではない definition を設定してください。categoryTags は単語の種類・形式、fieldTag は意味ごとの分野、eraTag は単語の時代区分、other_tags は補助的なハッシュタグです。区別を守り、既存タグを優先して再利用してください。',
+        'あなたは、信頼できる情報をもとに言葉の理解を深める辞書編集者です。対象語の意味だけでなく、背景・由来・用法・文化的／専門的文脈も調べ、学習者がその言葉を正確に理解し、使い分けられる資料を作成してください。',
+        '出力はDT-FMT v5.17に準拠する有効なJSONのみです。Markdownコードフェンス、前置き、JSON外の解説は付けないでください。',
+        'トップレベルは {"words": {"単語名": {"pronunciation": "", "id": 1, "datetime": "RFC 3339日時", "category": "", "eraTag": "", "reading": "", "kanji": "", "english": "", "column": "", "memo": "", "gemini_note": "", "other_tags": [], "meanings": [{"definition": "", "background": "", "nuance": "", "fieldTag": [], "examples": [], "synonyms": [], "antonyms": [], "similarWordsDifference": ""}], "categoryTags": []}}, "additional_data": []} の形にしてください。',
+        '必須ルール: 例示したすべての単語項目・意味項目を省略せず出力してください。情報が不明、確認できない、または該当しないときもキーを省略せず、文字列は空文字、配列は空配列にします。definition だけは空欄にせず、確認できる意味を必ず記載してください。id は正の整数、datetime は現在のRFC 3339日時にしてください。',
+        'meanings は1件以上です。対象語に定着した異なる意味・用法が複数あれば、意味ごとに項目を分けて説明してください。意味の数を無理に増やしたり、同じ内容を言い換えて重複登録したりしないでください。各定義は簡素すぎる一言で終わらせず、対象や範囲、成立条件、典型的な使われ方が分かる程度に具体化してください。',
+        'background には、判明する範囲で語源・語の成り立ち・歴史的変化・文化的背景・専門分野での発展を説明してください。根拠が弱い語源説は事実と断定せず、必要に応じて異説と不確実性を明記します。nuance には、丁寧さ、硬さ、感情的な含み、評価、使用場面、誤解しやすい点などを書きます。',
+        'examples は意味・文体・使い方が伝わる自然な例文を挙げてください。synonyms は同義・近義の語、antonyms は意味上対照をなす対義語を挙げます。「似た言葉との違い」（similarWordsDifference）には、似た言葉を具体的に取り上げ、意味の範囲、強調点、語感、文体、使われる状況などの違いを説明してください。適切な対義語や比較対象が見つからない場合は、それぞれ空配列／空文字にします。',
+        '知識を拡充することが目的です。冗長な繰り返しは避けつつ、定義・背景・ニュアンス・比較説明は、理解に必要な具体例や理由を含む読み応えのある文章にしてください。column には、関連する文化・歴史・科学・社会・文学の話題、意外な用法、関連概念など、対象語の理解につながる余談を歓迎します。memo は補助情報、gemini_note は要点を親しみやすくまとめた短い一言にします。根拠のない作り話や架空の引用は書かないでください。',
+        'pronunciation は単語オブジェクト直下の独立項目です。meanings 内には入れません。単語名には読みを括弧書きで付けず、読みは reading、漢字表記は kanji、原語・スペルは english、発音記号は pronunciation に分けます。',
+        'categoryTags は単語そのものの種類・形式・由来（最大3個）、fieldTag は各意味が使われる領域・場面（意味あたり最大2個）、eraTag は単語全体の時代区分、other_tags は表示用ハッシュタグです。相互に代用せず、既存タグを優先して再利用してください。category は互換用に categoryTags の先頭と一致させてください。',
         '',
         buildTagPromptContext(),
         '',
-        '対象語: （ここに単語名を入力）',
-        '不明な情報は推測で断定せず、必要なら空文字または空配列にしてください。'
+        '対象語: （ここに単語名を入力）'
     ].join('\n');
 }
 async function copyAiPrompt() {
