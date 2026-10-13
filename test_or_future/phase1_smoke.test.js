@@ -176,9 +176,14 @@ assert.match(source, /function setSidebarWordDisplayMode\(/, 'sidebar display mo
 assert.match(source, /function copyAiPrompt\(/, 'AI prompt copy action is implemented');
 assert.match(source, /function readClipboardToPaste\(/, 'clipboard read action is implemented');
 assert.match(html, /onclick="readClipboardToPaste\(\)">クリップボードから貼り付け/, 'clipboard read button is available');
+assert.match(source, /input\.value = clipboardText;\s*await importPastedJSON\(\);/, 'clipboard read immediately imports the retrieved JSON');
 assert.match(source, /function installKeyboardNavigation\(/, 'left/right keyboard navigation is implemented');
 assert.match(source, /function showWordListForWord\(/, 'new entries open a filtered word list');
+assert.match(source, /function showWordListForWords\(/, 'multiple imported entries can be filtered in the word list');
 assert.match(source, /if \(savedFromNewEntry\) showWordListForWord\(currentWordId\)/, 'saving a new entry transitions to its filtered list');
+assert.match(source, /if \(importedWordIds\.length\) showWordListForWords\(importedWordIds\)/, 'replace import shows the imported words');
+assert.match(source, /if \(uniqueImportedWordIds\.length\) showWordListForWords\(uniqueImportedWordIds\)/, 'merge import shows imported and merged words');
+assert.match(source, /filter\.type === 'wordIds'.*?filter\.wordIds\.includes\(Number\(word\.id\)\)/s, 'word list filter supports multiple imported word IDs');
 assert.equal(Object.keys(schema.$defs.word.properties)[0], 'pronunciation', 'pronunciation leads word-level schema properties');
 assert.equal(Object.keys(template.words['単語名'])[0], 'pronunciation', 'pronunciation leads template properties');
 assert.equal(Object.keys(instructions.words['単語名（表記）'])[0], 'pronunciation', 'pronunciation leads AI example properties');
