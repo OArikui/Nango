@@ -146,7 +146,7 @@ const css = fs.readFileSync(cssPath, 'utf8');
 const schema = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
 const instructions = JSON.parse(fs.readFileSync(instructionPath, 'utf8'));
 const template = JSON.parse(fs.readFileSync(path.join(root, 'Nango-neo', 'DTformats.neo.v5.17', 'DT-FMT_template.v02.17.json'), 'utf8'));
-assert.match(html, /NANGO-NEO <strong>v2\.8\.2<\/strong>/, 'HTML version is updated');
+assert.match(html, /NANGO-NEO <strong>v2\.9\.0<\/strong>/, 'HTML version is updated');
 assert.match(html, /Version 2\.8\.2"/, 'HTML app-name meta carries the app version');
 assert.match(html, /Nango_main\.v01\.7\.5\.js/, 'HTML references the versioned JavaScript');
 assert.match(html, /style\.v02\.7\.3\.css/, 'HTML references the versioned stylesheet');
