@@ -21,7 +21,7 @@ Nango は静的な GitHub Pages サイトから Supabase Auth と PostgreSQL Dat
 
 ## 3. リポジトリに公開用設定を置く
 
-1. `Nango-neo/supabase-config.js` を開き、`url` に Supabase Project URL、`publicKey` に公開用 publishable key を記入します。
+1. `Nango-neo/supabase-config.json` を開き、`url` に Supabase Project URL、`publicKey` に公開用 publishable key を記入します。JSON 形式なので、値を引用符で囲み、カンマなどの構文を壊さないようにしてください。
 2. このファイルを GitHub リポジトリにコミットし、`NEO` ブランチへ取り込みます。GitHub Pages にデプロイされると、利用者は URL とキーを毎回入力せずに接続できます。
 3. Supabase の **Authentication → URL Configuration** で Site URL と Redirect URLs を登録しておきます。
 
@@ -50,3 +50,7 @@ Nango は静的な GitHub Pages サイトから Supabase Auth と PostgreSQL Dat
 ## 6. テストと制約
 
 GitHub Actions は RLS SQL の構成とクライアント側の保存モードを検査します。実際のログイン・メール確認・クラウド保存には、各利用者の Supabase プロジェクト設定が必要です。公開用設定ファイルには Project URL と publishable キーだけを含めてください。秘密鍵をリポジトリに保存する構成ではありません。
+
+## 7. プライバシーポリシー
+
+公開サイトには [プライバシーポリシー](../Nango-neo/privacy-policy.html) を掲載しています。運営主体、問い合わせ窓口、実際の保存方法が運用実態に合っているかを、公開前に確認してください。
