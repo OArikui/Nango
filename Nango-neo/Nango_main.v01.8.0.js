@@ -1806,10 +1806,18 @@ let authUser = null, authSyncMode = 'local', authStatusMessage = '';
 let cloudSaveQueue = Promise.resolve(), authActivationPromise = null, authActivationUserId = null;
 function shouldUseLocalStorage(user, mode) { return !user || mode !== 'cloud'; }
 function readSupabaseConfig() {
-    try {
-        const value = JSON.parse(localStorage.getItem(SUPABASE_CONFIG_KEY) || '{}');
-        return { url: typeof value.url === 'string' ? value.url.trim().replace(/\/+$/, '') : '', key: typeof value.key === 'string' ? value.key.trim() : '' };
-    } catch (_) { return { url: '', key: '' }; }
+    let saved = {};
+    try { saved = JSON.parse(localStorage.getItem(SUPABASE_CONFIG_KEY) || '{}'); }
+    catch (_) { saved = {}; }
+    const repositoryConfig = window.NANGO_SUPABASE_CONFIG && typeof window.NANGO_SUPABASE_CONFIG === 'object'
+        ? window.NANGO_SUPABASE_CONFIG
+        : {};
+    const url = (typeof saved.url === 'string' && saved.url.trim()) || repositoryConfig.url || '';
+    const key = (typeof saved.key === 'string' && saved.key.trim()) || repositoryConfig.publicKey || repositoryConfig.key || '';
+    return {
+        url: typeof url === 'string' ? url.trim().replace(/\/+$/, '') : '',
+        key: typeof key === 'string' ? key.trim() : ''
+    };
 }
 function initializeSupabaseClientFromStoredConfig() {
     const config = readSupabaseConfig();
@@ -1999,11 +2007,11 @@ async function saveSupabaseConfig() {
 }
 function clearSupabaseConfig() {
     if (authUser) { setAuthStatus('接続設定を削除する前にログアウトしてください。'); return; }
-    if (!confirm('Supabase の接続設定をこのブラウザーから削除しますか？辞書データや Supabase 側のアカウントは削除されません。')) return;
+    if (!confirm('このブラウザーの Supabase 上書き設定を削除しますか？辞書データや Supabase 側のアカウントは削除されません。リポジトリ既定値が設定されている場合は、その値に戻ります。')) return;
     localStorage.removeItem(SUPABASE_CONFIG_KEY);
     if (supabaseAuthSubscription && typeof supabaseAuthSubscription.unsubscribe === 'function') supabaseAuthSubscription.unsubscribe();
     supabaseAuthSubscription = null; supabaseClient = null; supabaseClientConfigSignature = '';
-    setAuthStatus('接続設定を削除しました。未ログインのローカル保存に戻りました。');
+    setAuthStatus('ブラウザーの上書き設定を削除しました。リポジトリ既定値がある場合は、その値を使用します。');
     refreshAuthPanel();
 }
 function refreshAuthPanel() {
