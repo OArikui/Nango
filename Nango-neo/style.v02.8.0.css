@@ -546,3 +546,21 @@ hr { border: 0; border-top: 1px solid var(--border-color); }
   .view-actions { justify-content:flex-start; }
   .word-list-table td:first-child { min-width:115px; }
 }
+
+
+/* Nango-NEO v2.9.0 — Supabase authentication and cloud storage */
+.auth-panel { max-width: 980px; }
+.auth-section { display:flex; flex-direction:column; gap:9px; }
+.auth-section .form-actions { margin-top: 5px; }
+.auth-section label { color:var(--text-color); font-weight:700; }
+.auth-section .form-help { margin:0; }
+.auth-account-label { margin:0; }
+.auth-status { margin:8px 0 0; padding:10px 12px; border:1px solid var(--border-color); border-radius:10px; background:#f8f9fd; overflow-wrap:anywhere; }
+.auth-status:empty { display:none; }
+#authCloudActions .form-actions { align-items:flex-start; }
+#authCloudActions .btn { max-width:100%; white-space:normal; }
+@media (max-width:760px) {
+  .auth-section .form-actions { align-items:stretch; }
+  .auth-section .form-actions .btn { flex:1 1 100%; }
+  .auth-section input { min-width:0; width:100%; }
+}

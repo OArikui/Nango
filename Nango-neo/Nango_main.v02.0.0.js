@@ -131,7 +131,7 @@ function restoreAppNavigation(state) {
     restoringNavigation = true;
     currentWordId = state.wordId;
     wordListTagFilter = state.tagFilter ? { ...state.tagFilter } : null;
-    ['viewMode', 'editMode', 'managePanelMode', 'pastePanelMode', 'wordListMode', 'settingsPanelMode', 'toolsPanelMode', 'formatPanelMode'].forEach(id => {
+    ['viewMode', 'editMode', 'managePanelMode', 'pastePanelMode', 'wordListMode', 'settingsPanelMode', 'toolsPanelMode', 'formatPanelMode','authPanelMode'].forEach(id => {
         if ($(id)) $(id).style.display = 'none';
     });
     if (state.screen === 'edit') {
@@ -405,15 +405,55 @@ function installKeyboardNavigation() {
 
 async function initApp() {
     installKeyboardNavigation();
-    try {
+    await loadRepositorySupabaseConfig();
+    initializeSupabaseClientFromStoredConfig();
+    registerSupabaseAuthListener();
+    const browserSavedData = localStorage.getItem(STORAGE_KEY);
+    let savedData = browserSavedData, cloudLoaded = false;
+    if (supabaseClient) {
+        try {
+            const sessionResult = await supabaseClient.auth.getSession();
+            if (sessionResult.error) throw sessionResult.error;
+            authUser = sessionResult.data && sessionResult.data.session ? sessionResult.data.session.user : null;
+            if (authUser) {
+                authSyncMode = 'pending';
+                try {
+                    const row = await fetchCloudRow(authUser.id);
+                    if (row) {
+                        parseNangoDocument(row.data);
+                        savedData = JSON.stringify(row.data);
+                        cloudLoaded = true;
+                        authSyncMode = 'cloud';
+                    } else {
+                        authSyncMode = 'cloud';
+                        savedData = browserSavedData;
+                        if (!savedData && (location.hostname === '127.0.0.1' || location.hostname === 'localhost')) {
+                            const serverData = await loadServerData();
+                            if (serverData) savedData = JSON.stringify(serverData);
+                        }
+                    }
+                } catch (cloudError) {
+                    authSyncMode = 'pending'; savedData = browserSavedData;
+                    setAuthStatus('クラウドデータを確認できなかったため、ローカル保存で起動します。クラウドデータは上書きしません。詳細: ' + cloudError.message);
+                }
+            } else authSyncMode = 'local';
+        } catch (authError) {
+            authUser = null; authSyncMode = 'local';
+            setAuthStatus('ログイン状態を確認できなかったため、ローカル保存で起動します。詳細: ' + authError.message);
+        }
+    } else { authUser = null; authSyncMode = 'local'; }
+    if (!authUser) {
         const serverData = await loadServerData();
-        const browserSavedData = localStorage.getItem(STORAGE_KEY);
-        const savedData = serverData ? JSON.stringify(serverData) : browserSavedData;
+        savedData = serverData ? JSON.stringify(serverData) : browserSavedData;
+    }
+    try {
         if (savedData) {
             const parsed = parseNangoDocument(JSON.parse(savedData));
             wordData = reassignIds(parsed.words.slice().sort((a, b) => (a.id || 0) - (b.id || 0)));
             additionalData = parsed.additional_data;
-            try { saveToLocalStorage(); } catch (saveError) { console.warn('保存データの形式変換を保存できませんでした:', saveError); }
+            if (!cloudLoaded) {
+                try { saveToLocalStorage(); } catch (saveError) { console.warn('保存データを保存できませんでした:', saveError); }
+            }
         } else {
             wordData = reassignIds(clone(defaultData).map(word => ({ ...word, categoryTags: normalizeCategoryTags(word.categoryTags, word.category) })));
             additionalData = [];
@@ -421,35 +461,47 @@ async function initApp() {
         }
     } catch (error) {
         console.error('Nangoデータの読み込みに失敗しました:', error);
+        if (authUser) authSyncMode = 'pending';
         wordData = reassignIds(clone(defaultData).map(word => ({ ...word, categoryTags: normalizeCategoryTags(word.categoryTags, word.category) })));
         additionalData = [];
         try { saveToLocalStorage(); } catch (saveError) { console.error('初期データを保存できません:', saveError); }
-        alert(`保存データを読み込めなかったため、初期データで起動しました。
-${error.message}
-必要であれば、保存ファイルをバックアップしてください。`);
+        setAuthStatus('保存データを読み込めなかったため、初期データで起動しました。元データは上書きしていません。詳細: ' + error.message);
     }
-    loadDisplaySettings();
-    refreshOpenState();
+    loadDisplaySettings(); refreshOpenState();
     currentWordId = wordData.length ? wordData[0].id : -1;
     renderSidebarTree();
     if (wordData.length) showTodaysWord(); else showViewMode();
-    if (serverStorageAvailable) showStorageStatus('ローカルファイル保存を使用中');
+    refreshAuthPanel();
+    if (authUser && authSyncMode === 'cloud') showStorageStatus('Supabase クラウドに接続中');
+    else if (authUser && authSyncMode === 'pending') showStorageStatus('クラウド同期を保留中（ローカル保存）', true);
+    else if (serverStorageAvailable) showStorageStatus('ローカルファイル保存を使用中');
 }
-
 function saveToLocalStorage() {
     const serialized = JSON.stringify(serializeNangoDocument());
-    // Browser storage remains a fallback; the Python launcher also writes this data to a local JSON file.
-    localStorage.setItem(STORAGE_KEY, serialized);
-    if ((location.protocol === 'http:' && location.hostname === '127.0.0.1') || location.hostname === 'localhost') {
+    const useLocalStorage = shouldUseLocalStorage(authUser, authSyncMode);
+    if (useLocalStorage) localStorage.setItem(STORAGE_KEY, serialized);
+    if (authUser && authSyncMode === 'cloud') {
+        const userId = authUser.id;
+        cloudSaveQueue = cloudSaveQueue.then(async () => {
+            if (!authUser || authUser.id !== userId || authSyncMode !== 'cloud') return;
+            const result = await writeCloudDocument(serialized, userId);
+            showStorageStatus('Supabase クラウドに保存済み');
+            setAuthStatus('辞書データをクラウドに保存しました。');
+            return result;
+        }).catch(error => {
+            showStorageStatus('クラウド保存に失敗しました', true);
+            setAuthStatus('クラウド保存に失敗しました。ページを閉じる前に JSON エクスポートでバックアップしてください。詳細: ' + error.message);
+            console.error('Supabase への保存に失敗しました:', error);
+        });
+        return;
+    }
+    if (useLocalStorage && ((location.protocol === 'http:' && location.hostname === '127.0.0.1') || location.hostname === 'localhost')) {
         serverSaveQueue = serverSaveQueue.then(async () => {
             const response = await fetch(LOCAL_DATA_API, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json; charset=utf-8' },
-                body: serialized
+                method: 'POST', headers: { 'Content-Type': 'application/json; charset=utf-8' }, body: serialized
             });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            serverStorageAvailable = true;
-            showStorageStatus('ローカルファイルに保存済み');
+            if (!response.ok) throw new Error('HTTP ' + response.status);
+            serverStorageAvailable = true; showStorageStatus('ローカルファイルに保存済み');
         }).catch(error => {
             serverStorageAvailable = false;
             showStorageStatus('ファイル保存に失敗（ブラウザー内には保存）', true);
@@ -457,7 +509,6 @@ function saveToLocalStorage() {
         });
     }
 }
-
 function refreshOpenState() {
     openCategories = {};
     wordData.forEach(word => getGroupingValues(word).forEach(key => {
@@ -653,7 +704,7 @@ function renderSidebarTree() {
 
 function showViewMode(recordHistory = true) {
     if (recordHistory) recordAppNavigation('view');
-    ['editMode','managePanelMode','pastePanelMode','wordListMode','settingsPanelMode','toolsPanelMode','formatPanelMode'].forEach(id => { if ($(id)) $(id).style.display = 'none'; });
+    ['editMode','managePanelMode','pastePanelMode','wordListMode','settingsPanelMode','toolsPanelMode','formatPanelMode','authPanelMode'].forEach(id => { if ($(id)) $(id).style.display = 'none'; });
     $('viewMode').style.display = 'block';
     const current = wordData.find(item => item.id === currentWordId);
     $('editBtn').style.display = current ? 'inline-block' : 'none';
@@ -1223,7 +1274,7 @@ function showWordList() {
     $('wordListGroupJumpMenu').hidden = true;
     wordListColumnSort = { key: null, direction: 'asc' };
     recordAppNavigation('wordList');
-    ['viewMode','editMode','managePanelMode','pastePanelMode','settingsPanelMode','toolsPanelMode','formatPanelMode'].forEach(id => { if ($(id)) $(id).style.display = 'none'; });
+    ['viewMode','editMode','managePanelMode','pastePanelMode','settingsPanelMode','toolsPanelMode','formatPanelMode','authPanelMode'].forEach(id => { if ($(id)) $(id).style.display = 'none'; });
     $('wordListMode').style.display = 'block';
     renderWordList();
 }
@@ -1272,7 +1323,7 @@ function showWordListForWords(wordIds, mode = 'import') {
     $('wordListGroupJumpMenu').hidden = true;
     wordListColumnSort = { key: null, direction: 'asc' };
     recordAppNavigation('wordList');
-    ['viewMode','editMode','managePanelMode','pastePanelMode','settingsPanelMode','toolsPanelMode','formatPanelMode'].forEach(id => { if ($(id)) $(id).style.display = 'none'; });
+    ['viewMode','editMode','managePanelMode','pastePanelMode','settingsPanelMode','toolsPanelMode','formatPanelMode','authPanelMode'].forEach(id => { if ($(id)) $(id).style.display = 'none'; });
     $('wordListMode').style.display = 'block';
     renderWordListFilterBanner();
     renderWordList();
@@ -1282,7 +1333,7 @@ function showWordsForTag(type, tag) {
     wordListSelectedCategories = [];
     $('wordListSearch').value = '';
     recordAppNavigation('tagWords');
-    ['viewMode','editMode','managePanelMode','pastePanelMode','settingsPanelMode','toolsPanelMode','formatPanelMode'].forEach(id => { if ($(id)) $(id).style.display = 'none'; });
+    ['viewMode','editMode','managePanelMode','pastePanelMode','settingsPanelMode','toolsPanelMode','formatPanelMode','authPanelMode'].forEach(id => { if ($(id)) $(id).style.display = 'none'; });
     $('wordListMode').style.display = 'block';
     renderWordListFilterBanner();
     renderWordList();
@@ -1576,7 +1627,7 @@ function setSidebarWordDisplayMode(mode) {
 }
 function showAuxPanel(panelId, screen, recordHistory = true) {
     if (recordHistory) recordAppNavigation(screen);
-    ['viewMode','editMode','managePanelMode','pastePanelMode','wordListMode','settingsPanelMode','toolsPanelMode','formatPanelMode'].forEach(id => {
+    ['viewMode','editMode','managePanelMode','pastePanelMode','wordListMode','settingsPanelMode','toolsPanelMode','formatPanelMode','authPanelMode'].forEach(id => {
         if ($(id)) $(id).style.display = 'none';
     });
     $(panelId).style.display = 'block';
@@ -1748,6 +1799,306 @@ async function renderFormatViewer() {
     }
 }
 
+
+const SUPABASE_CONFIG_KEY = 'nango_supabase_config_v1';
+const SUPABASE_TABLE = 'nango_user_data';
+let supabaseClient = null, supabaseClientConfigSignature = '', supabaseAuthSubscription = null;
+let authUser = null, authSyncMode = 'local', authStatusMessage = '';
+let cloudSaveQueue = Promise.resolve(), authActivationPromise = null, authActivationUserId = null;
+function shouldUseLocalStorage(user, mode) { return !user || mode !== 'cloud'; }
+let repositorySupabaseConfig = { url: '', publicKey: '' };
+async function loadRepositorySupabaseConfig() {
+    try {
+        const response = await fetch(new URL('supabase-config.json', document.baseURI), { cache: 'no-store' });
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        const parsed = await response.json();
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('JSON のルートはオブジェクトにしてください。');
+        const url = typeof parsed.url === 'string' ? parsed.url.trim() : '';
+        const publicKey = typeof parsed.publicKey === 'string' ? parsed.publicKey.trim() : '';
+        if (/service_role|sb_secret_/i.test(publicKey)) throw new Error('秘密鍵は設定ファイルに記述できません。');
+        repositorySupabaseConfig = { url, publicKey };
+    } catch (error) {
+        repositorySupabaseConfig = { url: '', publicKey: '' };
+        console.warn('supabase-config.json を読み込めませんでした。アカウント画面から設定できます。', error.message);
+    }
+}
+function readSupabaseConfig() {
+    let saved = {};
+    try { saved = JSON.parse(localStorage.getItem(SUPABASE_CONFIG_KEY) || '{}'); }
+    catch (_) { saved = {}; }
+    const repositoryConfig = repositorySupabaseConfig && typeof repositorySupabaseConfig === 'object'
+        ? repositorySupabaseConfig
+        : {};
+    const url = (typeof saved.url === 'string' && saved.url.trim()) || repositoryConfig.url || '';
+    const key = (typeof saved.key === 'string' && saved.key.trim()) || repositoryConfig.publicKey || '';
+    return {
+        url: typeof url === 'string' ? url.trim().replace(/\/+$/, '') : '',
+        key: typeof key === 'string' ? key.trim() : ''
+    };
+}
+function initializeSupabaseClientFromStoredConfig() {
+    const config = readSupabaseConfig();
+    if (!config.url || !config.key) { supabaseClient = null; supabaseClientConfigSignature = ''; return null; }
+    if (!window.supabase || typeof window.supabase.createClient !== 'function') {
+        setAuthStatus('Supabase のライブラリを読み込めません。ネットワーク接続を確認してページを再読み込みしてください。');
+        return null;
+    }
+    const signature = config.url + '|' + config.key;
+    if (supabaseClient && supabaseClientConfigSignature === signature) return supabaseClient;
+    if (supabaseAuthSubscription && typeof supabaseAuthSubscription.unsubscribe === 'function') supabaseAuthSubscription.unsubscribe();
+    supabaseAuthSubscription = null;
+    try {
+        supabaseClient = window.supabase.createClient(config.url, config.key, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
+        supabaseClientConfigSignature = signature;
+        return supabaseClient;
+    } catch (error) {
+        supabaseClient = null; supabaseClientConfigSignature = '';
+        setAuthStatus('Supabase の接続設定を確認してください: ' + error.message);
+        return null;
+    }
+}
+function ensureSupabaseClient() {
+    const client = initializeSupabaseClientFromStoredConfig();
+    if (!client) throw new Error('Supabase のプロジェクト URL と公開用キーを先に設定してください。');
+    return client;
+}
+function registerSupabaseAuthListener() {
+    if (!supabaseClient || supabaseAuthSubscription) return;
+    const result = supabaseClient.auth.onAuthStateChange((event, session) => {
+        if (event === 'INITIAL_SESSION') return;
+        if (event === 'SIGNED_OUT') { if (authUser) handleSignedOut(); return; }
+        if (session && session.user && (!authUser || authUser.id !== session.user.id)) Promise.resolve().then(() => activateAuthenticatedUser(session.user));
+    });
+    supabaseAuthSubscription = result && result.data ? result.data.subscription : null;
+}
+function setAuthStatus(message) {
+    authStatusMessage = String(message || '');
+    const status = document.getElementById('authStatus');
+    if (status) status.textContent = authStatusMessage;
+}
+function getSupabaseRedirectUrl() { return window.location.origin + window.location.pathname; }
+async function fetchCloudRow(userId) {
+    const result = await ensureSupabaseClient().from(SUPABASE_TABLE).select('user_id, data, updated_at').eq('user_id', userId).maybeSingle();
+    if (result.error) throw result.error;
+    return result.data || null;
+}
+async function writeCloudDocument(document, userId = authUser && authUser.id) {
+    if (!userId) throw new Error('ログイン状態を確認できません。');
+    const result = await ensureSupabaseClient().from(SUPABASE_TABLE).upsert({
+        user_id: userId,
+        data: typeof document === 'string' ? JSON.parse(document) : document,
+        updated_at: new Date().toISOString()
+    }, { onConflict: 'user_id' });
+    if (result.error) throw result.error;
+}
+function applyParsedDocument(parsed) {
+    wordData = reassignIds(parsed.words.slice().sort((a, b) => (a.id || 0) - (b.id || 0)));
+    additionalData = parsed.additional_data;
+    refreshOpenState();
+    currentWordId = wordData.length ? wordData[0].id : -1;
+    renderSidebarTree();
+    if (wordData.length) showTodaysWord(); else showViewMode();
+}
+function applyDocumentValue(value) { applyParsedDocument(parseNangoDocument(value)); }
+function loadLocalDocumentIntoMemory() {
+    const localSaved = localStorage.getItem(STORAGE_KEY);
+    if (localSaved) applyDocumentValue(JSON.parse(localSaved));
+    else {
+        wordData = reassignIds(clone(defaultData).map(word => ({ ...word, categoryTags: normalizeCategoryTags(word.categoryTags, word.category) })));
+        additionalData = [];
+        refreshOpenState();
+        currentWordId = wordData.length ? wordData[0].id : -1;
+        renderSidebarTree();
+        if (wordData.length) showTodaysWord(); else showViewMode();
+    }
+}
+async function activateAuthenticatedUser(user, forceRetry = false) {
+    if (!user || !user.id) return;
+    if (!forceRetry && authUser && authUser.id === user.id && authSyncMode === 'cloud') { refreshAuthPanel(); return; }
+    if (authActivationPromise && authActivationUserId === user.id) return authActivationPromise;
+    authActivationUserId = user.id;
+    authActivationPromise = (async () => {
+        const priorUser = authUser;
+        if (priorUser && priorUser.id !== user.id) {
+            try { loadLocalDocumentIntoMemory(); } catch (error) { console.warn('ローカルデータを読み込めませんでした:', error); }
+        }
+        authUser = user; authSyncMode = 'pending';
+        setAuthStatus('アカウントとクラウドデータを確認しています…');
+        refreshAuthPanel();
+        try {
+            const row = await fetchCloudRow(user.id);
+            if (row) {
+                const parsed = parseNangoDocument(row.data);
+                authSyncMode = 'cloud';
+                applyParsedDocument(parsed);
+                showStorageStatus('Supabase クラウドに接続中');
+                setAuthStatus('クラウド上の辞書を読み込みました。ログイン前の localStorage データは上書きせず残しています。');
+            } else {
+                authSyncMode = 'cloud';
+                await writeCloudDocument(serializeNangoDocument(), user.id);
+                showStorageStatus('Supabase クラウドに保存済み');
+                setAuthStatus('このアカウントにクラウド辞書を作成しました。現在の辞書データを初回保存しました。');
+            }
+        } catch (error) {
+            authSyncMode = 'pending';
+            showStorageStatus('クラウド同期を保留中（ローカル保存）', true);
+            setAuthStatus('クラウドを読み込めないため、ローカル保存に切り替えました。クラウド側のデータは上書きしていません。設定と RLS を確認し「クラウド再接続」を実行してください。詳細: ' + error.message);
+            try { saveToLocalStorage(); } catch (saveError) { console.error('ローカルへの退避保存に失敗しました:', saveError); }
+        } finally { refreshAuthPanel(); }
+    })();
+    try { await authActivationPromise; }
+    finally { authActivationPromise = null; authActivationUserId = null; }
+}
+function handleSignedOut() {
+    authUser = null; authSyncMode = 'local'; authStatusMessage = '';
+    try {
+        loadLocalDocumentIntoMemory();
+        if (!localStorage.getItem(STORAGE_KEY)) saveToLocalStorage();
+    } catch (error) {
+        console.error('ログアウト後にローカルデータを読み込めませんでした:', error);
+        wordData = reassignIds(clone(defaultData)); additionalData = [];
+        try { saveToLocalStorage(); } catch (_) {}
+        showViewMode();
+    }
+    showStorageStatus('ブラウザー内のローカル保存を使用中');
+    setAuthStatus('ログアウトしました。ローカル保存データを表示しています。');
+    refreshAuthPanel();
+}
+async function signInToNango() {
+    try {
+        const client = ensureSupabaseClient(); registerSupabaseAuthListener();
+        const email = document.getElementById('authEmail').value.trim(), password = document.getElementById('authPassword').value;
+        if (!email || !password) throw new Error('メールアドレスとパスワードを入力してください。');
+        setAuthStatus('ログインしています…');
+        const result = await client.auth.signInWithPassword({ email, password });
+        if (result.error) throw result.error;
+        if (result.data && result.data.user) await activateAuthenticatedUser(result.data.user);
+        setAuthStatus(result.data && result.data.user ? 'ログインしました。' : 'ログイン状態を確認できませんでした。');
+    } catch (error) { setAuthStatus('ログインできませんでした: ' + error.message); }
+}
+async function signUpToNango() {
+    try {
+        const client = ensureSupabaseClient(); registerSupabaseAuthListener();
+        const email = document.getElementById('authEmail').value.trim(), password = document.getElementById('authPassword').value;
+        if (!email || !password) throw new Error('メールアドレスとパスワードを入力してください。');
+        if (password.length < 8) throw new Error('パスワードは8文字以上にしてください。');
+        const consent = document.getElementById('privacyPolicyConsent');
+        if (!consent || !consent.checked) throw new Error('プライバシーポリシーを読み、同意欄にチェックしてください。');
+        setAuthStatus('アカウントを作成しています…');
+        const result = await client.auth.signUp({ email, password, options: { emailRedirectTo: getSupabaseRedirectUrl() } });
+        if (result.error) throw result.error;
+        if (result.data && result.data.session && result.data.user) {
+            await activateAuthenticatedUser(result.data.user);
+            setAuthStatus('アカウントを作成し、ログインしました。');
+        } else setAuthStatus('登録を受け付けました。メール確認を有効にしている場合は確認メールを開いてください。');
+    } catch (error) { setAuthStatus('アカウントを作成できませんでした: ' + error.message); }
+}
+async function signOutOfNango() {
+    try {
+        const client = ensureSupabaseClient();
+        setAuthStatus('ログアウトしています…');
+        await cloudSaveQueue;
+        const result = await client.auth.signOut();
+        if (result.error) throw result.error;
+        if (authUser) handleSignedOut();
+    } catch (error) { setAuthStatus('ログアウトできませんでした: ' + error.message); }
+}
+async function saveSupabaseConfig() {
+    try {
+        if (authUser) throw new Error('接続先の変更は、先にログアウトしてから行ってください。');
+        const url = document.getElementById('supabaseProjectUrl').value.trim().replace(/\/+$/, '');
+        const key = document.getElementById('supabasePublicKey').value.trim();
+        if (!/^https:\/\/[^/]+$/.test(url)) throw new Error('Supabase URL は https:// から始まるプロジェクト URL を入力してください。');
+        if (!key) throw new Error('Supabase の公開用キーを入力してください。service_role キーは使用しないでください。');
+        if (/service_role|sb_secret_/i.test(key)) throw new Error('service_role / secret key はブラウザーで使用できません。公開用 publishable / anon キーを入力してください。');
+        localStorage.setItem(SUPABASE_CONFIG_KEY, JSON.stringify({ url, key }));
+        if (supabaseAuthSubscription && typeof supabaseAuthSubscription.unsubscribe === 'function') supabaseAuthSubscription.unsubscribe();
+        supabaseClient = null; supabaseClientConfigSignature = ''; supabaseAuthSubscription = null;
+        const client = initializeSupabaseClientFromStoredConfig();
+        if (!client) throw new Error('Supabase クライアントを初期化できませんでした。');
+        registerSupabaseAuthListener();
+        const sessionResult = await client.auth.getSession();
+        if (sessionResult.error) throw sessionResult.error;
+        if (sessionResult.data && sessionResult.data.session && sessionResult.data.session.user) await activateAuthenticatedUser(sessionResult.data.session.user);
+        else setAuthStatus('接続設定を保存しました。メールアドレスとパスワードでログインするか、新規登録してください。');
+        refreshAuthPanel();
+    } catch (error) { setAuthStatus('接続設定を保存できませんでした: ' + error.message); }
+}
+function clearSupabaseConfig() {
+    if (authUser) { setAuthStatus('接続設定を削除する前にログアウトしてください。'); return; }
+    if (!confirm('このブラウザーの Supabase 上書き設定を削除しますか？辞書データや Supabase 側のアカウントは削除されません。リポジトリ既定値が設定されている場合は、その値に戻ります。')) return;
+    localStorage.removeItem(SUPABASE_CONFIG_KEY);
+    if (supabaseAuthSubscription && typeof supabaseAuthSubscription.unsubscribe === 'function') supabaseAuthSubscription.unsubscribe();
+    supabaseAuthSubscription = null; supabaseClient = null; supabaseClientConfigSignature = '';
+    setAuthStatus('ブラウザーの上書き設定を削除しました。リポジトリ既定値がある場合は、その値を使用します。');
+    refreshAuthPanel();
+}
+function refreshAuthPanel() {
+    const loggedOut = document.getElementById('authLoggedOutControls'), loggedIn = document.getElementById('authLoggedInControls');
+    const cloudActions = document.getElementById('authCloudActions'), accountLabel = document.getElementById('authAccountLabel');
+    const retryButton = document.getElementById('retryCloudConnectionBtn'), config = readSupabaseConfig();
+    const urlInput = document.getElementById('supabaseProjectUrl'), keyInput = document.getElementById('supabasePublicKey');
+    if (urlInput && !urlInput.value && config.url) urlInput.value = config.url;
+    if (keyInput && !keyInput.value && config.key) keyInput.value = config.key;
+    if (loggedOut) loggedOut.style.display = authUser ? 'none' : 'block';
+    if (loggedIn) loggedIn.style.display = authUser ? 'block' : 'none';
+    if (cloudActions) cloudActions.style.display = authUser ? 'block' : 'none';
+    if (accountLabel) accountLabel.textContent = authUser ? (authUser.email || 'ログイン中') : '未ログイン';
+    if (retryButton) retryButton.style.display = authUser && authSyncMode !== 'cloud' ? 'inline-flex' : 'none';
+    if (!authStatusMessage) {
+        if (!config.url || !config.key) setAuthStatus('未設定です。Supabase プロジェクト URL と公開用キーを設定してください。');
+        else if (!supabaseClient) setAuthStatus('Supabase クライアントを初期化できません。公開 URL・キーとネットワークを確認してください。');
+        else if (authUser && authSyncMode === 'cloud') setAuthStatus('ログイン中です。辞書データを Supabase に保存します。');
+        else if (authUser && authSyncMode === 'pending') setAuthStatus('クラウド同期が保留中です。確認が完了するまでローカル保存を使用します。');
+        else setAuthStatus('設定済みです。ログインすると辞書をクラウドに保存できます。');
+    }
+}
+function showAuthPanel() {
+    showAuxPanel('authPanelMode', 'auth', false);
+    const config = readSupabaseConfig();
+    const urlInput = document.getElementById('supabaseProjectUrl'), keyInput = document.getElementById('supabasePublicKey');
+    if (urlInput) urlInput.value = config.url;
+    if (keyInput) keyInput.value = config.key;
+    refreshAuthPanel();
+}
+async function retryCloudConnection() {
+    if (!authUser) { setAuthStatus('先にログインしてください。'); return; }
+    await activateAuthenticatedUser(authUser, true);
+}
+async function reloadCloudDocument() {
+    if (!authUser) return;
+    if (!confirm('現在の画面上の辞書を、クラウド上の辞書で置き換えますか？保存済みのクラウドデータを再読み込みします。')) return;
+    try {
+        const row = await fetchCloudRow(authUser.id);
+        if (!row) throw new Error('このアカウントにはまだクラウド辞書がありません。');
+        const parsed = parseNangoDocument(row.data);
+        authSyncMode = 'cloud'; applyParsedDocument(parsed);
+        setAuthStatus('クラウド辞書を再読み込みしました。');
+        showStorageStatus('Supabase クラウドに接続中'); refreshAuthPanel();
+    } catch (error) { setAuthStatus('クラウド辞書を読み込めませんでした: ' + error.message); }
+}
+async function copyLocalDocumentToCloud() {
+    if (!authUser) return;
+    const localRaw = localStorage.getItem(STORAGE_KEY);
+    if (!localRaw) { setAuthStatus('このブラウザーにコピー元の localStorage データがありません。'); return; }
+    let parsed;
+    try { parsed = parseNangoDocument(JSON.parse(localRaw)); }
+    catch (error) { setAuthStatus('localStorage のデータを読み込めませんでした: ' + error.message); return; }
+    if (!confirm('このブラウザーに保存されているローカル辞書 ' + parsed.words.length + ' 件で、アカウント「' + (authUser.email || authUser.id) + '」のクラウド辞書を置き換えます。クラウドの現在の内容は上書きされます。続行しますか？')) return;
+    try {
+        authSyncMode = 'pending';
+        await writeCloudDocument(JSON.parse(localRaw), authUser.id);
+        authSyncMode = 'cloud'; applyParsedDocument(parsed);
+        setAuthStatus('ローカル辞書をクラウドへコピーしました。以後の変更は Supabase に保存されます。');
+        showStorageStatus('Supabase クラウドに保存済み'); refreshAuthPanel();
+    } catch (error) {
+        authSyncMode = 'pending';
+        setAuthStatus('クラウドへのコピーに失敗しました。ローカルデータは変更していません。詳細: ' + error.message);
+        refreshAuthPanel();
+    }
+}
+
+
 // Expose small pure helpers for browser console/manual tests.
-window.NangoPhase1 = { parseNangoDocument, serializeNangoDocument, normalizeWord, validateWord, findDuplicateIndex, mergeWord, get data() { return clone(wordData); } };
+window.NangoPhase1 = { parseNangoDocument, serializeNangoDocument, normalizeWord, validateWord, findDuplicateIndex, mergeWord, shouldUseLocalStorage, get data() { return clone(wordData); } };
 initApp();

@@ -9,15 +9,17 @@
 
 | 項目 | ファイル / バージョン |
 | ---- | ---------------------- |
-| アプリ | v2.8.2 |
-| 画面 (HTML) | `Nango-neo/Nango-neo.v02.8.2.html` |
-| JavaScript | `Nango-neo/Nango_main.v01.7.5.js` |
-| CSS | `Nango-neo/style.v02.7.3.css` |
+| アプリ | v3.0.0 |
+| 画面 (HTML) | `Nango-neo/Nango-neo.v03.0.0.html` |
+| JavaScript | `Nango-neo/Nango_main.v02.0.0.js` |
+| CSS | `Nango-neo/style.v02.8.0.css` |
 | データ形式 (DT-FMT) | `Nango-neo/DTformats.neo.v5.17/`（[仕様](docs/DT-FMT.md)） |
 | ローカルランチャー | `run.py` / `RUN_NANGO.bat`（Python 3.9 以降、標準ライブラリのみ） |
 
 JavaScript と CSS は、内容が変わったときだけ番号が上がります。そのためアプリのバージョンとファイル番号は一致しません。
 バージョンの付け方は [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)、変更履歴は [docs/neo-versions.md](docs/neo-versions.md) と [docs/releases/](docs/releases/) を参照してください。
+
+Supabase Auth + RLS によるアカウント同期にも対応しています（GitHub Pages 対応）。初期設定は [Supabase Auth 設定手順](docs/SUPABASE_AUTH.md) を参照してください。利用者向けの [プライバシーポリシー](Nango-neo/privacy-policy.html) も公開しています。
 
 ## 起動方法
 
@@ -37,26 +39,27 @@ python run.py --no-browser    # ブラウザーを自動で開かない
 
 ### 2. HTML を直接開く
 
-`Nango-neo/Nango-neo.v02.8.2.html` をブラウザーで開いても使えます。この場合の保存先はブラウザーの `localStorage` だけで、
+`Nango-neo/Nango-neo.v03.0.0.html` をブラウザーで開いても使えます。この場合の保存先はブラウザーの `localStorage` だけで、
 同じブラウザー・同じオリジンでしかデータを使えません。ファイルへの自動保存は動作しません。
 
 ### 3. GitHub Pages
 
 `NEO` ブランチへの push で、`.github/workflows/pages.yml` が最新の `Nango-neo.v*.html` を `index.html` として公開します。
-この場合の保存先も、アクセスしているブラウザーの `localStorage` です。
+`Nango-neo/supabase-config.json` の `url` と `publicKey` に公開用の値を設定してコミットすると、公開ページの利用者が初めからその接続先を利用できます。これらは公開される値です。secret / service_role キーは絶対に記述しないでください。RLS を含む初期設定は [セットアップ手順](docs/SUPABASE_AUTH.md) を参照してください。
+GitHub Pages では未ログイン時はブラウザーの `localStorage`、ログイン時は Supabase に辞書データを保存します。
 
 ## データの保存とバックアップ
 
 | 起動方法 | 保存先 |
 | -------- | ------ |
 | Python ランチャー | `user_data/nango_data.json`（ブラウザーの `localStorage` にも予備として保存） |
-| HTML 直接 / GitHub Pages | ブラウザーの `localStorage` のみ |
+| HTML 直接 / GitHub Pages | 未ログイン時はブラウザーの `localStorage`、ログイン時は Supabase |
 
 - バックアップや別環境への移行には、ツールの「JSONエクスポート」を使ってください。出力は `Nango-neo_DTformats.neo.v5.17.json` です。
 - Python ランチャーを使う場合は、`user_data` フォルダーもバックアップしてください。
 - 保存先ファイルは、設定の「ファイル保存先」から変更できます（ランチャー利用時のみ）。
 - `user_data/` と `data/` は個人の辞書データのため、`.gitignore` で管理対象外にしています。
-- アカウント同期やサーバー保存は未提供です（[ROADMAP](docs/ROADMAP.md) の Phase 2）。
+- Supabase アカウント同期は、公開用設定と RLS を構成した場合に利用できます。
 
 ## 主な機能
 
