@@ -16,7 +16,7 @@ from urllib.parse import parse_qs, urlparse
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 ROOT = PROJECT_ROOT / "Nango-neo"
-ENTRY = "/Nango-neo.v02.8.2.html"
+ENTRY = "/Nango-neo.v02.9.0.html"
 DATA_DIR = PROJECT_ROOT / "user_data"
 DEFAULT_DATA_FILE = DATA_DIR / "nango_data.json"
 CONFIG_FILE = DATA_DIR / "settings.json"
