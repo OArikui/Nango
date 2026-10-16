@@ -19,7 +19,7 @@
 JavaScript と CSS は、内容が変わったときだけ番号が上がります。そのためアプリのバージョンとファイル番号は一致しません。
 バージョンの付け方は [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)、変更履歴は [docs/neo-versions.md](docs/neo-versions.md) と [docs/releases/](docs/releases/) を参照してください。
 
-| アカウント同期 | Supabase Auth + RLS（GitHub Pages 対応。初期設定は [Supabase Auth 設定手順](docs/SUPABASE_AUTH.md)） |
+Supabase Auth + RLS によるアカウント同期にも対応しています（GitHub Pages 対応）。初期設定は [Supabase Auth 設定手順](docs/SUPABASE_AUTH.md) を参照してください。
 
 ## 起動方法
 
