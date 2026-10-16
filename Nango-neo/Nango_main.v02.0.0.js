@@ -89,7 +89,7 @@ let wordListColumnSort = { key: null, direction: 'asc' };
 let selectedCategoryFilters = [];
 let wordListSelectedCategories = [];
 let wordListFiltersOpen = false;
-let groupDisplayEnabled = true;
+let groupDisplayEnabled = false;
 let displaySettings = { ...SETTINGS_DEFAULTS };
 let formatMode = 'readable';
 const formatDataCache = {};
@@ -639,7 +639,21 @@ function searchableText(word) {
 }
 
 function getProcessedWords() {
-    let result = wordData.filter(word => (!searchQuery || searchableText(word).includes(searchQuery)) && (!selectedCategoryFilters.length || getWordCategoryTags(word).some(tag => selectedCategoryFilters.includes(tag))));
+    const detailVisible = $('viewMode')?.style.display === 'block';
+    let result = wordData.filter(word => {
+        if (searchQuery && !searchableText(word).includes(searchQuery)) return false;
+        if (selectedCategoryFilters.length && !getWordCategoryTags(word).some(tag => selectedCategoryFilters.includes(tag))) return false;
+        if (detailVisible && wordListTagFilter) {
+            const filter = wordListTagFilter;
+            if (filter.type === 'wordId' && word.id !== filter.wordId) return false;
+            if (filter.type === 'wordIds' && !filter.wordIds.includes(word.id)) return false;
+            if (filter.type === 'categoryTags' && !getWordCategoryTags(word).includes(filter.tag)) return false;
+            if (filter.type === 'fieldTag' && !word.meanings.some(m => (m.fieldTag || []).includes(filter.tag))) return false;
+            if (filter.type === 'eraTag' && word.eraTag !== filter.tag) return false;
+            if (filter.type === 'other_tags' && !(word.other_tags || []).includes(filter.tag)) return false;
+        }
+        return true;
+    });
     result = [...result];
     if (currentSort === 'alpha') result.sort((a, b) => (a.reading || a.word).localeCompare(b.reading || b.word, 'ja'));
     else result.sort((a, b) => a.id - b.id);
@@ -702,6 +716,14 @@ function renderSidebarTree() {
     updateCategoryFilterBadge();
 }
 
+function updateSidebarVisibility() {
+    const sidebar = document.querySelector('.main-layout > .sidebar');
+    if (!sidebar) return;
+    const detailVisible = $('viewMode')?.style.display === 'block';
+    const settingsVisible = $('settingsPanelMode')?.style.display === 'block';
+    sidebar.style.display = detailVisible || settingsVisible ? '' : 'none';
+}
+
 function showViewMode(recordHistory = true) {
     if (recordHistory) recordAppNavigation('view');
     ['editMode','managePanelMode','pastePanelMode','wordListMode','settingsPanelMode','toolsPanelMode','formatPanelMode','authPanelMode'].forEach(id => { if ($(id)) $(id).style.display = 'none'; });
@@ -710,6 +732,7 @@ function showViewMode(recordHistory = true) {
     $('editBtn').style.display = current ? 'inline-block' : 'none';
     $('deleteBtn').style.display = current ? 'inline-block' : 'none';
     renderCurrentWordDetails();
+    updateSidebarVisibility();
 }
 function escapeRegex(value) {
     return value.split('').map(ch => /[.*+?^{}()|[\]\\$]/.test(ch) ? '\\' + ch : ch).join('');
@@ -1631,6 +1654,7 @@ function showAuxPanel(panelId, screen, recordHistory = true) {
         if ($(id)) $(id).style.display = 'none';
     });
     $(panelId).style.display = 'block';
+    updateSidebarVisibility();
 }
 async function showSettingsPanel(recordHistory = true) {
     showAuxPanel('settingsPanelMode', 'settings', recordHistory);
