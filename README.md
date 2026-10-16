@@ -9,9 +9,9 @@
 
 | 項目 | ファイル / バージョン |
 | ---- | ---------------------- |
-| アプリ | v2.10.0 |
-| 画面 (HTML) | `Nango-neo/Nango-neo.v02.10.0.html` |
-| JavaScript | `Nango-neo/Nango_main.v01.9.0.js` |
+| アプリ | v3.0.0 |
+| 画面 (HTML) | `Nango-neo/Nango-neo.v03.0.0.html` |
+| JavaScript | `Nango-neo/Nango_main.v02.0.0.js` |
 | CSS | `Nango-neo/style.v02.8.0.css` |
 | データ形式 (DT-FMT) | `Nango-neo/DTformats.neo.v5.17/`（[仕様](docs/DT-FMT.md)） |
 | ローカルランチャー | `run.py` / `RUN_NANGO.bat`（Python 3.9 以降、標準ライブラリのみ） |
@@ -39,7 +39,7 @@ python run.py --no-browser    # ブラウザーを自動で開かない
 
 ### 2. HTML を直接開く
 
-`Nango-neo/Nango-neo.v02.10.0.html` をブラウザーで開いても使えます。この場合の保存先はブラウザーの `localStorage` だけで、
+`Nango-neo/Nango-neo.v03.0.0.html` をブラウザーで開いても使えます。この場合の保存先はブラウザーの `localStorage` だけで、
 同じブラウザー・同じオリジンでしかデータを使えません。ファイルへの自動保存は動作しません。
 
 ### 3. GitHub Pages
