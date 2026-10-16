@@ -4,14 +4,14 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const root = path.join(__dirname, '..');
-const jsPath = path.join(root, 'Nango-neo', 'Nango_main.v01.8.0.js');
-const htmlPath = path.join(root, 'Nango-neo', 'Nango-neo.v02.9.0.html');
+const jsPath = path.join(root, 'Nango-neo', 'Nango_main.v01.9.0.js');
+const htmlPath = path.join(root, 'Nango-neo', 'Nango-neo.v02.10.0.html');
 const cssPath = path.join(root, 'Nango-neo', 'style.v02.8.0.css');
 const schemaPath = path.join(root, 'Nango-neo', 'DTformats.neo.v5.17', 'DF-FMT_schema.v01.17.json');
 const instructionPath = path.join(root, 'Nango-neo', 'DTformats.neo.v5.17', 'DT-FMT_instruction_AI.v01.17.json');
 const supabaseSqlPath = path.join(root, 'docs', 'supabase-setup.sql');
 const supabaseGuidePath = path.join(root, 'docs', 'SUPABASE_AUTH.md');
-const supabaseConfigPath = path.join(root, 'Nango-neo', 'supabase-config.js');
+const supabaseConfigPath = path.join(root, 'Nango-neo', 'supabase-config.json');
 
 let source = fs.readFileSync(jsPath, 'utf8');
 source = source.replace(/\/\/ Expose small pure helpers for browser console\/manual tests\.[\s\S]*$/, '');
@@ -22,17 +22,26 @@ assert.equal(generatedPrompt.includes('\\n'), false, 'AI prompt does not contain
 
 const supabaseSql = fs.readFileSync(supabaseSqlPath, 'utf8');
 const supabaseGuide = fs.readFileSync(supabaseGuidePath, 'utf8');
-const supabaseConfig = fs.readFileSync(supabaseConfigPath, 'utf8');
+const supabaseConfig = JSON.parse(fs.readFileSync(supabaseConfigPath, 'utf8'));
+const privacyPolicyPath = path.join(root, 'Nango-neo', 'privacy-policy.html');
+const privacyPolicy = fs.readFileSync(privacyPolicyPath, 'utf8');
 const htmlSource = fs.readFileSync(htmlPath, 'utf8');
 assert.equal(api.shouldUseLocalStorage(null, 'local'), true, 'anonymous sessions persist to localStorage');
 assert.equal(api.shouldUseLocalStorage({ id: 'user-1' }, 'pending'), true, 'pending cloud sync preserves local persistence');
 assert.equal(api.shouldUseLocalStorage({ id: 'user-1' }, 'cloud'), false, 'active authenticated sessions use cloud persistence');
 assert.match(source, /supabase\.createClient/, 'browser client initializes Supabase without a server API');
 assert.match(source, /from\(SUPABASE_TABLE\)[\s\S]*?upsert/, 'authenticated data saves through the Supabase Data API');
-assert.match(htmlSource, /supabase-config\.js/, 'repository Supabase config is loaded before the app');
+assert.match(source, /supabase-config\.jsonon/, 'client fetches the repository JSON config');
+assert.match(source, /loadRepositorySupabaseConfig/, 'repository config is loaded before Supabase initialization');
+assert.match(source, /response\.json\(\)/, 'repository config is parsed as JSON');
+assert.equal(typeof supabaseConfig.url, 'string', 'repository config exposes a string Project URL');
+assert.equal(typeof supabaseConfig.publicKey, 'string', 'repository config exposes a string public key');
+assert.doesNotMatch(htmlSource, /<script[^>]+supabase-config\.jsonon/, 'JSON config is fetched rather than loaded as a script');
 assert.match(htmlSource, /supabase-js@2/, 'Supabase JS v2 is loaded for GitHub Pages');
-assert.match(source, /window\.NANGO_SUPABASE_CONFIG/, 'client reads repository-provided Supabase defaults');
-assert.match(supabaseConfig, /publicKey:/, 'repository config exposes a field for the public key');
+assert.match(htmlSource, /href="privacy-policy\.html"/, 'app links to the privacy policy');
+assert.match(privacyPolicy, /プライバシーポリシー/, 'published privacy policy page exists');
+assert.match(privacyPolicy, /localStorage/, 'privacy policy describes local storage');
+assert.match(privacyPolicy, /Supabase/, 'privacy policy describes cloud processing');
 assert.match(htmlSource, /id="authPanelMode"/, 'account and login panel is included');
 assert.match(supabaseSql, /enable row level security/i, 'RLS is enabled for the personal data table');
 assert.match(supabaseSql, /auth\.uid\(\)[\s\S]*?user_id/i, 'policies scope row access to the authenticated user');
@@ -41,7 +50,7 @@ for (const action of ['select', 'insert', 'update', 'delete']) {
 }
 assert.match(supabaseGuide, /GitHub Pages/i, 'Supabase setup guide documents GitHub Pages');
 assert.match(supabaseGuide, /service_role/i, 'setup guide warns against exposing service_role keys');
-assert.match(supabaseGuide, /supabase-config\.js/, 'setup guide documents repository configuration');
+assert.match(supabaseGuide, /supabase-config\.json/, 'setup guide documents repository configuration');
 
 const canonical = {
   words: {
@@ -152,9 +161,9 @@ const css = fs.readFileSync(cssPath, 'utf8');
 const schema = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
 const instructions = JSON.parse(fs.readFileSync(instructionPath, 'utf8'));
 const template = JSON.parse(fs.readFileSync(path.join(root, 'Nango-neo', 'DTformats.neo.v5.17', 'DT-FMT_template.v02.17.json'), 'utf8'));
-assert.match(html, /NANGO-NEO <strong>v2\.9\.0<\/strong>/, 'HTML version is updated');
-assert.match(html, /Version 2\.9\.0"/, 'HTML app-name meta carries the app version');
-assert.match(html, /Nango_main\.v01\.8\.0\.js/, 'HTML references the versioned JavaScript');
+assert.match(html, /NANGO-NEO <strong>v2\.10\.0<\/strong>/, 'HTML version is updated');
+assert.match(html, /Version 2\.10\.0"/, 'HTML app-name meta carries the app version');
+assert.match(html, /Nango_main\.v01\.9\.0\.js/, 'HTML references the versioned JavaScript');
 assert.match(html, /style\.v02\.8\.0\.css/, 'HTML references the versioned stylesheet');
 assert.match(html, /id="wordListAlphabetJump"/, 'word list includes initial navigation');
 assert.match(html, /id="formatPanelMode"/, 'read-only DT-FMT view is included');
