@@ -31,12 +31,12 @@ assert.equal(api.shouldUseLocalStorage({ id: 'user-1' }, 'pending'), true, 'pend
 assert.equal(api.shouldUseLocalStorage({ id: 'user-1' }, 'cloud'), false, 'active authenticated sessions use cloud persistence');
 assert.match(source, /supabase\.createClient/, 'browser client initializes Supabase without a server API');
 assert.match(source, /from\(SUPABASE_TABLE\)[\s\S]*?upsert/, 'authenticated data saves through the Supabase Data API');
-assert.match(source, /supabase-config\.jsonon/, 'client fetches the repository JSON config');
+assert.match(source, /supabase-config\.json/, 'client fetches the repository JSON config');
 assert.match(source, /loadRepositorySupabaseConfig/, 'repository config is loaded before Supabase initialization');
 assert.match(source, /response\.json\(\)/, 'repository config is parsed as JSON');
 assert.equal(typeof supabaseConfig.url, 'string', 'repository config exposes a string Project URL');
 assert.equal(typeof supabaseConfig.publicKey, 'string', 'repository config exposes a string public key');
-assert.doesNotMatch(htmlSource, /<script[^>]+supabase-config\.jsonon/, 'JSON config is fetched rather than loaded as a script');
+assert.doesNotMatch(htmlSource, /<script[^>]+supabase-config\.json/, 'JSON config is fetched rather than loaded as a script');
 assert.match(htmlSource, /supabase-js@2/, 'Supabase JS v2 is loaded for GitHub Pages');
 assert.match(htmlSource, /href="privacy-policy\.html"/, 'app links to the privacy policy');
 assert.match(privacyPolicy, /プライバシーポリシー/, 'published privacy policy page exists');
