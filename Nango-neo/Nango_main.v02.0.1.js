@@ -94,6 +94,7 @@ const formatDataCache = {};
 function currentScreenSnapshot(screen, extra = {}) {
     return {
         screen,
+        scrollY: Math.max(0, window.scrollY || 0),
         wordId: currentWordId,
         tagFilter: wordListTagFilter ? { ...wordListTagFilter, ...(Array.isArray(wordListTagFilter.wordIds) ? { wordIds: [...wordListTagFilter.wordIds] } : {}) } : null,
         sidebarContextWordIds: sidebarContextWordIds ? [...sidebarContextWordIds] : null,
@@ -105,8 +106,13 @@ function currentScreenSnapshot(screen, extra = {}) {
 }
 function recordAppNavigation(screen, extra = {}) {
     if (restoringNavigation) return;
-    const snapshot = currentScreenSnapshot(screen, extra);
+    const currentScrollY = Math.max(0, window.scrollY || 0);
     const previous = appNavigationHistory[appNavigationIndex];
+    if (previous) previous.scrollY = currentScrollY;
+    const snapshot = currentScreenSnapshot(screen, {
+        ...extra,
+        scrollY: previous && previous.screen === screen ? currentScrollY : 0
+    });
     if (previous && JSON.stringify(previous) === JSON.stringify(snapshot)) return;
     appNavigationHistory = appNavigationHistory.slice(0, appNavigationIndex + 1);
     appNavigationHistory.push(snapshot);
@@ -125,6 +131,13 @@ function navigateAppHistory(delta) {
     appNavigationIndex = next;
     restoreAppNavigation(appNavigationHistory[appNavigationIndex]);
     updateAppNavigationButtons();
+}
+function scrollWindowTo(top) {
+    const root = document.documentElement;
+    const previousBehavior = root.style.scrollBehavior;
+    root.style.scrollBehavior = 'auto';
+    window.scrollTo({ top: Math.max(0, Number(top) || 0), left: 0, behavior: 'auto' });
+    root.style.scrollBehavior = previousBehavior;
 }
 function restoreAppNavigation(state) {
     restoringNavigation = true;
@@ -159,12 +172,14 @@ function restoreAppNavigation(state) {
         renderWordListFilterBanner();
         renderWordList();
     } else {
-        $('viewMode').style.display = 'block'; showViewMode(false);
+        $('viewMode').style.display = 'block'; showViewMode(false, { preserveScroll: true });
     }
     renderSidebarTree();
     updateSidebarVisibility();
     restoringNavigation = false;
     updateAppNavigationButtons();
+    const restoreY = typeof state.scrollY === 'number' ? state.scrollY : 0;
+    requestAnimationFrame(() => scrollWindowTo(restoreY));
 }
 
 
@@ -404,9 +419,19 @@ function installKeyboardNavigation() {
         }
     });
 }
+function installBackToTopButton() {
+    const button = $('backToTop');
+    if (!button || button.dataset.bound === 'true') return;
+    button.dataset.bound = 'true';
+    const updateVisibility = () => { button.hidden = window.scrollY <= 400; };
+    window.addEventListener('scroll', updateVisibility, { passive: true });
+    button.addEventListener('click', () => window.scrollTo({ top: 0, left: 0, behavior: 'smooth' }));
+    updateVisibility();
+}
 
 async function initApp() {
     installKeyboardNavigation();
+    installBackToTopButton();
     await loadRepositorySupabaseConfig();
     initializeSupabaseClientFromStoredConfig();
     registerSupabaseAuthListener();
@@ -619,7 +644,7 @@ function renderSidebarTree() {
         const displayWord = asString(modeValue).trim() || word.word;
         button.textContent = displayWord;
         button.title = displayWord === word.word ? word.word : word.word + ' — ' + displayWord;
-        button.onclick = () => { currentWordId = word.id; renderSidebarTree(); showViewMode(); };
+        button.onclick = () => { currentWordId = word.id; renderSidebarTree(); showViewMode(true, { preserveScroll: true }); };
         const date = document.createElement('span');
         date.className = 'tree-word-date';
         date.textContent = formatDate(word.datetime);
@@ -639,15 +664,13 @@ function updateSidebarVisibility() {
     if (detailVisible) renderSidebarTree();
 }
 
-function showViewMode(recordHistory = true) {
+function showViewMode(recordHistory = true, options = {}) {
     if (recordHistory) recordAppNavigation('view');
     ['editMode','managePanelMode','pastePanelMode','wordListMode','settingsPanelMode','toolsPanelMode','formatPanelMode','authPanelMode'].forEach(id => { if ($(id)) $(id).style.display = 'none'; });
     $('viewMode').style.display = 'block';
-    const current = wordData.find(item => item.id === currentWordId);
-    $('editBtn').style.display = current ? 'inline-block' : 'none';
-    $('deleteBtn').style.display = current ? 'inline-block' : 'none';
     renderCurrentWordDetails();
     updateSidebarVisibility();
+    if (!options.preserveScroll) scrollWindowTo(0);
 }
 function escapeRegex(value) {
     return value.split('').map(ch => /[.*+?^{}()|[\]\\$]/.test(ch) ? '\\' + ch : ch).join('');
@@ -732,7 +755,8 @@ function renderCurrentWordDetails() {
         current.pronunciation ? '発音記号: ' + current.pronunciation : '',
         '登録日: ' + formatDate(current.datetime), 'ID: ' + current.id
     ].filter(Boolean).join(' | ');
-    target.innerHTML = '<div class="word-header-container"><div class="word-title-row"><h2 class="word-title">' + escapeHtml(titleValue || '（未登録）') + '</h2><span class="category-badge">' + escapeHtml(current.category || '指定なし') + '</span></div>' +
+    target.innerHTML = '<div class="word-header-container"><div class="word-title-row"><h2 class="word-title">' + escapeHtml(titleValue || '（未登録）') + '</h2><span class="category-badge">' + escapeHtml(current.category || '指定なし') + '</span>' +
+        '<div class="view-actions"><button class="btn btn-secondary" id="editBtn" type="button" onclick="showEditForm()">この単語を編集</button><button class="btn btn-danger" id="deleteBtn" type="button" onclick="deleteCurrentWord()">削除</button></div></div>' +
         (badges ? '<div class="tag-container">' + badges + '</div>' : '') + (hashtags ? '<div class="hashtag-list" aria-label="ハッシュタグ">' + hashtags + '</div>' : '') +
         (metadata ? '<div class="word-sub-info">' + escapeHtml(metadata) + '</div>' : '') + '</div>' + meaningsHtml +
         (current.column ? '<section class="section-block section-block-column"><div class="section-title">コラム</div>' + renderRichText(current.column) + '</section>' : '') +
@@ -740,7 +764,7 @@ function renderCurrentWordDetails() {
         (current.gemini_note && displaySettings.showGeminiNote ? '<section class="section-block section-block-ai"><div class="section-title">AIからの一言</div>' + renderRichText(current.gemini_note) + '</section>' : '') +
         '<div class="word-sub-info">登録日時: ' + escapeHtml(current.datetime) + '</div>';
     target.querySelectorAll('[data-tag-type][data-tag-value]').forEach(button => button.addEventListener('click', () => showWordsForTag(button.dataset.tagType, button.dataset.tagValue)));
-    target.querySelectorAll('[data-word-id]').forEach(button => button.addEventListener('click', () => { currentWordId = Number(button.dataset.wordId); renderSidebarTree(); showViewMode(); }));
+    target.querySelectorAll('[data-word-id]').forEach(button => button.addEventListener('click', () => { currentWordId = Number(button.dataset.wordId); renderSidebarTree(); showViewMode(true, { preserveScroll: true }); }));
 }
 
 function renderMeaningEditor(meaning = {}, index = 0) {

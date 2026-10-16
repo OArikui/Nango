@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Launch Nango-neo v3.0.0 locally using only Python's standard library.
+"""Launch Nango-neo v3.0.1 locally using only Python's standard library.
 
 Usage: python run.py [--port 8765] [--no-browser]
 """
@@ -16,7 +16,7 @@ from urllib.parse import parse_qs, urlparse
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 ROOT = PROJECT_ROOT / "Nango-neo"
-ENTRY = "/Nango-neo.v03.0.0.html"
+ENTRY = "/Nango-neo.v03.0.1.html"
 DATA_DIR = PROJECT_ROOT / "user_data"
 DEFAULT_DATA_FILE = DATA_DIR / "nango_data.json"
 CONFIG_FILE = DATA_DIR / "settings.json"

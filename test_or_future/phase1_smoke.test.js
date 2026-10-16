@@ -4,9 +4,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const root = path.join(__dirname, '..');
-const jsPath = path.join(root, 'Nango-neo', 'Nango_main.v02.0.0.js');
-const htmlPath = path.join(root, 'Nango-neo', 'Nango-neo.v03.0.0.html');
-const cssPath = path.join(root, 'Nango-neo', 'style.v02.8.0.css');
+const jsPath = path.join(root, 'Nango-neo', 'Nango_main.v02.0.1.js');
+const htmlPath = path.join(root, 'Nango-neo', 'Nango-neo.v03.0.1.html');
+const cssPath = path.join(root, 'Nango-neo', 'style.v02.8.1.css');
 const schemaPath = path.join(root, 'Nango-neo', 'DTformats.neo.v5.17', 'DF-FMT_schema.v01.17.json');
 const instructionPath = path.join(root, 'Nango-neo', 'DTformats.neo.v5.17', 'DT-FMT_instruction_AI.v01.17.json');
 const supabaseSqlPath = path.join(root, 'docs', 'supabase-setup.sql');
@@ -169,6 +169,13 @@ assert.match(html, /Version 3\.0\.0"/, 'HTML app-name meta carries the app versi
 assert.match(html, /Nango_main\.v02\.0\.0\.js/, 'HTML references the versioned JavaScript');
 assert.match(html, /style\.v02\.8\.0\.css/, 'HTML references the versioned stylesheet');
 assert.match(html, /id="wordListAlphabetJump"/, 'word list includes initial navigation');
+assert.match(html, /id="backToTop"/, 'a back-to-top control is present');
+assert.match(source, /previous\.scrollY = currentScrollY/, 'outgoing view scroll position is saved');
+assert.match(source, /scrollWindowTo\(0\)/, 'new detail views start at the top');
+assert.match(source, /showViewMode\(true, \{ preserveScroll: true \}\)/, 'sidebar word switches preserve scroll position');
+assert.match(source, /id="editBtn"[^>]*>この単語を編集/, 'edit action is rendered with the detail title');
+assert.match(source, /id="deleteBtn"[^>]*>削除/, 'delete action is rendered with the detail title');
+assert.match(css, /\.back-to-top\s*\{/, 'back-to-top button is styled');
 assert.match(html, /id="formatPanelMode"/, 'read-only DT-FMT view is included');
 assert.match(css, /\.section-block-ai/, 'AI note has a distinct style');
 assert.equal(schema.$defs.word.properties.categoryTags.maxItems, 3, 'schema caps classification tags at three');
