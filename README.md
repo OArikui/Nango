@@ -9,15 +9,17 @@
 
 | 項目 | ファイル / バージョン |
 | ---- | ---------------------- |
-| アプリ | v2.8.2 |
-| 画面 (HTML) | `Nango-neo/Nango-neo.v02.8.2.html` |
-| JavaScript | `Nango-neo/Nango_main.v01.7.5.js` |
-| CSS | `Nango-neo/style.v02.7.3.css` |
+| アプリ | v2.9.0 |
+| 画面 (HTML) | `Nango-neo/Nango-neo.v02.9.0.html` |
+| JavaScript | `Nango-neo/Nango_main.v01.8.0.js` |
+| CSS | `Nango-neo/style.v02.8.0.css` |
 | データ形式 (DT-FMT) | `Nango-neo/DTformats.neo.v5.17/`（[仕様](docs/DT-FMT.md)） |
 | ローカルランチャー | `run.py` / `RUN_NANGO.bat`（Python 3.9 以降、標準ライブラリのみ） |
 
 JavaScript と CSS は、内容が変わったときだけ番号が上がります。そのためアプリのバージョンとファイル番号は一致しません。
 バージョンの付け方は [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)、変更履歴は [docs/neo-versions.md](docs/neo-versions.md) と [docs/releases/](docs/releases/) を参照してください。
+
+| アカウント同期 | Supabase Auth + RLS（GitHub Pages 対応。初期設定は [Supabase Auth 設定手順](docs/SUPABASE_AUTH.md)） |
 
 ## 起動方法
 
@@ -43,6 +45,7 @@ python run.py --no-browser    # ブラウザーを自動で開かない
 ### 3. GitHub Pages
 
 `NEO` ブランチへの push で、`.github/workflows/pages.yml` が最新の `Nango-neo.v*.html` を `index.html` として公開します。
+Supabase のアカウント同期を使う場合は、[セットアップ手順](docs/SUPABASE_AUTH.md)に沿ってプロジェクト URL、公開用キー、RLS を設定してください。service_role キーはブラウザーに置かないでください。
 この場合の保存先も、アクセスしているブラウザーの `localStorage` です。
 
 ## データの保存とバックアップ
