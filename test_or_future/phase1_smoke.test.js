@@ -206,7 +206,8 @@ assert.match(source, /data-jump-group/, 'group jump menu targets another group')
 assert.doesNotMatch(source, /function setHierarchyStructure|function toggleHierarchyPopup/, 'sidebar hierarchy controls are removed');
 assert.match(css, /\.toolbar\s*\{[^}]*position:\s*sticky/s, 'toolbar remains visible while scrolling');
 assert.match(css, /\.filter-popover\s*\{[^}]*position:\s*absolute/s, 'filter popovers do not shift page layout');
-assert.match(html, /id="sidebarWordDisplayMode"/, 'display mode is controlled above the sidebar filters');
+assert.match(html, /id="sidebarWordDisplayMode"/, 'sidebar word display mode control is present');
+assert.ok(html.indexOf('class="search-box"') < html.indexOf('class="sidebar-display-mode"') && html.indexOf('class="sidebar-display-mode"') < html.indexOf('id="treeContainer"'), 'display mode sits below sidebar filters and directly above the word list');
 assert.doesNotMatch(html, /groupDisplayToggle|sidebar-group-controls|sidebar-group-buttons|hierarchyTrigger|hierarchyPopup|setHierarchyStructure/, 'sidebar grouping controls and hierarchy selectors are removed');
 assert.doesNotMatch(source, /groupDisplayEnabled|currentHierarchy|openCategories|function setGroupDisplay|function toggleAllGroups|function setHierarchyStructure|function getGroupingValues/, 'sidebar grouping logic is removed');
 assert.doesNotMatch(css, /\.sidebar-group-controls|\.sidebar-group-buttons|\.tree-category|\.tree-word-list/, 'sidebar grouping styles are removed');
