@@ -190,7 +190,7 @@ assert.match(source, /data-column-sort="other">その他タグ/, 'other tags rem
 assert.match(html, /onclick="showFormatPanel\(\)">DT-FMT定義を確認/, 'DT-FMT is accessible from settings');
 assert.match(css, /\.toolbar::after \{ display: none; \}/, 'the redundant lower toolbar separator is removed');
 assert.match(css, /--nango-sticky-group-top/, 'group headings stay visible during table scrolling');
-assert.match(css, /\.sidebar-filter-zone/, 'sidebar tag search sits under the search box');
+assert.match(css, /\.sidebar-filter-controls\s*\{[^}]*display:flex/s, 'sidebar filtering and sorting controls share a horizontal row');
 
 assert.match(source, /function toggleCategoryFilterPopup\(/, 'sidebar classification filtering is implemented');
 assert.match(source, /function renderWordListCategoryFilters\(/, 'word list category filtering is implemented');
@@ -206,8 +206,10 @@ assert.match(source, /data-jump-group/, 'group jump menu targets another group')
 assert.doesNotMatch(source, /function setHierarchyStructure|function toggleHierarchyPopup/, 'sidebar hierarchy controls are removed');
 assert.match(css, /\.toolbar\s*\{[^}]*position:\s*sticky/s, 'toolbar remains visible while scrolling');
 assert.match(css, /\.filter-popover\s*\{[^}]*position:\s*absolute/s, 'filter popovers do not shift page layout');
-assert.match(html, /id="sidebarWordDisplayMode"/, 'sidebar word display mode control is present');
-assert.ok(html.indexOf('class="search-box"') < html.indexOf('class="sidebar-display-mode"') && html.indexOf('class="sidebar-display-mode"') < html.indexOf('id="treeContainer"'), 'display mode sits below sidebar filters and directly above the word list');
+assert.match(html, /id="headerWordDisplayMode"/, 'word display mode control is in the header toolbar');
+assert.doesNotMatch(html, /id="searchInput"|class="search-box"/, 'sidebar text search input is removed');
+assert.doesNotMatch(html, /id="sidebarWordDisplayMode"|class="sidebar-display-mode"/, 'display mode selector is no longer in the sidebar');
+assert.ok(html.indexOf('id="categoryFilterTrigger"') < html.indexOf('id="sortTrigger"') && html.indexOf('id="sortTrigger"') < html.indexOf('id="treeContainer"'), 'classification filter and sort controls are grouped above the word list');
 assert.doesNotMatch(html, /groupDisplayToggle|sidebar-group-controls|sidebar-group-buttons|hierarchyTrigger|hierarchyPopup|setHierarchyStructure/, 'sidebar grouping controls and hierarchy selectors are removed');
 assert.doesNotMatch(source, /groupDisplayEnabled|currentHierarchy|openCategories|function setGroupDisplay|function toggleAllGroups|function setHierarchyStructure|function getGroupingValues/, 'sidebar grouping logic is removed');
 assert.doesNotMatch(css, /\.sidebar-group-controls|\.sidebar-group-buttons|\.tree-category|\.tree-word-list/, 'sidebar grouping styles are removed');
@@ -222,7 +224,8 @@ assert.doesNotMatch(html, /id="wordListSort"|id="wordListDirection"/, 'duplicate
 assert.match(html, /onclick="copyAiPrompt\(\)">AIに送るプロンプトをコピー/, 'AI prompt copy action is available');
 assert.match(html, /id="pageBackBtn"[\s\S]*戻る/, 'back navigation is present with a label');
 assert.match(html, /id="pageForwardBtn"[\s\S]*進む/, 'forward navigation is present with a label');
-assert.match(source, /function setSidebarWordDisplayMode\(/, 'sidebar display mode is implemented');
+assert.match(source, /function setWordDisplayMode\(/, 'header display mode is implemented');
+assert.doesNotMatch(source, /searchQuery|searchInput|function handleSearch\(/, 'sidebar text search logic is removed');
 assert.match(source, /function copyAiPrompt\(/, 'AI prompt copy action is implemented');
 assert.match(source, /function readClipboardToPaste\(/, 'clipboard read action is implemented');
 assert.match(html, /onclick="readClipboardToPaste\(\)">クリップボードから貼り付け/, 'clipboard read button is available');
