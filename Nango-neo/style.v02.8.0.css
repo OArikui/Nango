@@ -563,3 +563,19 @@ hr { border: 0; border-top: 1px solid var(--border-color); }
   .sidebar-filter-controls { gap:6px; }
   .sidebar-filter-controls .filter-trigger { padding:8px 5px; font-size:10px; }
 }
+
+/* Keep the sort menu layered like the classification-filter menu. */
+.sidebar-filter-controls .sidebar-sort-control #sortPopup {
+    position:absolute;
+    top:calc(100% + 5px);
+    right:0;
+    left:auto;
+    width:max-content;
+    min-width:100%;
+    max-width:calc(100vw - 36px);
+    max-height:min(55vh, 350px);
+    margin:0;
+    overflow:auto;
+    z-index:50;
+    box-shadow:var(--shadow-md);
+}
