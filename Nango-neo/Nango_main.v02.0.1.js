@@ -126,6 +126,8 @@ function updateAppNavigationButtons() {
     if (forward) forward.disabled = appNavigationIndex < 0 || appNavigationIndex >= appNavigationHistory.length - 1;
 }
 function navigateAppHistory(delta) {
+    const current = appNavigationHistory[appNavigationIndex];
+    if (current) current.scrollY = Math.max(0, window.scrollY || 0);
     const next = appNavigationIndex + delta;
     if (next < 0 || next >= appNavigationHistory.length) return;
     appNavigationIndex = next;
