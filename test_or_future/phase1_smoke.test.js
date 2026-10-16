@@ -207,6 +207,13 @@ assert.match(source, /function setHierarchyStructure[\s\S]*setGroupDisplay\(true
 assert.match(css, /\.toolbar\s*\{[^}]*position:\s*sticky/s, 'toolbar remains visible while scrolling');
 assert.match(css, /\.filter-popover\s*\{[^}]*position:\s*absolute/s, 'filter popovers do not shift page layout');
 assert.match(html, /id="sidebarWordDisplayMode"/, 'display mode is controlled above the sidebar filters');
+assert.ok(!html.includes('id="groupDisplayToggle" type="checkbox" checked'), 'grouping is initially unchecked');
+assert.match(source, /let groupDisplayEnabled = false;/, 'sidebar grouping defaults to off');
+assert.match(source, /function updateSidebarVisibility/, 'sidebar visibility is controlled by screen state');
+assert.match(source, /function getFilteredWordListItems/, 'word-list filtering is shared with sidebar context');
+assert.match(source, /function openWordFromWordList/, 'opening a word captures the current list filter');
+assert.ok(source.includes('sidebarContextWordIds = items.map(word => Number(word.id))'), 'sidebar captures all words in the filtered list');
+assert.ok(source.includes('sidebarContextWordIds.includes(Number(word.id))'), 'sidebar respects the captured context');
 assert.doesNotMatch(html, /id="wordDisplayMode"/, 'detail toolbar display mode is removed');
 assert.doesNotMatch(html, /id="wordListSort"|id="wordListDirection"/, 'duplicated sort controls are removed');
 assert.match(html, /onclick="copyAiPrompt\(\)">AIに送るプロンプトをコピー/, 'AI prompt copy action is available');
