@@ -53,7 +53,6 @@
         <div class="main-layout">
 
             <div class="sidebar">
-                <div class="sidebar-display-mode"><label for="sidebarWordDisplayMode">単語の表示モード</label><select id="sidebarWordDisplayMode" class="form-control display-mode-select" onchange="setSidebarWordDisplayMode(this.value)"><option value="word">単語表記</option><option value="reading">読み</option><option value="kanji">漢字</option><option value="pronunciation">発音記号</option></select></div>
                 <div class="search-box">
                     <input type="text" id="searchInput" class="search-input" placeholder="単語・読み・タグ・本文を検索"
                         oninput="handleSearch()">
@@ -69,6 +68,7 @@
                     </div>
                     </div>
 
+                <div class="sidebar-display-mode"><label for="sidebarWordDisplayMode">単語の表示モード</label><select id="sidebarWordDisplayMode" class="form-control display-mode-select" onchange="setSidebarWordDisplayMode(this.value)"><option value="word">単語表記</option><option value="reading">読み</option><option value="kanji">漢字</option><option value="pronunciation">発音記号</option></select></div>
                 <div class="tree-container" id="treeContainer">
                 </div>
             </div>
