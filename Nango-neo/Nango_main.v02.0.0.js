@@ -74,13 +74,11 @@ let wordData = [];
 let additionalData = [];
 let currentWordId = -1;
 let isNewWord = false;
-let searchQuery = '';
 let currentSort = 'id';
-let currentHierarchy = 'fieldTag';
-let openCategories = {};
 let pastePanelOpen = false;
 let meaningClipboard = null;
 let wordListTagFilter = null;
+let sidebarContextWordIds = null;
 let appNavigationHistory = [];
 let appNavigationIndex = -1;
 let restoringNavigation = false;
@@ -89,7 +87,6 @@ let wordListColumnSort = { key: null, direction: 'asc' };
 let selectedCategoryFilters = [];
 let wordListSelectedCategories = [];
 let wordListFiltersOpen = false;
-let groupDisplayEnabled = true;
 let displaySettings = { ...SETTINGS_DEFAULTS };
 let formatMode = 'readable';
 const formatDataCache = {};
@@ -98,7 +95,9 @@ function currentScreenSnapshot(screen, extra = {}) {
     return {
         screen,
         wordId: currentWordId,
-        tagFilter: wordListTagFilter ? { ...wordListTagFilter } : null,
+        tagFilter: wordListTagFilter ? { ...wordListTagFilter, ...(Array.isArray(wordListTagFilter.wordIds) ? { wordIds: [...wordListTagFilter.wordIds] } : {}) } : null,
+        sidebarContextWordIds: sidebarContextWordIds ? [...sidebarContextWordIds] : null,
+        wordListSelectedCategories: [...wordListSelectedCategories],
         wordListSearch: $('wordListSearch')?.value || '',
         pasteText: $('jsonPasteInput')?.value || '',
         ...extra
@@ -130,7 +129,9 @@ function navigateAppHistory(delta) {
 function restoreAppNavigation(state) {
     restoringNavigation = true;
     currentWordId = state.wordId;
-    wordListTagFilter = state.tagFilter ? { ...state.tagFilter } : null;
+    wordListTagFilter = state.tagFilter ? { ...state.tagFilter, ...(Array.isArray(state.tagFilter.wordIds) ? { wordIds: [...state.tagFilter.wordIds] } : {}) } : null;
+    sidebarContextWordIds = Array.isArray(state.sidebarContextWordIds) ? [...state.sidebarContextWordIds] : null;
+    wordListSelectedCategories = Array.isArray(state.wordListSelectedCategories) ? [...state.wordListSelectedCategories] : [];
     ['viewMode', 'editMode', 'managePanelMode', 'pastePanelMode', 'wordListMode', 'settingsPanelMode', 'toolsPanelMode', 'formatPanelMode','authPanelMode'].forEach(id => {
         if ($(id)) $(id).style.display = 'none';
     });
@@ -161,6 +162,7 @@ function restoreAppNavigation(state) {
         $('viewMode').style.display = 'block'; showViewMode(false);
     }
     renderSidebarTree();
+    updateSidebarVisibility();
     restoringNavigation = false;
     updateAppNavigationButtons();
 }
@@ -467,7 +469,7 @@ async function initApp() {
         try { saveToLocalStorage(); } catch (saveError) { console.error('初期データを保存できません:', saveError); }
         setAuthStatus('保存データを読み込めなかったため、初期データで起動しました。元データは上書きしていません。詳細: ' + error.message);
     }
-    loadDisplaySettings(); refreshOpenState();
+    loadDisplaySettings(); 
     currentWordId = wordData.length ? wordData[0].id : -1;
     renderSidebarTree();
     if (wordData.length) showTodaysWord(); else showViewMode();
@@ -509,12 +511,6 @@ function saveToLocalStorage() {
         });
     }
 }
-function refreshOpenState() {
-    openCategories = {};
-    wordData.forEach(word => getGroupingValues(word).forEach(key => {
-        if (!(key in openCategories)) openCategories[key] = false;
-    }));
-}
 function getWordCategoryTags(word) { return normalizeCategoryTags(word.categoryTags, word.category); }
 function getInitial(word, source = 'word') {
     const rawValue = source === 'reading' ? (word.reading || word.word) : word.word;
@@ -531,16 +527,6 @@ function formatDate(value) {
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? asString(value).slice(0, 10) : new Intl.DateTimeFormat('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
 }
-function getGroupingValues(word) {
-    if (currentHierarchy === 'initial') return [getInitial(word)];
-    if (currentHierarchy === 'fieldTag') {
-        const tags = unique(word.meanings.flatMap(meaning => meaning.fieldTag || []));
-        return tags.length ? tags : ['(未設定)'];
-    }
-    if (currentHierarchy === 'eraTag') return word.eraTag ? [word.eraTag] : ['(未設定)'];
-    return ['すべて'];
-}
-
 function setSort(type) {
     currentSort = type;
     $('sort-id')?.classList.toggle('active', type === 'id');
@@ -550,32 +536,11 @@ function setSort(type) {
     $('sortTrigger')?.setAttribute('aria-expanded', 'false');
     renderSidebarTree();
 }
-function setHierarchyStructure(type) {
-    if (!['fieldTag', 'eraTag', 'initial'].includes(type)) type = 'fieldTag';
-    currentHierarchy = type;
-    $('struct-field')?.classList.toggle('active', type === 'fieldTag');
-    $('struct-era')?.classList.toggle('active', type === 'eraTag');
-    $('struct-initial')?.classList.toggle('active', type === 'initial');
-    const labels = { fieldTag: '分野', eraTag: '時代', initial: '頭文字' };
-    if ($('hierarchyCurrentLabel')) $('hierarchyCurrentLabel').textContent = labels[type];
-    $('hierarchyPopup').style.display = 'none';
-    $('hierarchyTrigger')?.setAttribute('aria-expanded', 'false');
-    setGroupDisplay(true);
-    refreshOpenState();
-    renderSidebarTree();
-}
-function toggleHierarchyPopup() {
-    const box = $('hierarchyPopup');
-    box.style.display = box.style.display === 'none' ? 'flex' : 'none';
-    $('hierarchyTrigger')?.setAttribute('aria-expanded', String(box.style.display !== 'none'));
-    $('sortPopup').style.display = 'none';
-    $('categoryFilterPopover').style.display = 'none';
-}
 function toggleSortPopup() {
     const box = $('sortPopup');
     box.style.display = box.style.display === 'none' ? 'flex' : 'none';
     $('sortTrigger')?.setAttribute('aria-expanded', String(box.style.display !== 'none'));
-    $('hierarchyPopup').style.display = 'none';
+
     $('categoryFilterPopover').style.display = 'none';
 }
 function toggleCategoryFilterPopup() {
@@ -584,7 +549,7 @@ function toggleCategoryFilterPopup() {
     if (opening) renderCategoryFilterPopup();
     box.style.display = opening ? 'block' : 'none';
     $('categoryFilterTrigger')?.setAttribute('aria-expanded', String(opening));
-    $('hierarchyPopup').style.display = 'none';
+
     $('sortPopup').style.display = 'none';
 }
 function renderCategoryFilterPopup() {
@@ -614,23 +579,6 @@ function renderCategoryFilterPopup() {
 function updateCategoryFilterBadge() {
     if ($('categoryFilterBadge')) $('categoryFilterBadge').textContent = String(selectedCategoryFilters.length);
 }
-function setGroupDisplay(enabled) {
-    groupDisplayEnabled = Boolean(enabled);
-    if ($('groupDisplayToggle')) $('groupDisplayToggle').checked = groupDisplayEnabled;
-    const controls = document.querySelector('.sidebar-group-buttons');
-    if (controls) controls.style.display = groupDisplayEnabled ? 'flex' : 'none';
-    renderSidebarTree();
-}
-function toggleAllGroups(expand) {
-    for (const word of wordData) getGroupingValues(word).forEach(key => { openCategories[key] = Boolean(expand); });
-    renderSidebarTree();
-}
-
-function handleSearch() {
-    searchQuery = $('searchInput').value.trim().toLocaleLowerCase('ja');
-    renderSidebarTree();
-}
-
 function searchableText(word) {
     return [word.word, word.reading, word.kanji, word.english, word.category, ...(word.categoryTags || []), word.eraTag, word.column,
         word.memo, word.gemini_note, ...(word.other_tags || []), ...word.meanings.flatMap(m => [
@@ -639,7 +587,11 @@ function searchableText(word) {
 }
 
 function getProcessedWords() {
-    let result = wordData.filter(word => (!searchQuery || searchableText(word).includes(searchQuery)) && (!selectedCategoryFilters.length || getWordCategoryTags(word).some(tag => selectedCategoryFilters.includes(tag))));
+    let result = wordData.filter(word => {
+        if (sidebarContextWordIds && !sidebarContextWordIds.includes(Number(word.id))) return false;
+        if (selectedCategoryFilters.length && !getWordCategoryTags(word).some(tag => selectedCategoryFilters.includes(tag))) return false;
+        return true;
+    });
     result = [...result];
     if (currentSort === 'alpha') result.sort((a, b) => (a.reading || a.word).localeCompare(b.reading || b.word, 'ja'));
     else result.sort((a, b) => a.id - b.id);
@@ -654,14 +606,15 @@ function renderSidebarTree() {
     if (!processed.length) {
         container.innerHTML = '<div class="empty-message">該当する単語はありません</div>';
         if ($('exportBtn')) $('exportBtn').disabled = wordData.length === 0;
+        updateCategoryFilterBadge();
         return;
     }
-    const appendWord = (parent, word) => {
+    for (const word of processed) {
         const entry = document.createElement('div');
         entry.className = 'tree-word-entry';
         const button = document.createElement('button');
         button.className = 'tree-word-item' + (word.id === currentWordId ? ' active' : '');
-        const sidebarMode = $('sidebarWordDisplayMode')?.value || displaySettings.defaultDisplayMode || 'word';
+        const sidebarMode = $('headerWordDisplayMode')?.value || displaySettings.defaultDisplayMode || 'word';
         const modeValue = ({ word: word.word, reading: word.reading, kanji: word.kanji, pronunciation: word.pronunciation })[sidebarMode];
         const displayWord = asString(modeValue).trim() || word.word;
         button.textContent = displayWord;
@@ -671,35 +624,19 @@ function renderSidebarTree() {
         date.className = 'tree-word-date';
         date.textContent = formatDate(word.datetime);
         entry.append(button, date);
-        parent.appendChild(entry);
-    };
-    if (!groupDisplayEnabled) {
-        processed.forEach(word => appendWord(container, word));
-    } else {
-        const groups = new Map();
-        for (const word of processed) for (const key of getGroupingValues(word)) {
-            if (!groups.has(key)) groups.set(key, []);
-            groups.get(key).push(word);
-        }
-        for (const groupName of [...groups.keys()].sort((a, b) => a.localeCompare(b, 'ja'))) {
-            const section = document.createElement('div');
-            section.className = 'tree-category' + (openCategories[groupName] ? ' open' : '');
-            const header = document.createElement('button');
-            header.type = 'button';
-            header.className = 'tree-category-header';
-            header.setAttribute('aria-expanded', String(Boolean(openCategories[groupName])));
-            header.innerHTML = '<span class="tree-category-title"><span class="tree-toggle-icon">▶</span> ' + escapeHtml(groupName) + ' (' + groups.get(groupName).length + ')</span>';
-            header.onclick = () => { openCategories[groupName] = !openCategories[groupName]; renderSidebarTree(); };
-            const list = document.createElement('div');
-            list.className = 'tree-word-list';
-            list.style.display = openCategories[groupName] ? 'block' : 'none';
-            groups.get(groupName).forEach(word => appendWord(list, word));
-            section.append(header, list);
-            container.appendChild(section);
-        }
+        container.appendChild(entry);
     }
     $('exportBtn').disabled = wordData.length === 0;
     updateCategoryFilterBadge();
+}
+
+function updateSidebarVisibility() {
+    const sidebar = document.querySelector('.main-layout > .sidebar');
+    if (!sidebar) return;
+    const detailVisible = $('viewMode')?.style.display === 'block';
+    const settingsVisible = $('settingsPanelMode')?.style.display === 'block';
+    sidebar.style.display = detailVisible || settingsVisible ? '' : 'none';
+    if (detailVisible) renderSidebarTree();
 }
 
 function showViewMode(recordHistory = true) {
@@ -710,6 +647,7 @@ function showViewMode(recordHistory = true) {
     $('editBtn').style.display = current ? 'inline-block' : 'none';
     $('deleteBtn').style.display = current ? 'inline-block' : 'none';
     renderCurrentWordDetails();
+    updateSidebarVisibility();
 }
 function escapeRegex(value) {
     return value.split('').map(ch => /[.*+?^{}()|[\]\\$]/.test(ch) ? '\\' + ch : ch).join('');
@@ -901,6 +839,7 @@ function showEditForm() {
     $('formTitle').textContent = '単語の編集';
     $('viewMode').style.display = 'none'; $('managePanelMode').style.display = 'none'; $('pastePanelMode').style.display = 'none'; $('wordListMode').style.display = 'none'; $('settingsPanelMode').style.display = 'none'; $('toolsPanelMode').style.display = 'none'; $('formatPanelMode').style.display = 'none'; $('editMode').style.display = 'block';
     populateEditor(word);
+    updateSidebarVisibility();
 }
 function showNewForm() {
     recordAppNavigation('new');
@@ -908,6 +847,7 @@ function showNewForm() {
     $('formTitle').textContent = '新規単語追加';
     $('viewMode').style.display = 'none'; $('managePanelMode').style.display = 'none'; $('pastePanelMode').style.display = 'none'; $('wordListMode').style.display = 'none'; $('settingsPanelMode').style.display = 'none'; $('toolsPanelMode').style.display = 'none'; $('formatPanelMode').style.display = 'none'; $('editMode').style.display = 'block';
     populateEditor({ word: '', category: '指定なし', categoryTags: ['指定なし'], eraTag: '', reading: '', kanji: '', english: '', pronunciation: '', column: '', memo: '', gemini_note: '', other_tags: [], meanings: [{}] });
+    updateSidebarVisibility();
 }
 function cancelEdit() { showViewMode(); }
 
@@ -954,7 +894,7 @@ function saveWord() {
             collected.datetime = wordData[index].datetime;
             wordData[index] = collected;
         }
-        saveToLocalStorage(); refreshOpenState(); renderSidebarTree();
+        saveToLocalStorage(); renderSidebarTree();
         if (savedFromNewEntry) showWordListForWord(currentWordId);
         else showViewMode();
     } catch (error) { alert(error.message); }
@@ -966,7 +906,7 @@ function deleteCurrentWord() {
     if (!current || !confirm(`「${current.word}」を削除してもよろしいですか？`)) return;
     wordData = wordData.filter(item => item.id !== currentWordId);
     currentWordId = wordData.length ? wordData[0].id : -1;
-    saveToLocalStorage(); refreshOpenState(); renderSidebarTree(); showViewMode();
+    saveToLocalStorage(); renderSidebarTree(); showViewMode();
 }
 
 function baseWordIdentity(value) {
@@ -1081,7 +1021,7 @@ async function applyImportedWords(incoming, extra = []) {
         additionalData = mergeList(extra, []);
         const importedWordIds = wordData.map(item => item.id);
         const first = wordData[0]; currentWordId = first ? first.id : -1;
-        saveToLocalStorage(); refreshOpenState(); renderSidebarTree();
+        saveToLocalStorage(); renderSidebarTree();
         if (importedWordIds.length) showWordListForWords(importedWordIds);
         else showViewMode();
         return { added: wordData.length, merged: 0, skipped, wordIds: importedWordIds };
@@ -1106,7 +1046,7 @@ async function applyImportedWords(incoming, extra = []) {
     additionalData = mergeList(additionalData, extra);
     const uniqueImportedWordIds = [...new Set(importedWordIds)];
     if (!wordData.some(item => item.id === currentWordId)) currentWordId = wordData[0]?.id ?? -1;
-    saveToLocalStorage(); refreshOpenState(); renderSidebarTree();
+    saveToLocalStorage(); renderSidebarTree();
     if (uniqueImportedWordIds.length) showWordListForWords(uniqueImportedWordIds);
     else showViewMode();
     return { added, merged: mergedCount, skipped, wordIds: uniqueImportedWordIds };
@@ -1124,10 +1064,10 @@ function exportJSON() {
 function resetToDefault() {
     if (!confirm('辞書を初期データに戻しますか？\n追加・編集したデータは失われます。先にエクスポートしてください。')) return;
     wordData = reassignIds(clone(defaultData)); additionalData = []; currentWordId = wordData[0]?.id ?? -1;
-    currentSort = 'id'; currentHierarchy = 'fieldTag'; searchQuery = ''; selectedCategoryFilters = []; $('searchInput').value = '';
+    currentSort = 'id'; selectedCategoryFilters = [];
     $('sort-id').classList.add('active'); $('sort-alpha').classList.remove('active');
-    $('struct-field')?.classList.add('active'); $('struct-era')?.classList.remove('active'); $('struct-initial')?.classList.remove('active');
-    saveToLocalStorage(); refreshOpenState(); renderSidebarTree(); if (wordData.length) showTodaysWord(); else showViewMode();
+
+    saveToLocalStorage(); renderSidebarTree(); if (wordData.length) showTodaysWord(); else showViewMode();
 }
 
 function showManagePanel(recordHistory = true) {
@@ -1219,7 +1159,7 @@ function renameTag(type, oldTag) {
             word.meanings.forEach(meaning => { meaning.fieldTag = unique((meaning.fieldTag || []).map(tag => tag === oldTag ? value : tag).filter(Boolean)); });
         } else if (type === 'eraTag' && word.eraTag === oldTag) word.eraTag = value;
     }
-    saveToLocalStorage(); refreshOpenState(); renderSidebarTree(); renderTagManagementTables();
+    saveToLocalStorage(); renderSidebarTree(); renderTagManagementTables();
 }
 
 function togglePastePanel() {
@@ -1277,6 +1217,7 @@ function showWordList() {
     ['viewMode','editMode','managePanelMode','pastePanelMode','settingsPanelMode','toolsPanelMode','formatPanelMode','authPanelMode'].forEach(id => { if ($(id)) $(id).style.display = 'none'; });
     $('wordListMode').style.display = 'block';
     renderWordList();
+    updateSidebarVisibility();
 }
 function renderWordListFilterBanner() {
     const box = $('wordListTagFilter');
@@ -1327,6 +1268,7 @@ function showWordListForWords(wordIds, mode = 'import') {
     $('wordListMode').style.display = 'block';
     renderWordListFilterBanner();
     renderWordList();
+    updateSidebarVisibility();
 }
 function showWordsForTag(type, tag) {
     wordListTagFilter = { type, tag };
@@ -1337,6 +1279,7 @@ function showWordsForTag(type, tag) {
     $('wordListMode').style.display = 'block';
     renderWordListFilterBanner();
     renderWordList();
+    updateSidebarVisibility();
 }
 function wordHasTag(word, filter) {
     if (!filter) return true;
@@ -1411,20 +1354,38 @@ function updateWordListStickyOffsets() {
     document.documentElement.style.setProperty('--nango-sticky-group-top', (tableTop + headerHeight) + 'px');
 }
 
-function renderWordList() {
-    const container = $('wordListContainer');
-    if (!container) return;
-    renderWordListCategoryFilters();
+function getFilteredWordListItems() {
     const query = normalizeText($('wordListSearch')?.value || '');
-    const sort = $('wordListSort')?.value || 'id';
-    const direction = $('wordListDirection')?.value || 'asc';
-    const multiplier = direction === 'desc' ? -1 : 1;
-    const columnSort = wordListColumnSort;
-    let items = wordData.filter(word =>
+    return wordData.filter(word =>
         (!query || normalizeText(searchableText(word)).includes(query)) &&
         wordHasTag(word, wordListTagFilter) &&
         (!wordListSelectedCategories.length || getWordCategoryTags(word).some(tag => wordListSelectedCategories.includes(tag)))
     );
+}
+
+function openWordFromWordList(wordId) {
+    const id = Number(wordId);
+    const items = getFilteredWordListItems();
+    if (!items.some(word => Number(word.id) === id)) return;
+    sidebarContextWordIds = items.map(word => Number(word.id));
+    currentWordId = id;
+    selectedCategoryFilters = [];
+    if ($('categoryFilterPopover')) $('categoryFilterPopover').style.display = 'none';
+    $('categoryFilterTrigger')?.setAttribute('aria-expanded', 'false');
+    updateCategoryFilterBadge();
+    renderSidebarTree();
+    showViewMode();
+}
+
+function renderWordList() {
+    const container = $('wordListContainer');
+    if (!container) return;
+    renderWordListCategoryFilters();
+    const sort = $('wordListSort')?.value || 'id';
+    const direction = $('wordListDirection')?.value || 'asc';
+    const multiplier = direction === 'desc' ? -1 : 1;
+    const columnSort = wordListColumnSort;
+    let items = getFilteredWordListItems();
     const activeGroupSort = columnSort.key || sort;
     const selectedCompare = (a, b) => {
         let result = 0;
@@ -1529,7 +1490,7 @@ function renderWordList() {
         });
     });
     container.querySelectorAll('[data-word-id]').forEach(button => button.addEventListener('click', () => {
-        currentWordId = Number(button.dataset.wordId); renderSidebarTree(); showViewMode();
+        openWordFromWordList(button.dataset.wordId);
     }));
     container.querySelectorAll('[data-tag-type][data-tag-value]').forEach(button => button.addEventListener('click', () => showWordsForTag(button.dataset.tagType, button.dataset.tagValue)));
     const jumpMenu = $('wordListGroupJumpMenu');
@@ -1603,7 +1564,7 @@ function loadDisplaySettings() {
     const modeSelect = $('defaultWordDisplayMode');
     if (aiToggle) aiToggle.checked = Boolean(displaySettings.showGeminiNote);
     if (modeSelect) modeSelect.value = displaySettings.defaultDisplayMode || 'word';
-    const sidebarMode = $('sidebarWordDisplayMode');
+    const sidebarMode = $('headerWordDisplayMode');
     if (sidebarMode) sidebarMode.value = displaySettings.defaultDisplayMode || 'word';
 }
 function saveDisplaySettings() {
@@ -1612,12 +1573,12 @@ function saveDisplaySettings() {
         defaultDisplayMode: $('defaultWordDisplayMode') ? $('defaultWordDisplayMode').value : displaySettings.defaultDisplayMode
     };
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(displaySettings));
-    const sidebarMode = $('sidebarWordDisplayMode');
+    const sidebarMode = $('headerWordDisplayMode');
     if (sidebarMode) sidebarMode.value = displaySettings.defaultDisplayMode;
     renderCurrentWordDetails();
     renderSidebarTree();
 }
-function setSidebarWordDisplayMode(mode) {
+function setWordDisplayMode(mode) {
     const allowed = ['word', 'reading', 'kanji', 'pronunciation'];
     displaySettings.defaultDisplayMode = allowed.includes(mode) ? mode : 'word';
     const settingSelect = $('defaultWordDisplayMode');
@@ -1631,6 +1592,7 @@ function showAuxPanel(panelId, screen, recordHistory = true) {
         if ($(id)) $(id).style.display = 'none';
     });
     $(panelId).style.display = 'block';
+    updateSidebarVisibility();
 }
 async function showSettingsPanel(recordHistory = true) {
     showAuxPanel('settingsPanelMode', 'settings', recordHistory);
@@ -1894,7 +1856,7 @@ async function writeCloudDocument(document, userId = authUser && authUser.id) {
 function applyParsedDocument(parsed) {
     wordData = reassignIds(parsed.words.slice().sort((a, b) => (a.id || 0) - (b.id || 0)));
     additionalData = parsed.additional_data;
-    refreshOpenState();
+    
     currentWordId = wordData.length ? wordData[0].id : -1;
     renderSidebarTree();
     if (wordData.length) showTodaysWord(); else showViewMode();
@@ -1906,7 +1868,7 @@ function loadLocalDocumentIntoMemory() {
     else {
         wordData = reassignIds(clone(defaultData).map(word => ({ ...word, categoryTags: normalizeCategoryTags(word.categoryTags, word.category) })));
         additionalData = [];
-        refreshOpenState();
+        
         currentWordId = wordData.length ? wordData[0].id : -1;
         renderSidebarTree();
         if (wordData.length) showTodaysWord(); else showViewMode();
