@@ -11,6 +11,7 @@ const schemaPath = path.join(root, 'Nango-neo', 'DTformats.neo.v5.17', 'DF-FMT_s
 const instructionPath = path.join(root, 'Nango-neo', 'DTformats.neo.v5.17', 'DT-FMT_instruction_AI.v01.17.json');
 const supabaseSqlPath = path.join(root, 'docs', 'supabase-setup.sql');
 const supabaseGuidePath = path.join(root, 'docs', 'SUPABASE_AUTH.md');
+const supabaseConfigPath = path.join(root, 'Nango-neo', 'supabase-config.js');
 
 let source = fs.readFileSync(jsPath, 'utf8');
 source = source.replace(/\/\/ Expose small pure helpers for browser console\/manual tests\.[\s\S]*$/, '');
@@ -21,13 +22,17 @@ assert.equal(generatedPrompt.includes('\\n'), false, 'AI prompt does not contain
 
 const supabaseSql = fs.readFileSync(supabaseSqlPath, 'utf8');
 const supabaseGuide = fs.readFileSync(supabaseGuidePath, 'utf8');
+const supabaseConfig = fs.readFileSync(supabaseConfigPath, 'utf8');
 const htmlSource = fs.readFileSync(htmlPath, 'utf8');
 assert.equal(api.shouldUseLocalStorage(null, 'local'), true, 'anonymous sessions persist to localStorage');
 assert.equal(api.shouldUseLocalStorage({ id: 'user-1' }, 'pending'), true, 'pending cloud sync preserves local persistence');
 assert.equal(api.shouldUseLocalStorage({ id: 'user-1' }, 'cloud'), false, 'active authenticated sessions use cloud persistence');
 assert.match(source, /supabase\.createClient/, 'browser client initializes Supabase without a server API');
 assert.match(source, /from\(SUPABASE_TABLE\)[\s\S]*?upsert/, 'authenticated data saves through the Supabase Data API');
+assert.match(htmlSource, /supabase-config\.js/, 'repository Supabase config is loaded before the app');
 assert.match(htmlSource, /supabase-js@2/, 'Supabase JS v2 is loaded for GitHub Pages');
+assert.match(source, /window\.NANGO_SUPABASE_CONFIG/, 'client reads repository-provided Supabase defaults');
+assert.match(supabaseConfig, /publicKey:/, 'repository config exposes a field for the public key');
 assert.match(htmlSource, /id="authPanelMode"/, 'account and login panel is included');
 assert.match(supabaseSql, /enable row level security/i, 'RLS is enabled for the personal data table');
 assert.match(supabaseSql, /auth\.uid\(\)[\s\S]*?user_id/i, 'policies scope row access to the authenticated user');
@@ -36,6 +41,7 @@ for (const action of ['select', 'insert', 'update', 'delete']) {
 }
 assert.match(supabaseGuide, /GitHub Pages/i, 'Supabase setup guide documents GitHub Pages');
 assert.match(supabaseGuide, /service_role/i, 'setup guide warns against exposing service_role keys');
+assert.match(supabaseGuide, /supabase-config\.js/, 'setup guide documents repository configuration');
 
 const canonical = {
   words: {
