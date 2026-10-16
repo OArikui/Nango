@@ -647,7 +647,7 @@ function getProcessedWords() {
             const filter = wordListTagFilter;
             if (filter.type === 'wordId' && word.id !== filter.wordId) return false;
             if (filter.type === 'wordIds' && !filter.wordIds.includes(word.id)) return false;
-            if (filter.type === 'categoryTags' && !getWordCategoryTags(word).includes(filter.tag)) return false;
+            if ((filter.type === 'categoryTags' || filter.type === 'category') && !getWordCategoryTags(word).includes(filter.tag)) return false;
             if (filter.type === 'fieldTag' && !word.meanings.some(m => (m.fieldTag || []).includes(filter.tag))) return false;
             if (filter.type === 'eraTag' && word.eraTag !== filter.tag) return false;
             if (filter.type === 'other_tags' && !(word.other_tags || []).includes(filter.tag)) return false;
@@ -722,6 +722,7 @@ function updateSidebarVisibility() {
     const detailVisible = $('viewMode')?.style.display === 'block';
     const settingsVisible = $('settingsPanelMode')?.style.display === 'block';
     sidebar.style.display = detailVisible || settingsVisible ? '' : 'none';
+    if (detailVisible) renderSidebarTree();
 }
 
 function showViewMode(recordHistory = true) {
