@@ -74,7 +74,6 @@ let wordData = [];
 let additionalData = [];
 let currentWordId = -1;
 let isNewWord = false;
-let searchQuery = '';
 let currentSort = 'id';
 let pastePanelOpen = false;
 let meaningClipboard = null;
@@ -580,11 +579,6 @@ function renderCategoryFilterPopup() {
 function updateCategoryFilterBadge() {
     if ($('categoryFilterBadge')) $('categoryFilterBadge').textContent = String(selectedCategoryFilters.length);
 }
-function handleSearch() {
-    searchQuery = $('searchInput').value.trim().toLocaleLowerCase('ja');
-    renderSidebarTree();
-}
-
 function searchableText(word) {
     return [word.word, word.reading, word.kanji, word.english, word.category, ...(word.categoryTags || []), word.eraTag, word.column,
         word.memo, word.gemini_note, ...(word.other_tags || []), ...word.meanings.flatMap(m => [
@@ -595,7 +589,6 @@ function searchableText(word) {
 function getProcessedWords() {
     let result = wordData.filter(word => {
         if (sidebarContextWordIds && !sidebarContextWordIds.includes(Number(word.id))) return false;
-        if (searchQuery && !searchableText(word).includes(searchQuery)) return false;
         if (selectedCategoryFilters.length && !getWordCategoryTags(word).some(tag => selectedCategoryFilters.includes(tag))) return false;
         return true;
     });
@@ -621,7 +614,7 @@ function renderSidebarTree() {
         entry.className = 'tree-word-entry';
         const button = document.createElement('button');
         button.className = 'tree-word-item' + (word.id === currentWordId ? ' active' : '');
-        const sidebarMode = $('sidebarWordDisplayMode')?.value || displaySettings.defaultDisplayMode || 'word';
+        const sidebarMode = $('headerWordDisplayMode')?.value || displaySettings.defaultDisplayMode || 'word';
         const modeValue = ({ word: word.word, reading: word.reading, kanji: word.kanji, pronunciation: word.pronunciation })[sidebarMode];
         const displayWord = asString(modeValue).trim() || word.word;
         button.textContent = displayWord;
@@ -1071,7 +1064,7 @@ function exportJSON() {
 function resetToDefault() {
     if (!confirm('辞書を初期データに戻しますか？\n追加・編集したデータは失われます。先にエクスポートしてください。')) return;
     wordData = reassignIds(clone(defaultData)); additionalData = []; currentWordId = wordData[0]?.id ?? -1;
-    currentSort = 'id'; searchQuery = ''; selectedCategoryFilters = []; $('searchInput').value = '';
+    currentSort = 'id'; selectedCategoryFilters = [];
     $('sort-id').classList.add('active'); $('sort-alpha').classList.remove('active');
 
     saveToLocalStorage(); renderSidebarTree(); if (wordData.length) showTodaysWord(); else showViewMode();
@@ -1376,9 +1369,7 @@ function openWordFromWordList(wordId) {
     if (!items.some(word => Number(word.id) === id)) return;
     sidebarContextWordIds = items.map(word => Number(word.id));
     currentWordId = id;
-    searchQuery = '';
     selectedCategoryFilters = [];
-    if ($('searchInput')) $('searchInput').value = '';
     if ($('categoryFilterPopover')) $('categoryFilterPopover').style.display = 'none';
     $('categoryFilterTrigger')?.setAttribute('aria-expanded', 'false');
     updateCategoryFilterBadge();
@@ -1573,7 +1564,7 @@ function loadDisplaySettings() {
     const modeSelect = $('defaultWordDisplayMode');
     if (aiToggle) aiToggle.checked = Boolean(displaySettings.showGeminiNote);
     if (modeSelect) modeSelect.value = displaySettings.defaultDisplayMode || 'word';
-    const sidebarMode = $('sidebarWordDisplayMode');
+    const sidebarMode = $('headerWordDisplayMode');
     if (sidebarMode) sidebarMode.value = displaySettings.defaultDisplayMode || 'word';
 }
 function saveDisplaySettings() {
@@ -1582,12 +1573,12 @@ function saveDisplaySettings() {
         defaultDisplayMode: $('defaultWordDisplayMode') ? $('defaultWordDisplayMode').value : displaySettings.defaultDisplayMode
     };
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(displaySettings));
-    const sidebarMode = $('sidebarWordDisplayMode');
+    const sidebarMode = $('headerWordDisplayMode');
     if (sidebarMode) sidebarMode.value = displaySettings.defaultDisplayMode;
     renderCurrentWordDetails();
     renderSidebarTree();
 }
-function setSidebarWordDisplayMode(mode) {
+function setWordDisplayMode(mode) {
     const allowed = ['word', 'reading', 'kanji', 'pronunciation'];
     displaySettings.defaultDisplayMode = allowed.includes(mode) ? mode : 'word';
     const settingSelect = $('defaultWordDisplayMode');
