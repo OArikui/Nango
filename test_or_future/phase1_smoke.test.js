@@ -206,6 +206,8 @@ assert.match(source, /data-jump-group/, 'group jump menu targets another group')
 assert.doesNotMatch(source, /function setHierarchyStructure|function toggleHierarchyPopup/, 'sidebar hierarchy controls are removed');
 assert.match(css, /\.toolbar\s*\{[^}]*position:\s*sticky/s, 'toolbar remains visible while scrolling');
 assert.match(css, /\.filter-popover\s*\{[^}]*position:\s*absolute/s, 'filter popovers do not shift page layout');
+assert.match(css, /\.sidebar-filter-controls \.sidebar-sort-control #sortPopup\s*\{[^}]*position:absolute/s, 'sort menu opens as an absolute overlay rather than shifting the sidebar');
+assert.match(css, /\.sidebar-filter-controls \.sidebar-sort-control #sortPopup\s*\{[^}]*z-index:50/s, 'sort menu overlays nearby sidebar controls');
 assert.match(html, /id="headerWordDisplayMode"/, 'word display mode control is in the header toolbar');
 assert.doesNotMatch(html, /id="searchInput"|class="search-box"/, 'sidebar text search input is removed');
 assert.doesNotMatch(html, /id="sidebarWordDisplayMode"|class="sidebar-display-mode"/, 'display mode selector is no longer in the sidebar');
