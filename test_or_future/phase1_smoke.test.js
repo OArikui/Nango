@@ -217,4 +217,4 @@ assert.ok(schema.$defs.meaning.required.includes('antonyms'), 'schema requires a
 assert.ok(schema.$defs.meaning.required.includes('similarWordsDifference'), 'schema requires word distinctions');
 assert.match(css, /\.word-list-open\s*\{[^}]*border:\s*0/s, 'headword buttons are borderless');
 assert.match(css, /\.sidebar-control\s*\{[^}]*flex-direction:\s*column/s, 'sidebar popups use flow layout');
-console.log('Nango-NEO v2.8.2 smoke tests passed.');
+console.log('Nango-NEO v2.9.0 smoke tests passed.');
