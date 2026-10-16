@@ -1983,6 +1983,7 @@ async function saveSupabaseConfig() {
         const key = document.getElementById('supabasePublicKey').value.trim();
         if (!/^https:\/\/[^/]+$/.test(url)) throw new Error('Supabase URL は https:// から始まるプロジェクト URL を入力してください。');
         if (!key) throw new Error('Supabase の公開用キーを入力してください。service_role キーは使用しないでください。');
+        if (/service_role|sb_secret_/i.test(key)) throw new Error('service_role / secret key はブラウザーで使用できません。公開用 publishable / anon キーを入力してください。');
         localStorage.setItem(SUPABASE_CONFIG_KEY, JSON.stringify({ url, key }));
         if (supabaseAuthSubscription && typeof supabaseAuthSubscription.unsubscribe === 'function') supabaseAuthSubscription.unsubscribe();
         supabaseClient = null; supabaseClientConfigSignature = ''; supabaseAuthSubscription = null;
