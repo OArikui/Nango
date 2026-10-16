@@ -253,9 +253,9 @@
                         <input id="supabasePublicKey" class="form-control" type="text" autocomplete="off" spellcheck="false" placeholder="sb_publishable_... または anon key">
                         <div class="form-actions">
                             <button class="btn btn-primary" type="button" onclick="saveSupabaseConfig()">接続設定を保存</button>
-                            <button class="btn btn-secondary" type="button" onclick="clearSupabaseConfig()">接続設定を削除</button>
+                            <button class="btn btn-secondary" type="button" onclick="clearSupabaseConfig()">ブラウザーの上書き設定をリセット</button>
                         </div>
-                        <p class="form-help">設定はこのブラウザーの localStorage に保存されます。GitHub リポジトリにキーをコミットする必要はありません。</p>
+                        <p class="form-help">既定の接続先は Nango-neo/supabase-config.js で管理します。この画面で保存した値は、このブラウザーだけの上書き設定として localStorage に保存されます。</p>
                     </section>
                     <section class="settings-section auth-section">
                         <h3>アカウント</h3>
@@ -308,6 +308,7 @@
         </div>
     </div>
 
+    <script src="supabase-config.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="Nango_main.v01.8.0.js" defer></script>
 </body>
