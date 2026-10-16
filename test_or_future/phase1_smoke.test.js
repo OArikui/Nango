@@ -171,6 +171,7 @@ assert.match(html, /style\.v02\.8\.1\.css/, 'HTML references the versioned style
 assert.match(html, /id="wordListAlphabetJump"/, 'word list includes initial navigation');
 assert.match(html, /id="backToTop"/, 'a back-to-top control is present');
 assert.match(source, /previous\.scrollY = currentScrollY/, 'outgoing view scroll position is saved');
+assert.match(source, /current\.scrollY = Math\.max\(0, window\.scrollY \|\| 0\)/, 'active screen scroll position is saved before history navigation');
 assert.match(source, /scrollWindowTo\(0\)/, 'new detail views start at the top');
 assert.match(source, /showViewMode\(true, \{ preserveScroll: true \}\)/, 'sidebar word switches preserve scroll position');
 assert.match(source, /id="editBtn"[^>]*>この単語を編集/, 'edit action is rendered with the detail title');
