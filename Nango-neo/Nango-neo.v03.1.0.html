@@ -4,11 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="app-name" content="© 2026 Nango-neo (base: v3.10) - Version 3.0.1">
-    <meta name="html-version" content="neo.v03.0.1">
+    <meta name="app-name" content="© 2026 Nango-neo (base: v3.10) - Version 3.1.0">
+    <meta name="html-version" content="neo.v03.1.0">
     <meta name="json-version" content="DTformats.neo.v5.17">
-    <meta name="javascript-version" content="v02.0.1">
-    <title>Nango-neo — Phase 1</title>
+    <meta name="javascript-version" content="v02.0.2">
+    <title>Nango-neo — v3.1.0</title>
     <link rel="icon" type="image/svg+xml" href="nango-logo.svg">
     <link rel="stylesheet" href="style.v02.8.1.css">
 </head>
@@ -23,7 +23,7 @@
                 <h1>難語データビューアー <span>Pro</span></h1>
                 <p class="brand-subtitle">言葉を集め、意味をつなぎ、知識を育てる。</p>
             </div>
-            <div class="version-chip">NANGO-NEO <strong>v3.0.1</strong></div>
+            <div class="version-chip">NANGO-NEO <strong>v3.1.0</strong></div>
         </header>
 
         <p class="release-disclaimer" role="note" style="margin: 0 0 18px; padding: 10px 14px; border: 1px solid #e5c98b; border-radius: 8px; background: #fff8e8; color: #76551b; font-size: 0.9rem;">
@@ -35,6 +35,7 @@
                 <button class="btn btn-secondary" type="button" onclick="showWordList()">単語一覧</button>
                 <button class="btn btn-secondary" type="button" onclick="showManagePanel()">タグ一覧</button>
                 <button class="btn btn-secondary" type="button" onclick="showToolsPanel()">ツール</button>
+                <button class="btn btn-secondary" type="button" onclick="openQuizPage()">クイズ</button>
                 <button class="btn btn-secondary" type="button" onclick="showSettingsPanel()">設定</button>
                 <button class="btn btn-secondary" type="button" onclick="showAuthPanel()">アカウント</button>
                 <div class="page-navigation" aria-label="ページ内移動（左矢印で戻る、右矢印で進む）">
@@ -212,7 +213,7 @@
                         <input type="file" id="fileInput" accept=".json" onchange="importJSON(event)" multiple>
                     </section>
                     <div id="toolsStats" class="tools-stats"></div>
-                    <section class="settings-section"><h3>クイズ</h3><p>本格的な出題・採点機能は後続バージョンで実装予定です。</p><button class="btn btn-secondary" type="button" onclick="showTodaysWord()">今日の単語を復習する</button></section>
+                    <section class="settings-section"><h3>クイズ</h3><p>登録した単語の意味を使い、アプリ本体のヘッダーやサイドバーを表示しない専用ページで出題・採点します。</p><div class="form-actions"><button class="btn btn-primary" type="button" onclick="openQuizPage()">クイズを開始</button></div></section>
                 </div>
 
                 <div id="formatPanelMode" class="app-panel" style="display:none;">
@@ -305,6 +306,6 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="Nango_main.v02.0.1.js" defer></script>
+    <script src="Nango_main.v02.0.2.js" defer></script>
 </body>
 </html>
