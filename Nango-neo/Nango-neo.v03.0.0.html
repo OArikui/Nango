@@ -43,6 +43,7 @@
                 </div>
             </div>
             <div class="toolbar-primary">
+                <div class="toolbar-display-mode"><label for="headerWordDisplayMode">単語表示</label><select id="headerWordDisplayMode" class="form-control display-mode-select" onchange="setWordDisplayMode(this.value)"><option value="word">単語表記</option><option value="reading">読み</option><option value="kanji">漢字</option><option value="pronunciation">発音記号</option></select></div>
                 <button class="btn btn-secondary" type="button" onclick="togglePastePanel()">JSON貼り付け</button>
                 <button class="btn btn-primary" type="button" onclick="showNewForm()">＋ 新規単語追加</button>
             </div>
@@ -53,22 +54,17 @@
         <div class="main-layout">
 
             <div class="sidebar">
-                <div class="search-box">
-                    <input type="text" id="searchInput" class="search-input" placeholder="単語・読み・タグ・本文を検索"
-                        oninput="handleSearch()">
-
+                <div class="sidebar-filter-controls">
                     <div class="sidebar-filter-zone">
                         <button class="btn-sm filter-trigger" id="categoryFilterTrigger" type="button" onclick="toggleCategoryFilterPopup()" aria-expanded="false">分類タグで検索 <span id="categoryFilterBadge">0</span></button>
                         <div id="categoryFilterPopover" class="filter-popover" style="display:none"></div>
                     </div>
-                    <div class="control-group">
-                        <div class="sidebar-control"><button class="btn-sm filter-trigger" id="sortTrigger" type="button" onclick="toggleSortPopup()" aria-expanded="false">並び替え: <span id="sortCurrentLabel">登録順</span> ▾</button>
-                            <div id="sortPopup" class="filter-popover compact-popover" style="display:none"><button class="btn-sm active" id="sort-id" type="button" onclick="setSort('id')">登録順</button><button class="btn-sm" id="sort-alpha" type="button" onclick="setSort('alpha')">五十音順</button></div>
-                        </div>
+                    <div class="sidebar-control sidebar-sort-control">
+                        <button class="btn-sm filter-trigger" id="sortTrigger" type="button" onclick="toggleSortPopup()" aria-expanded="false">並び替え: <span id="sortCurrentLabel">登録順</span> ▾</button>
+                        <div id="sortPopup" class="filter-popover compact-popover" style="display:none"><button class="btn-sm active" id="sort-id" type="button" onclick="setSort('id')">登録順</button><button class="btn-sm" id="sort-alpha" type="button" onclick="setSort('alpha')">五十音順</button></div>
                     </div>
-                    </div>
+                </div>
 
-                <div class="sidebar-display-mode"><label for="sidebarWordDisplayMode">単語の表示モード</label><select id="sidebarWordDisplayMode" class="form-control display-mode-select" onchange="setSidebarWordDisplayMode(this.value)"><option value="word">単語表記</option><option value="reading">読み</option><option value="kanji">漢字</option><option value="pronunciation">発音記号</option></select></div>
                 <div class="tree-container" id="treeContainer">
                 </div>
             </div>
