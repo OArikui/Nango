@@ -43,6 +43,9 @@ assert.match(privacyPolicy, /プライバシーポリシー/, 'published privacy
 assert.match(privacyPolicy, /localStorage/, 'privacy policy describes local storage');
 assert.match(privacyPolicy, /Supabase/, 'privacy policy describes cloud processing');
 assert.match(htmlSource, /id="authPanelMode"/, 'account and login panel is included');
+assert.match(htmlSource, /id="privacyPolicyConsent"[^>]*type="checkbox"/, 'sign-up UI includes privacy policy consent');
+assert.match(htmlSource, /href="privacy-policy\.html"[^>]*>プライバシーポリシー/, 'consent links to the privacy policy');
+assert.match(source, /const consent = document\.getElementById\('privacyPolicyConsent'\);\s*if \(!consent \|\| !consent\.checked\) throw new Error\('プライバシーポリシーを読み、同意欄にチェックしてください。'\)/, 'sign-up is blocked without privacy policy consent');
 assert.match(supabaseSql, /enable row level security/i, 'RLS is enabled for the personal data table');
 assert.match(supabaseSql, /auth\.uid\(\)[\s\S]*?user_id/i, 'policies scope row access to the authenticated user');
 for (const action of ['select', 'insert', 'update', 'delete']) {
@@ -163,7 +166,7 @@ const instructions = JSON.parse(fs.readFileSync(instructionPath, 'utf8'));
 const template = JSON.parse(fs.readFileSync(path.join(root, 'Nango-neo', 'DTformats.neo.v5.17', 'DT-FMT_template.v02.17.json'), 'utf8'));
 assert.match(html, /NANGO-NEO <strong>v3\.0\.0<\/strong>/, 'HTML version is updated');
 assert.match(html, /Version 3\.0\.0"/, 'HTML app-name meta carries the app version');
-assert.match(html, /Nango_main\.v01\.9\.0\.js/, 'HTML references the versioned JavaScript');
+assert.match(html, /Nango_main\.v02\.0\.0\.js/, 'HTML references the versioned JavaScript');
 assert.match(html, /style\.v02\.8\.0\.css/, 'HTML references the versioned stylesheet');
 assert.match(html, /id="wordListAlphabetJump"/, 'word list includes initial navigation');
 assert.match(html, /id="formatPanelMode"/, 'read-only DT-FMT view is included');
@@ -232,4 +235,4 @@ assert.ok(schema.$defs.meaning.required.includes('antonyms'), 'schema requires a
 assert.ok(schema.$defs.meaning.required.includes('similarWordsDifference'), 'schema requires word distinctions');
 assert.match(css, /\.word-list-open\s*\{[^}]*border:\s*0/s, 'headword buttons are borderless');
 assert.match(css, /\.sidebar-control\s*\{[^}]*flex-direction:\s*column/s, 'sidebar popups use flow layout');
-console.log('Nango-NEO v2.9.0 smoke tests passed.');
+console.log('Nango-NEO v3.0.0 smoke tests passed.');
