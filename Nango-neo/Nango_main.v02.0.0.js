@@ -76,8 +76,6 @@ let currentWordId = -1;
 let isNewWord = false;
 let searchQuery = '';
 let currentSort = 'id';
-let currentHierarchy = 'fieldTag';
-let openCategories = {};
 let pastePanelOpen = false;
 let meaningClipboard = null;
 let wordListTagFilter = null;
@@ -90,7 +88,6 @@ let wordListColumnSort = { key: null, direction: 'asc' };
 let selectedCategoryFilters = [];
 let wordListSelectedCategories = [];
 let wordListFiltersOpen = false;
-let groupDisplayEnabled = false;
 let displaySettings = { ...SETTINGS_DEFAULTS };
 let formatMode = 'readable';
 const formatDataCache = {};
@@ -473,7 +470,7 @@ async function initApp() {
         try { saveToLocalStorage(); } catch (saveError) { console.error('初期データを保存できません:', saveError); }
         setAuthStatus('保存データを読み込めなかったため、初期データで起動しました。元データは上書きしていません。詳細: ' + error.message);
     }
-    loadDisplaySettings(); refreshOpenState();
+    loadDisplaySettings(); 
     currentWordId = wordData.length ? wordData[0].id : -1;
     renderSidebarTree();
     if (wordData.length) showTodaysWord(); else showViewMode();
@@ -515,12 +512,6 @@ function saveToLocalStorage() {
         });
     }
 }
-function refreshOpenState() {
-    openCategories = {};
-    wordData.forEach(word => getGroupingValues(word).forEach(key => {
-        if (!(key in openCategories)) openCategories[key] = false;
-    }));
-}
 function getWordCategoryTags(word) { return normalizeCategoryTags(word.categoryTags, word.category); }
 function getInitial(word, source = 'word') {
     const rawValue = source === 'reading' ? (word.reading || word.word) : word.word;
@@ -537,16 +528,6 @@ function formatDate(value) {
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? asString(value).slice(0, 10) : new Intl.DateTimeFormat('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
 }
-function getGroupingValues(word) {
-    if (currentHierarchy === 'initial') return [getInitial(word)];
-    if (currentHierarchy === 'fieldTag') {
-        const tags = unique(word.meanings.flatMap(meaning => meaning.fieldTag || []));
-        return tags.length ? tags : ['(未設定)'];
-    }
-    if (currentHierarchy === 'eraTag') return word.eraTag ? [word.eraTag] : ['(未設定)'];
-    return ['すべて'];
-}
-
 function setSort(type) {
     currentSort = type;
     $('sort-id')?.classList.toggle('active', type === 'id');
@@ -556,32 +537,11 @@ function setSort(type) {
     $('sortTrigger')?.setAttribute('aria-expanded', 'false');
     renderSidebarTree();
 }
-function setHierarchyStructure(type) {
-    if (!['fieldTag', 'eraTag', 'initial'].includes(type)) type = 'fieldTag';
-    currentHierarchy = type;
-    $('struct-field')?.classList.toggle('active', type === 'fieldTag');
-    $('struct-era')?.classList.toggle('active', type === 'eraTag');
-    $('struct-initial')?.classList.toggle('active', type === 'initial');
-    const labels = { fieldTag: '分野', eraTag: '時代', initial: '頭文字' };
-    if ($('hierarchyCurrentLabel')) $('hierarchyCurrentLabel').textContent = labels[type];
-    $('hierarchyPopup').style.display = 'none';
-    $('hierarchyTrigger')?.setAttribute('aria-expanded', 'false');
-    setGroupDisplay(true);
-    refreshOpenState();
-    renderSidebarTree();
-}
-function toggleHierarchyPopup() {
-    const box = $('hierarchyPopup');
-    box.style.display = box.style.display === 'none' ? 'flex' : 'none';
-    $('hierarchyTrigger')?.setAttribute('aria-expanded', String(box.style.display !== 'none'));
-    $('sortPopup').style.display = 'none';
-    $('categoryFilterPopover').style.display = 'none';
-}
 function toggleSortPopup() {
     const box = $('sortPopup');
     box.style.display = box.style.display === 'none' ? 'flex' : 'none';
     $('sortTrigger')?.setAttribute('aria-expanded', String(box.style.display !== 'none'));
-    $('hierarchyPopup').style.display = 'none';
+
     $('categoryFilterPopover').style.display = 'none';
 }
 function toggleCategoryFilterPopup() {
@@ -590,7 +550,7 @@ function toggleCategoryFilterPopup() {
     if (opening) renderCategoryFilterPopup();
     box.style.display = opening ? 'block' : 'none';
     $('categoryFilterTrigger')?.setAttribute('aria-expanded', String(opening));
-    $('hierarchyPopup').style.display = 'none';
+
     $('sortPopup').style.display = 'none';
 }
 function renderCategoryFilterPopup() {
@@ -620,18 +580,6 @@ function renderCategoryFilterPopup() {
 function updateCategoryFilterBadge() {
     if ($('categoryFilterBadge')) $('categoryFilterBadge').textContent = String(selectedCategoryFilters.length);
 }
-function setGroupDisplay(enabled) {
-    groupDisplayEnabled = Boolean(enabled);
-    if ($('groupDisplayToggle')) $('groupDisplayToggle').checked = groupDisplayEnabled;
-    const controls = document.querySelector('.sidebar-group-buttons');
-    if (controls) controls.style.display = groupDisplayEnabled ? 'flex' : 'none';
-    renderSidebarTree();
-}
-function toggleAllGroups(expand) {
-    for (const word of wordData) getGroupingValues(word).forEach(key => { openCategories[key] = Boolean(expand); });
-    renderSidebarTree();
-}
-
 function handleSearch() {
     searchQuery = $('searchInput').value.trim().toLocaleLowerCase('ja');
     renderSidebarTree();
@@ -661,16 +609,14 @@ function renderSidebarTree() {
     const container = $('treeContainer');
     if (!container) return;
     container.replaceChildren();
-    if ($('groupDisplayToggle')) $('groupDisplayToggle').checked = groupDisplayEnabled;
-    const groupControls = document.querySelector('.sidebar-group-buttons');
-    if (groupControls) groupControls.style.display = groupDisplayEnabled ? 'flex' : 'none';
     const processed = getProcessedWords();
     if (!processed.length) {
         container.innerHTML = '<div class="empty-message">該当する単語はありません</div>';
         if ($('exportBtn')) $('exportBtn').disabled = wordData.length === 0;
+        updateCategoryFilterBadge();
         return;
     }
-    const appendWord = (parent, word) => {
+    for (const word of processed) {
         const entry = document.createElement('div');
         entry.className = 'tree-word-entry';
         const button = document.createElement('button');
@@ -685,32 +631,7 @@ function renderSidebarTree() {
         date.className = 'tree-word-date';
         date.textContent = formatDate(word.datetime);
         entry.append(button, date);
-        parent.appendChild(entry);
-    };
-    if (!groupDisplayEnabled) {
-        processed.forEach(word => appendWord(container, word));
-    } else {
-        const groups = new Map();
-        for (const word of processed) for (const key of getGroupingValues(word)) {
-            if (!groups.has(key)) groups.set(key, []);
-            groups.get(key).push(word);
-        }
-        for (const groupName of [...groups.keys()].sort((a, b) => a.localeCompare(b, 'ja'))) {
-            const section = document.createElement('div');
-            section.className = 'tree-category' + (openCategories[groupName] ? ' open' : '');
-            const header = document.createElement('button');
-            header.type = 'button';
-            header.className = 'tree-category-header';
-            header.setAttribute('aria-expanded', String(Boolean(openCategories[groupName])));
-            header.innerHTML = '<span class="tree-category-title"><span class="tree-toggle-icon">▶</span> ' + escapeHtml(groupName) + ' (' + groups.get(groupName).length + ')</span>';
-            header.onclick = () => { openCategories[groupName] = !openCategories[groupName]; renderSidebarTree(); };
-            const list = document.createElement('div');
-            list.className = 'tree-word-list';
-            list.style.display = openCategories[groupName] ? 'block' : 'none';
-            groups.get(groupName).forEach(word => appendWord(list, word));
-            section.append(header, list);
-            container.appendChild(section);
-        }
+        container.appendChild(entry);
     }
     $('exportBtn').disabled = wordData.length === 0;
     updateCategoryFilterBadge();
@@ -980,7 +901,7 @@ function saveWord() {
             collected.datetime = wordData[index].datetime;
             wordData[index] = collected;
         }
-        saveToLocalStorage(); refreshOpenState(); renderSidebarTree();
+        saveToLocalStorage(); renderSidebarTree();
         if (savedFromNewEntry) showWordListForWord(currentWordId);
         else showViewMode();
     } catch (error) { alert(error.message); }
@@ -992,7 +913,7 @@ function deleteCurrentWord() {
     if (!current || !confirm(`「${current.word}」を削除してもよろしいですか？`)) return;
     wordData = wordData.filter(item => item.id !== currentWordId);
     currentWordId = wordData.length ? wordData[0].id : -1;
-    saveToLocalStorage(); refreshOpenState(); renderSidebarTree(); showViewMode();
+    saveToLocalStorage(); renderSidebarTree(); showViewMode();
 }
 
 function baseWordIdentity(value) {
@@ -1107,7 +1028,7 @@ async function applyImportedWords(incoming, extra = []) {
         additionalData = mergeList(extra, []);
         const importedWordIds = wordData.map(item => item.id);
         const first = wordData[0]; currentWordId = first ? first.id : -1;
-        saveToLocalStorage(); refreshOpenState(); renderSidebarTree();
+        saveToLocalStorage(); renderSidebarTree();
         if (importedWordIds.length) showWordListForWords(importedWordIds);
         else showViewMode();
         return { added: wordData.length, merged: 0, skipped, wordIds: importedWordIds };
@@ -1132,7 +1053,7 @@ async function applyImportedWords(incoming, extra = []) {
     additionalData = mergeList(additionalData, extra);
     const uniqueImportedWordIds = [...new Set(importedWordIds)];
     if (!wordData.some(item => item.id === currentWordId)) currentWordId = wordData[0]?.id ?? -1;
-    saveToLocalStorage(); refreshOpenState(); renderSidebarTree();
+    saveToLocalStorage(); renderSidebarTree();
     if (uniqueImportedWordIds.length) showWordListForWords(uniqueImportedWordIds);
     else showViewMode();
     return { added, merged: mergedCount, skipped, wordIds: uniqueImportedWordIds };
@@ -1150,10 +1071,10 @@ function exportJSON() {
 function resetToDefault() {
     if (!confirm('辞書を初期データに戻しますか？\n追加・編集したデータは失われます。先にエクスポートしてください。')) return;
     wordData = reassignIds(clone(defaultData)); additionalData = []; currentWordId = wordData[0]?.id ?? -1;
-    currentSort = 'id'; currentHierarchy = 'fieldTag'; searchQuery = ''; selectedCategoryFilters = []; $('searchInput').value = '';
+    currentSort = 'id'; searchQuery = ''; selectedCategoryFilters = []; $('searchInput').value = '';
     $('sort-id').classList.add('active'); $('sort-alpha').classList.remove('active');
-    $('struct-field')?.classList.add('active'); $('struct-era')?.classList.remove('active'); $('struct-initial')?.classList.remove('active');
-    saveToLocalStorage(); refreshOpenState(); renderSidebarTree(); if (wordData.length) showTodaysWord(); else showViewMode();
+
+    saveToLocalStorage(); renderSidebarTree(); if (wordData.length) showTodaysWord(); else showViewMode();
 }
 
 function showManagePanel(recordHistory = true) {
@@ -1245,7 +1166,7 @@ function renameTag(type, oldTag) {
             word.meanings.forEach(meaning => { meaning.fieldTag = unique((meaning.fieldTag || []).map(tag => tag === oldTag ? value : tag).filter(Boolean)); });
         } else if (type === 'eraTag' && word.eraTag === oldTag) word.eraTag = value;
     }
-    saveToLocalStorage(); refreshOpenState(); renderSidebarTree(); renderTagManagementTables();
+    saveToLocalStorage(); renderSidebarTree(); renderTagManagementTables();
 }
 
 function togglePastePanel() {
@@ -1944,7 +1865,7 @@ async function writeCloudDocument(document, userId = authUser && authUser.id) {
 function applyParsedDocument(parsed) {
     wordData = reassignIds(parsed.words.slice().sort((a, b) => (a.id || 0) - (b.id || 0)));
     additionalData = parsed.additional_data;
-    refreshOpenState();
+    
     currentWordId = wordData.length ? wordData[0].id : -1;
     renderSidebarTree();
     if (wordData.length) showTodaysWord(); else showViewMode();
@@ -1956,7 +1877,7 @@ function loadLocalDocumentIntoMemory() {
     else {
         wordData = reassignIds(clone(defaultData).map(word => ({ ...word, categoryTags: normalizeCategoryTags(word.categoryTags, word.category) })));
         additionalData = [];
-        refreshOpenState();
+        
         currentWordId = wordData.length ? wordData[0].id : -1;
         renderSidebarTree();
         if (wordData.length) showTodaysWord(); else showViewMode();

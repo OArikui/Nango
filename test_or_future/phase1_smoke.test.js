@@ -203,12 +203,14 @@ assert.match(html, /id="wordListGroupJumpMenu"/, 'group divider jump menu is ava
 assert.match(source, /function getWordListGroupLabel\(/, 'word-list groups follow the active sort column');
 assert.match(source, /function toggleWordListFilters\(/, 'word-list filters open only on demand');
 assert.match(source, /data-jump-group/, 'group jump menu targets another group');
-assert.match(source, /function setHierarchyStructure[\s\S]*setGroupDisplay\(true\)/, 'setting a hierarchy automatically enables grouping');
+assert.doesNotMatch(source, /function setHierarchyStructure|function toggleHierarchyPopup/, 'sidebar hierarchy controls are removed');
 assert.match(css, /\.toolbar\s*\{[^}]*position:\s*sticky/s, 'toolbar remains visible while scrolling');
 assert.match(css, /\.filter-popover\s*\{[^}]*position:\s*absolute/s, 'filter popovers do not shift page layout');
 assert.match(html, /id="sidebarWordDisplayMode"/, 'display mode is controlled above the sidebar filters');
-assert.ok(!html.includes('id="groupDisplayToggle" type="checkbox" checked'), 'grouping is initially unchecked');
-assert.match(source, /let groupDisplayEnabled = false;/, 'sidebar grouping defaults to off');
+assert.doesNotMatch(html, /groupDisplayToggle|sidebar-group-controls|sidebar-group-buttons|hierarchyTrigger|hierarchyPopup|setHierarchyStructure/, 'sidebar grouping controls and hierarchy selectors are removed');
+assert.doesNotMatch(source, /groupDisplayEnabled|currentHierarchy|openCategories|function setGroupDisplay|function toggleAllGroups|function setHierarchyStructure|function getGroupingValues/, 'sidebar grouping logic is removed');
+assert.doesNotMatch(css, /\.sidebar-group-controls|\.sidebar-group-buttons|\.tree-category|\.tree-word-list/, 'sidebar grouping styles are removed');
+assert.match(source, /function renderSidebarTree\([\s\S]*?for \(const word of processed\)[\s\S]*?container\.appendChild\(entry\)/, 'sidebar renders a flat word list');
 assert.match(source, /function updateSidebarVisibility/, 'sidebar visibility is controlled by screen state');
 assert.match(source, /function getFilteredWordListItems/, 'word-list filtering is shared with sidebar context');
 assert.match(source, /function openWordFromWordList/, 'opening a word captures the current list filter');
