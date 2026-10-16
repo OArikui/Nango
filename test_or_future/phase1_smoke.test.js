@@ -14,7 +14,7 @@ const supabaseGuidePath = path.join(root, 'docs', 'SUPABASE_AUTH.md');
 
 let source = fs.readFileSync(jsPath, 'utf8');
 source = source.replace(/\/\/ Expose small pure helpers for browser console\/manual tests\.[\s\S]*$/, '');
-const api = new Function(source + '\nreturn { parseNangoDocument, serializeNangoDocument, normalizeWord, normalizeCategoryTags, normalizeMeaning, validateWord, findDuplicateIndex, mergeWord, reassignIds, getInitial, getWordListGroupLabel, buildAiPrompt };')();
+const api = new Function(source + '\nreturn { parseNangoDocument, serializeNangoDocument, normalizeWord, normalizeCategoryTags, normalizeMeaning, validateWord, findDuplicateIndex, mergeWord, reassignIds, getInitial, getWordListGroupLabel, buildAiPrompt, shouldUseLocalStorage };')();
 const generatedPrompt = api.buildAiPrompt();
 assert.ok(generatedPrompt.includes('\n'), 'AI prompt is separated with actual newlines');
 assert.equal(generatedPrompt.includes('\\n'), false, 'AI prompt does not contain escaped newline text');
