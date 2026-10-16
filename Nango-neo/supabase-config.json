@@ -1,0 +1,5 @@
+{
+  "_comment": "このファイルは公開されます。url と publicKey には公開用の値だけを指定し、service_role / sb_secret_ は記述しないでください。RLS を有効にしてください。",
+  "url": "",
+  "publicKey": ""
+}
