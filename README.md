@@ -9,9 +9,9 @@
 
 | 項目 | ファイル / バージョン |
 | ---- | ---------------------- |
-| アプリ | v2.9.0 |
-| 画面 (HTML) | `Nango-neo/Nango-neo.v02.9.0.html` |
-| JavaScript | `Nango-neo/Nango_main.v01.8.0.js` |
+| アプリ | v2.10.0 |
+| 画面 (HTML) | `Nango-neo/Nango-neo.v02.10.0.html` |
+| JavaScript | `Nango-neo/Nango_main.v01.9.0.js` |
 | CSS | `Nango-neo/style.v02.8.0.css` |
 | データ形式 (DT-FMT) | `Nango-neo/DTformats.neo.v5.17/`（[仕様](docs/DT-FMT.md)） |
 | ローカルランチャー | `run.py` / `RUN_NANGO.bat`（Python 3.9 以降、標準ライブラリのみ） |
@@ -19,7 +19,7 @@
 JavaScript と CSS は、内容が変わったときだけ番号が上がります。そのためアプリのバージョンとファイル番号は一致しません。
 バージョンの付け方は [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)、変更履歴は [docs/neo-versions.md](docs/neo-versions.md) と [docs/releases/](docs/releases/) を参照してください。
 
-Supabase Auth + RLS によるアカウント同期にも対応しています（GitHub Pages 対応）。初期設定は [Supabase Auth 設定手順](docs/SUPABASE_AUTH.md) を参照してください。
+Supabase Auth + RLS によるアカウント同期にも対応しています（GitHub Pages 対応）。初期設定は [Supabase Auth 設定手順](docs/SUPABASE_AUTH.md) を参照してください。利用者向けの [プライバシーポリシー](Nango-neo/privacy-policy.html) も公開しています。
 
 ## 起動方法
 
@@ -39,13 +39,13 @@ python run.py --no-browser    # ブラウザーを自動で開かない
 
 ### 2. HTML を直接開く
 
-`Nango-neo/Nango-neo.v02.9.0.html` をブラウザーで開いても使えます。この場合の保存先はブラウザーの `localStorage` だけで、
+`Nango-neo/Nango-neo.v02.10.0.html` をブラウザーで開いても使えます。この場合の保存先はブラウザーの `localStorage` だけで、
 同じブラウザー・同じオリジンでしかデータを使えません。ファイルへの自動保存は動作しません。
 
 ### 3. GitHub Pages
 
 `NEO` ブランチへの push で、`.github/workflows/pages.yml` が最新の `Nango-neo.v*.html` を `index.html` として公開します。
-`Nango-neo/supabase-config.js` の `url` と `publicKey` に公開用の値を設定してコミットすると、公開ページの利用者が初めからその接続先を利用できます。これらは公開される値です。secret / service_role キーは絶対に記述しないでください。RLS を含む初期設定は [セットアップ手順](docs/SUPABASE_AUTH.md) を参照してください。
+`Nango-neo/supabase-config.json` の `url` と `publicKey` に公開用の値を設定してコミットすると、公開ページの利用者が初めからその接続先を利用できます。これらは公開される値です。secret / service_role キーは絶対に記述しないでください。RLS を含む初期設定は [セットアップ手順](docs/SUPABASE_AUTH.md) を参照してください。
 GitHub Pages では未ログイン時はブラウザーの `localStorage`、ログイン時は Supabase に辞書データを保存します。
 
 ## データの保存とバックアップ
