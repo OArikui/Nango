@@ -1,0 +1,25 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const root = path.join(__dirname, '..');
+const read = (...parts) => fs.readFileSync(path.join(root, ...parts), 'utf8');
+const appHtml = read('Nango-neo', 'Nango-neo.v03.1.0.html');
+const appJs = read('Nango-neo', 'Nango_main.v02.0.2.js');
+const quizHtml = read('Nango-neo', 'Nango-quiz.v01.0.0.html');
+const quizCss = read('Nango-neo', 'Nango-quiz.v01.0.0.css');
+const quizJs = read('Nango-neo', 'Nango-quiz.v01.0.0.js');
+
+assert.match(appHtml, /onclick="openQuizPage\(\)"/, 'main app opens the quiz');
+assert.match(appJs, /sessionStorage\.setItem\('nango_quiz_session_data'/, 'current dictionary is handed to the quiz page');
+assert.match(appJs, /Nango-quiz\.v01\.0\.0\.html/, 'launcher targets the dedicated page');
+assert.match(quizHtml, /Nango-quiz\.v01\.0\.0\.css/, 'quiz loads its stylesheet');
+assert.match(quizHtml, /Nango-quiz\.v01\.0\.0\.js/, 'quiz loads its logic');
+assert.doesNotMatch(quizHtml, /<header\b|<aside\b|class="[^"]*sidebar/i, 'quiz excludes the app header and sidebar');
+assert.match(quizHtml, /id="quizScreen"/, 'quiz question screen exists');
+assert.match(quizHtml, /id="resultScreen"/, 'quiz result screen exists');
+assert.match(quizCss, /\.quiz-app/, 'quiz has independent page styling');
+assert.match(quizJs, /word_to_meaning/, 'term-to-meaning questions exist');
+assert.match(quizJs, /meaning_to_word/, 'meaning-to-term questions exist');
+assert.match(quizJs, /score\+\+/, 'correct answers are scored');
+assert.match(quizJs, /history\.back\(\)/, 'quiz can return through browser history');
+console.log('Standalone quiz smoke checks passed.');

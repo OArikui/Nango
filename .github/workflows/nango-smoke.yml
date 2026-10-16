@@ -25,6 +25,10 @@ jobs:
           python-version: "3.x"
       - name: Run data and UI smoke tests
         run: node test_or_future/phase1_smoke.test.js
+      - name: Check standalone quiz page
+        run: node test_or_future/quiz_smoke.test.js
+      - name: Check quiz JavaScript syntax
+        run: node --check Nango-neo/Nango-quiz.v01.0.0.js
       - name: Check documentation consistency
         run: node test_or_future/docs_consistency.test.js
       - name: Install schema test dependency
