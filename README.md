@@ -9,9 +9,9 @@
 
 | 項目 | ファイル / バージョン |
 | ---- | ---------------------- |
-| アプリ | v3.0.1 |
-| 画面 (HTML) | `Nango-neo/Nango-neo.v03.0.1.html` |
-| JavaScript | `Nango-neo/Nango_main.v02.0.1.js` |
+| アプリ | v3.0.2 |
+| 画面 (HTML) | `Nango-neo/Nango-neo.v03.0.2.html` |
+| JavaScript | `Nango-neo/Nango_main.v02.0.2.js` |
 | CSS | `Nango-neo/style.v02.8.1.css` |
 | データ形式 (DT-FMT) | `Nango-neo/DTformats.neo.v5.17/`（[仕様](docs/DT-FMT.md)） |
 | ローカルランチャー | `run.py` / `RUN_NANGO.bat`（Python 3.9 以降、標準ライブラリのみ） |
@@ -34,12 +34,12 @@ python run.py --port 9000     # ポートを指定（既定: 8765）
 python run.py --no-browser    # ブラウザーを自動で開かない
 ```
 
-アプリは `127.0.0.1`（自分の PC）だけで待ち受け、外部ネットワークには公開されません。
+アプリは `127.0.0.1`（自分の PC）だけで待ち受け、外部ネットワークには公開されません。保存用の API（`/api/*`）は、ランチャーが開いた画面（同じ `127.0.0.1` / `localhost` のオリジン）からの `application/json` の要求だけを受け付け、他のサイトからは書き込めません。
 この方法で起動すると、辞書は `user_data/nango_data.json` にも自動保存されます。詳しくは [docs/RUN_WITH_PYTHON.md](docs/RUN_WITH_PYTHON.md) を参照してください。
 
 ### 2. HTML を直接開く
 
-`Nango-neo/Nango-neo.v03.0.1.html` をブラウザーで開いても使えます。この場合の保存先はブラウザーの `localStorage` だけで、
+`Nango-neo/Nango-neo.v03.0.2.html` をブラウザーで開いても使えます。この場合の保存先はブラウザーの `localStorage` だけで、
 同じブラウザー・同じオリジンでしかデータを使えません。ファイルへの自動保存は動作しません。
 
 ### 3. GitHub Pages
@@ -117,6 +117,8 @@ JSON Schema Draft 2020-12 に基づく形式です。単語名を `words` オブ
 - 複数の JSON ファイルを一度に選択できます。いずれかが不正な場合は、現在のデータを変更せずに取り込み全体を中止します。
 - 既存の辞書へ追加する場合は、単語名の重複を判定してマージします。タグ・例文・類義語などのリストは自動で統合し、テキスト項目が競合するときは採用する値を選択します。
 - ID は取り込み時に登録順で採番し直します。
+- 取り込み方法で「置き換え」を選ぶと、置き換える件数を示す再確認が表示されます。中止すると現在のデータは変更されません。
+- 分野タグが 1 つの意味に 3 個以上ある、分類タグが 1 つの単語に 4 個以上あるなど、DT-FMT の上限を超えたデータは、取り込めますが、結果の表示とツール画面に該当件数が出ます（そのままのエクスポートはスキーマ検証に失敗します）。
 - 取り込みは JSON 貼り付け欄からも同じ処理で行えます。
 
 ## テスト
@@ -125,6 +127,7 @@ JSON Schema Draft 2020-12 に基づく形式です。単語名を `words` オブ
 node test_or_future/phase1_smoke.test.js            # アプリのロジック・HTML/CSS の構造
 node test_or_future/docs_consistency.test.js        # README・ランチャー・HTML のバージョン整合とリンク切れ
 python -m unittest test_or_future.test_phase1_format -v   # DT-FMT のスキーマ検証（pip install "jsonschema[format]" が必要）
+python -m unittest test_or_future.test_run_api -v         # ランチャー API の Host / Origin / Content-Type 検査
 python -m py_compile run.py                         # ランチャーの構文確認
 ```
 

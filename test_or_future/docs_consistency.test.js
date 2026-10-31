@@ -62,4 +62,44 @@ for (const file of markdownFiles) {
 }
 assert.deepEqual(broken, [], `broken relative links:\n${broken.join('\n')}`);
 
+// 4. Every place that names the shipped files or the version agrees with them.
+const verOf = (name) => name.match(/\.(v\d+\.\d+\.\d+)\.[a-z]+$/)[1];
+const privacyPolicy = read('Nango-neo', 'privacy-policy.html');
+assert.ok(privacyPolicy.includes(`href="${html}"`), 'privacy policy links back to the shipped app HTML');
+assert.ok(read('run.py').includes(`Nango-neo v${appVersion} locally`), 'run.py docstring names the app version');
+
+const jsSource = read('Nango-neo', js);
+const formatFiles = fs.readdirSync(path.join(appDir, format));
+assert.ok(jsSource.includes(`FORMAT_VERSION = '${format}'`), 'JavaScript FORMAT_VERSION matches the DT-FMT folder');
+for (const file of formatFiles) {
+  assert.ok(read('run.py').includes(file), `run.py serves ${file}`);
+  assert.ok(jsSource.includes(`${format}/${file}`), `JavaScript static fallback lists ${file}`);
+}
+
+const history = read('docs', 'neo-versions.md');
+assert.ok(history.includes(`| v${appVersion} |`), 'neo-versions.md has an app version row for the current release');
+assert.ok(history.includes(`releases/RELEASE_NOTES_v${appVersion}.md`), 'neo-versions.md links the current release notes');
+assert.ok(history.includes(`| v${appVersion} | \`${verOf(html)}\` | \`${verOf(js)}\` | \`${verOf(css)}\` |`), 'neo-versions.md maps the app version to the shipped file versions');
+
+// CI only runs tests that exist, and README documents every one of them.
+const workflow = read('.github', 'workflows', 'nango-smoke.yml');
+const ciTests = [...workflow.matchAll(/test_or_future\/([\w.]+\.(?:js|py))/g)].map((m) => `test_or_future/${m[1]}`)
+  .concat([...workflow.matchAll(/unittest (test_or_future\.\w+)/g)].map((m) => `${m[1].replace('.', '/')}.py`));
+assert.ok(ciTests.length >= 4, `CI runs the test files, found: ${ciTests}`);
+for (const testFile of ciTests) {
+  assert.ok(fs.existsSync(path.join(root, testFile)), `CI references ${testFile}, which must exist`);
+  assert.ok(readme.includes(path.basename(testFile, '.py')) || readme.includes(testFile), `README documents ${testFile}`);
+}
+
+// Backticked repository paths in current docs (not historical release notes or archive) must exist.
+const staleRefs = [];
+for (const file of markdownFiles) {
+  const rel = path.relative(root, file);
+  if (rel.startsWith(path.join('docs', 'releases')) || rel.startsWith(path.join('docs', 'archive'))) continue;
+  for (const match of fs.readFileSync(file, 'utf8').matchAll(/`(Nango-neo\/[^`\s]+)`/g)) {
+    if (!fs.existsSync(path.join(root, match[1].replace(/\/$/, '')))) staleRefs.push(`${rel} -> ${match[1]}`);
+  }
+}
+assert.deepEqual(staleRefs, [], `docs mention paths that do not exist:\n${staleRefs.join('\n')}`);
+
 console.log(`Documentation consistency checks passed for v${appVersion}.`);

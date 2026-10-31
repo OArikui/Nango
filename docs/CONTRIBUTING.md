@@ -17,12 +17,14 @@ Nango-neo は、Nango v3.10 をもとに作り直した辞書アプリです。�
 node test_or_future/phase1_smoke.test.js
 node test_or_future/docs_consistency.test.js
 python -m unittest test_or_future.test_phase1_format -v
+python -m unittest test_or_future.test_run_api -v
 python -m py_compile run.py
 ```
 
 - `phase1_smoke.test.js`: アプリのロジックと、HTML/CSS の構造を確認します。
 - `docs_consistency.test.js`: HTML・`run.py`・README のバージョンとファイル名が一致していること、リリースノートがあること、Markdown の相対リンクが切れていないことを確認します。
 - `test_phase1_format.py`: DT-FMT のスキーマ・テンプレート・AI 指示・`sample.json` を検証します。
+- `test_run_api.py`: `run.py` の保存 API が、ランチャー自身のページ以外（他サイト・別ホスト名・`application/json` 以外）からの書き込みを拒否することを確認します。
 
 ## ブランチ・Pull Request・コミットメッセージ
 
@@ -62,9 +64,21 @@ python -m py_compile run.py
 | `m`（マイナー） | 互換性を保った機能追加や、中規模な変更 | 機能を足したとき |
 | `p`（パッチ） | バグ修正・小さな改善 | 修正したとき |
 
-例: `v02.7.3` → `v02.7.4`（小さな改善） / `v02.8.0`（整理を含むリリース） / `v03.00.0`（レイアウト刷新）
+例: `v02.7.3` → `v02.7.4`（小さな改善） / `v02.8.0`（整理を含むリリース） / `v03.0.0`（レイアウト刷新）
 
 配布用 ZIP は、実際に使える状態のときだけバージョンを上げてください。
+
+### Supabase ライブラリを更新するとき
+
+`Nango-neo.vMM.m.p.html` の `<script>` は、`@supabase/supabase-js` を正確なバージョンと SRI ハッシュで固定しています。更新するときは、公開から 2 週間以上経ったバージョンを選び、ハッシュを計算し直してください。
+
+```text
+npm pack @supabase/supabase-js@<バージョン>
+tar xzf supabase-supabase-js-<バージョン>.tgz
+echo "sha384-$(openssl dgst -sha384 -binary package/dist/umd/supabase.js | openssl base64 -A)"
+```
+
+CDN が配信している実体との一致は、`curl -s https://cdn.jsdelivr.net/npm/@supabase/supabase-js@<バージョン>/dist/umd/supabase.js | openssl dgst -sha384 -binary | openssl base64 -A` でも確認できます。
 
 ### 旧版ファイルは残さない
 
@@ -109,7 +123,7 @@ python -m py_compile run.py
 - [ ] page の作成 `with JavaScript,HTML`
   - [ ] server とのやり取り `JavaScript` mod `Ajax`（Phase 2）
   - [x] 画面描画の作成 `JavaScript,HTML`（Phase 1）
-  - [x] DT-FMT の読込・保存・エクスポート（現行は v5.16）
+  - [x] DT-FMT の読込・保存・エクスポート（現行形式は [DT-FMT.md](DT-FMT.md) を参照）
   - [x] 複数 JSON の取込、ID 再採番、重複マージ、競合時の確認
   - [x] 階層検索、タグ一括管理、意味単位の追加・コピー・貼り付け・複製・削除・順序変更
   - [x] JSON 貼り付けインポート、「今日の単語」表示

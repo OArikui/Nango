@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Launch Nango-neo v3.0.1 locally using only Python's standard library.
+"""Launch Nango-neo v3.0.2 locally using only Python's standard library.
 
 Usage: python run.py [--port 8765] [--no-browser]
 """
@@ -16,12 +16,13 @@ from urllib.parse import parse_qs, urlparse
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 ROOT = PROJECT_ROOT / "Nango-neo"
-ENTRY = "/Nango-neo.v03.0.1.html"
+ENTRY = "/Nango-neo.v03.0.2.html"
 DATA_DIR = PROJECT_ROOT / "user_data"
 DEFAULT_DATA_FILE = DATA_DIR / "nango_data.json"
 CONFIG_FILE = DATA_DIR / "settings.json"
 DATA_FILE = DEFAULT_DATA_FILE
 MAX_DATA_BYTES = 10 * 1024 * 1024
+LOCAL_HOSTNAMES = ("127.0.0.1", "localhost")
 FORMAT_FILES = {
     "schema": ROOT / "DTformats.neo.v5.17" / "DF-FMT_schema.v01.17.json",
     "instruction": ROOT / "DTformats.neo.v5.17" / "DT-FMT_instruction_AI.v01.17.json",
@@ -48,6 +49,19 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(ROOT), **kwargs)
 
+    def _is_trusted_request(self) -> bool:
+        """Accept only requests that originate from this launcher's own page.
+
+        The API reads and writes files, so a web page open in the same browser
+        (cross-site request) or a DNS-rebinding host name must not reach it.
+        """
+        port = self.server.server_address[1]
+        hosts = {f"{name}:{port}" for name in LOCAL_HOSTNAMES}
+        if self.headers.get("Host", "") not in hosts:
+            return False
+        origin = self.headers.get("Origin")
+        return origin is None or origin in {f"http://{host}" for host in hosts}
+
     def _send_json(self, status: int, payload: object) -> None:
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
@@ -68,6 +82,9 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
 
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
+        if parsed.path.startswith("/api/") and not self._is_trusted_request():
+            self._send_json(403, {"error": "このページ以外からのAPI要求は受け付けません"})
+            return
         if parsed.path == "/api/data-path":
             self._send_json(200, {"path": str(DATA_FILE), "is_default": DATA_FILE == DEFAULT_DATA_FILE})
             return
@@ -135,6 +152,13 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
         if parsed.path not in ("/api/data", "/api/data-path"):
             self._send_json(404, {"error": "Not found"})
             return
+        if not self._is_trusted_request():
+            self._send_json(403, {"error": "このページ以外からのAPI要求は受け付けません"})
+            return
+        # A non-simple Content-Type forces browsers to send a CORS preflight, which this server never approves.
+        if self.headers.get_content_type() != "application/json":
+            self._send_json(415, {"error": "Content-Type は application/json にしてください"})
+            return
         try:
             length = int(self.headers.get("Content-Length", "0"))
             if length <= 0 or length > MAX_DATA_BYTES:
@@ -153,7 +177,8 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
             self._send_json(400, {"error": f"保存に失敗しました: {error}"})
 
     def log_message(self, fmt, *args):
-        if args and (str(args[1]).startswith("4") or str(args[1]).startswith("5")):
+        status = str(args[1]) if len(args) > 1 else ""
+        if status.startswith(("4", "5")):
             super().log_message(fmt, *args)
 
 

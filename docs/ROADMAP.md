@@ -2,9 +2,9 @@
 
 ## phase 1. Nango-neo,辞書作成システムの作成
 
-### 実装状況（2026-10-13 時点、v2.8.2）
+### 実装状況（2026-11-01 時点、v3.0.2）
 
-Phase 1 のブラウザー辞書機能は実装済みです。初回実装の経緯は [`PHASE1_IMPLEMENTATION.md`](PHASE1_IMPLEMENTATION.md)、その後の変更は [`neo-versions.md`](neo-versions.md) にまとめています。DT-FMT は v5.17 が現行で、仕様は [`DT-FMT.md`](DT-FMT.md) を参照してください。Phase 2（サーバー・アカウント）は未着手です。
+Phase 1 のブラウザー辞書機能は実装済みです。初回実装の経緯は [`PHASE1_IMPLEMENTATION.md`](PHASE1_IMPLEMENTATION.md)、その後の変更は [`neo-versions.md`](neo-versions.md) にまとめています。DT-FMT は v5.17 が現行で、仕様は [`DT-FMT.md`](DT-FMT.md) を参照してください。Phase 2 のうち、Supabase Auth によるアカウントとクラウド保存は v2.9.0 から利用できます（設定は [`SUPABASE_AUTH.md`](SUPABASE_AUTH.md)）。独自の Python サーバーと RDB への移行は未着手です。
 
 
 ### What is **"Nango"** ?

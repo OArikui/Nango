@@ -4,18 +4,33 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const root = path.join(__dirname, '..');
-const jsPath = path.join(root, 'Nango-neo', 'Nango_main.v02.0.1.js');
-const htmlPath = path.join(root, 'Nango-neo', 'Nango-neo.v03.0.1.html');
-const cssPath = path.join(root, 'Nango-neo', 'style.v02.8.1.css');
-const schemaPath = path.join(root, 'Nango-neo', 'DTformats.neo.v5.17', 'DF-FMT_schema.v01.17.json');
-const instructionPath = path.join(root, 'Nango-neo', 'DTformats.neo.v5.17', 'DT-FMT_instruction_AI.v01.17.json');
+// Shipped file names are discovered from disk so a release only has to rename files, not edit this test.
+const appDir = path.join(root, 'Nango-neo');
+const pick = (dir, pattern) => {
+  const found = fs.readdirSync(dir).filter((name) => pattern.test(name));
+  assert.equal(found.length, 1, `exactly one file matching ${pattern} expected in ${dir}, found: ${found}`);
+  return found[0];
+};
+const htmlName = pick(appDir, /^Nango-neo\.v\d+\.\d+\.\d+\.html$/);
+const jsName = pick(appDir, /^Nango_main\.v\d+\.\d+\.\d+\.js$/);
+const cssName = pick(appDir, /^style\.v\d+\.\d+\.\d+\.css$/);
+const formatDirName = pick(appDir, /^DTformats\.neo\.v\d+\.\d+$/);
+const formatDir = path.join(appDir, formatDirName);
+const appVersion = htmlName.match(/\.v0*(\d+)\.(\d+)\.(\d+)\.html$/).slice(1).join('.');
+const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const jsPath = path.join(appDir, jsName);
+const htmlPath = path.join(appDir, htmlName);
+const cssPath = path.join(appDir, cssName);
+const schemaPath = path.join(formatDir, pick(formatDir, /^DF-FMT_schema\.v\d+\.\d+\.json$/));
+const instructionPath = path.join(formatDir, pick(formatDir, /^DT-FMT_instruction_AI\.v\d+\.\d+\.json$/));
+const templatePath = path.join(formatDir, pick(formatDir, /^DT-FMT_template\.v\d+\.\d+\.json$/));
 const supabaseSqlPath = path.join(root, 'docs', 'supabase-setup.sql');
 const supabaseGuidePath = path.join(root, 'docs', 'SUPABASE_AUTH.md');
 const supabaseConfigPath = path.join(root, 'Nango-neo', 'supabase-config.json');
 
 let source = fs.readFileSync(jsPath, 'utf8');
 source = source.replace(/\/\/ Expose small pure helpers for browser console\/manual tests\.[\s\S]*$/, '');
-const api = new Function(source + '\nreturn { parseNangoDocument, serializeNangoDocument, normalizeWord, normalizeCategoryTags, normalizeMeaning, validateWord, findDuplicateIndex, mergeWord, reassignIds, getInitial, getWordListGroupLabel, buildAiPrompt, shouldUseLocalStorage };')();
+const api = new Function(source + '\nreturn { parseNangoDocument, serializeNangoDocument, normalizeWord, normalizeCategoryTags, normalizeMeaning, validateWord, findDuplicateIndex, mergeWord, reassignIds, getInitial, getWordListGroupLabel, buildAiPrompt, shouldUseLocalStorage, findLimitViolations };')();
 const generatedPrompt = api.buildAiPrompt();
 assert.ok(generatedPrompt.includes('\n'), 'AI prompt is separated with actual newlines');
 assert.equal(generatedPrompt.includes('\\n'), false, 'AI prompt does not contain escaped newline text');
@@ -163,11 +178,14 @@ assert.ok(favicon.includes('<svg'), 'favicon is an SVG image');
 const css = fs.readFileSync(cssPath, 'utf8');
 const schema = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
 const instructions = JSON.parse(fs.readFileSync(instructionPath, 'utf8'));
-const template = JSON.parse(fs.readFileSync(path.join(root, 'Nango-neo', 'DTformats.neo.v5.17', 'DT-FMT_template.v02.17.json'), 'utf8'));
-assert.match(html, /NANGO-NEO <strong>v3\.0\.1<\/strong>/, 'HTML version is updated');
-assert.match(html, /Version 3\.0\.1"/, 'HTML app-name meta carries the app version');
-assert.match(html, /Nango_main\.v02\.0\.1\.js/, 'HTML references the versioned JavaScript');
-assert.match(html, /style\.v02\.8\.1\.css/, 'HTML references the versioned stylesheet');
+const template = JSON.parse(fs.readFileSync(templatePath, 'utf8'));
+assert.match(html, new RegExp(`NANGO-NEO <strong>v${escapeRegExp(appVersion)}</strong>`), 'HTML version chip matches the HTML file name');
+assert.match(html, new RegExp(`Version ${escapeRegExp(appVersion)}"`), 'HTML app-name meta carries the app version');
+assert.match(html, new RegExp(`name="html-version" content="neo\\.${escapeRegExp(htmlName.match(/\.(v\d+\.\d+\.\d+)\.html$/)[1])}"`), 'HTML html-version meta matches the file name');
+assert.ok(html.includes(`src="${jsName}"`), 'HTML references the shipped JavaScript');
+assert.ok(html.includes(`name="javascript-version" content="${jsName.match(/\.(v\d+\.\d+\.\d+)\.js$/)[1]}"`), 'HTML javascript-version meta matches the file name');
+assert.ok(html.includes(`href="${cssName}"`), 'HTML references the shipped stylesheet');
+assert.match(html, /supabase-js@\d+\.\d+\.\d+\/dist\/umd\/supabase\.js"[^>]*integrity="sha384-[A-Za-z0-9+/=]+"[^>]*crossorigin="anonymous"/, 'Supabase library is pinned to an exact version with a Subresource Integrity hash');
 assert.match(html, /id="wordListAlphabetJump"/, 'word list includes initial navigation');
 assert.match(html, /id="backToTop"/, 'a back-to-top control is present');
 assert.match(source, /previous\.scrollY = currentScrollY/, 'outgoing view scroll position is saved');
@@ -258,4 +276,33 @@ assert.ok(schema.$defs.meaning.required.includes('antonyms'), 'schema requires a
 assert.ok(schema.$defs.meaning.required.includes('similarWordsDifference'), 'schema requires word distinctions');
 assert.match(css, /\.word-list-open\s*\{[^}]*border:\s*0/s, 'headword buttons are borderless');
 assert.match(css, /\.sidebar-control\s*\{[^}]*flex-direction:\s*column/s, 'sidebar popups use flow layout');
-console.log('Nango-NEO v3.0.0 smoke tests passed.');
+// Regression checks for the v3.0.2 fixes.
+const htmlPanelIds = [...html.matchAll(/id="([A-Za-z]+Mode)"/g)].map((match) => match[1]).filter((id) => !/DisplayMode$/.test(id)).sort();
+const panelIds = [...source.match(/const PANEL_IDS = \[([^\]]*)\]/)[1].matchAll(/'(\w+)'/g)].map((match) => match[1]).sort();
+assert.deepEqual(panelIds, htmlPanelIds, 'PANEL_IDS lists every screen panel in the HTML, so no screen can stay visible behind another');
+assert.doesNotMatch(source, /(?<!PANEL_IDS = )\['(?:view|edit)Mode'/, 'screens are hidden through hideAllPanels() instead of ad-hoc id lists');
+assert.match(source, /state\.screen === 'auth'/, 'the account screen is restored by back/forward navigation');
+assert.match(source, /showAuxPanel\('authPanelMode', 'auth', recordHistory\)/, 'the account screen is recorded in the navigation history');
+assert.doesNotMatch(source, /\\\\n/, 'no string contains a literal backslash-n sequence');
+assert.match(source, /anchor\.download = 'Nango-neo_' \+ FORMAT_VERSION/, 'export file name follows the DT-FMT version');
+assert.match(source, /cancelled: true/, 'declining to replace the dictionary aborts the import');
+assert.match(source, /async function loadFormatDefinition\(/, 'DT-FMT viewer falls back to the static files outside the launcher');
+
+const confirmMessages = [];
+globalThis.confirm = (message) => { confirmMessages.push(message); return true; };
+const crowdedTags = api.normalizeWord({ word: 'タグ過多', categoryTags: ['甲', '乙', '丙'], meanings: [{ definition: '定義' }] }, 'タグ過多');
+const extraTag = api.normalizeWord({ word: 'タグ過多', categoryTags: ['丁'], meanings: [{ definition: '定義' }] }, 'タグ過多');
+api.mergeWord(crowdedTags, extraTag);
+assert.equal(confirmMessages.length, 1, 'exceeding the tag cap asks which tags to keep');
+assert.ok(confirmMessages[0].includes('超えています。\n\n候補: 甲、乙、丙、丁\n\nOK:'), 'merge prompt is split across real lines');
+assert.equal(confirmMessages[0].includes('\\n'), false, 'merge prompt has no literal backslash-n text');
+delete globalThis.confirm;
+
+assert.deepEqual(
+  api.findLimitViolations([api.normalizeWord({ word: '上限超過', categoryTags: ['a', 'b', 'c', 'd'], meanings: [{ definition: '一', fieldTag: ['1', '2', '3'] }, { definition: '二', fieldTag: ['1'] }] }, '上限超過')]),
+  { categoryTags: 1, fieldTag: 1 },
+  'imports that exceed the DT-FMT tag caps are detected'
+);
+assert.deepEqual(api.findLimitViolations(parsed.words), { categoryTags: 0, fieldTag: 0 }, 'conforming data reports no violations');
+
+console.log(`Nango-NEO v${appVersion} smoke tests passed.`);

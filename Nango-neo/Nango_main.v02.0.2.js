@@ -10,6 +10,21 @@ const SETTINGS_DEFAULTS = { showGeminiNote: true, defaultDisplayMode: 'word' };
 const LOCAL_DATA_API = '/api/data';
 let serverSaveQueue = Promise.resolve();
 let serverStorageAvailable = false;
+const PANEL_IDS = ['viewMode', 'editMode', 'managePanelMode', 'pastePanelMode', 'wordListMode', 'settingsPanelMode', 'toolsPanelMode', 'formatPanelMode', 'authPanelMode'];
+// Static copies of the DT-FMT files (served by run.py and GitHub Pages alike).
+// docs_consistency.test.js checks that these paths exist and match FORMAT_VERSION.
+const FORMAT_FILE_PATHS = {
+    schema: 'DTformats.neo.v5.17/DF-FMT_schema.v01.17.json',
+    instruction: 'DTformats.neo.v5.17/DT-FMT_instruction_AI.v01.17.json',
+    template: 'DTformats.neo.v5.17/DT-FMT_template.v02.17.json'
+};
+function hideAllPanels() {
+    PANEL_IDS.forEach(id => { const element = document.getElementById(id); if (element) element.style.display = 'none'; });
+}
+// run.py serves the /api/* endpoints on 127.0.0.1 only; GitHub Pages and file:// have none.
+function isLocalLauncher() {
+    return location.protocol === 'http:' && (location.hostname === '127.0.0.1' || location.hostname === 'localhost');
+}
 
 function showStorageStatus(message, isError = false) {
     let status = document.getElementById('localStorageStatus');
@@ -25,6 +40,7 @@ function showStorageStatus(message, isError = false) {
 }
 
 async function loadServerData() {
+    if (!isLocalLauncher()) { serverStorageAvailable = false; return null; }
     try {
         const response = await fetch(LOCAL_DATA_API, { cache: 'no-store' });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -147,9 +163,7 @@ function restoreAppNavigation(state) {
     wordListTagFilter = state.tagFilter ? { ...state.tagFilter, ...(Array.isArray(state.tagFilter.wordIds) ? { wordIds: [...state.tagFilter.wordIds] } : {}) } : null;
     sidebarContextWordIds = Array.isArray(state.sidebarContextWordIds) ? [...state.sidebarContextWordIds] : null;
     wordListSelectedCategories = Array.isArray(state.wordListSelectedCategories) ? [...state.wordListSelectedCategories] : [];
-    ['viewMode', 'editMode', 'managePanelMode', 'pastePanelMode', 'wordListMode', 'settingsPanelMode', 'toolsPanelMode', 'formatPanelMode','authPanelMode'].forEach(id => {
-        if ($(id)) $(id).style.display = 'none';
-    });
+    hideAllPanels();
     if (state.screen === 'edit') {
         const word = wordData.find(item => item.id === currentWordId);
         if (word) { isNewWord = false; $('formTitle').textContent = '単語の編集'; populateEditor(word); }
@@ -168,6 +182,8 @@ function restoreAppNavigation(state) {
         showToolsPanel(false);
     } else if (state.screen === 'format') {
         showFormatPanel(false);
+    } else if (state.screen === 'auth') {
+        showAuthPanel(false);
     } else if (state.screen === 'wordList' || state.screen === 'tagWords') {
         $('wordListMode').style.display = 'block';
         $('wordListSearch').value = state.wordListSearch || '';
@@ -456,7 +472,7 @@ async function initApp() {
                     } else {
                         authSyncMode = 'cloud';
                         savedData = browserSavedData;
-                        if (!savedData && (location.hostname === '127.0.0.1' || location.hostname === 'localhost')) {
+                        if (!savedData) {
                             const serverData = await loadServerData();
                             if (serverData) savedData = JSON.stringify(serverData);
                         }
@@ -508,7 +524,14 @@ async function initApp() {
 function saveToLocalStorage() {
     const serialized = JSON.stringify(serializeNangoDocument());
     const useLocalStorage = shouldUseLocalStorage(authUser, authSyncMode);
-    if (useLocalStorage) localStorage.setItem(STORAGE_KEY, serialized);
+    if (useLocalStorage) {
+        try { localStorage.setItem(STORAGE_KEY, serialized); }
+        catch (error) {
+            // Quota or blocked storage: keep the in-memory edit usable and tell the user instead of throwing mid-operation.
+            showStorageStatus('ブラウザーへの保存に失敗しました。JSON エクスポートでバックアップしてください', true);
+            console.error('localStorage への保存に失敗しました:', error);
+        }
+    }
     if (authUser && authSyncMode === 'cloud') {
         const userId = authUser.id;
         cloudSaveQueue = cloudSaveQueue.then(async () => {
@@ -524,7 +547,7 @@ function saveToLocalStorage() {
         });
         return;
     }
-    if (useLocalStorage && ((location.protocol === 'http:' && location.hostname === '127.0.0.1') || location.hostname === 'localhost')) {
+    if (useLocalStorage && isLocalLauncher()) {
         serverSaveQueue = serverSaveQueue.then(async () => {
             const response = await fetch(LOCAL_DATA_API, {
                 method: 'POST', headers: { 'Content-Type': 'application/json; charset=utf-8' }, body: serialized
@@ -668,7 +691,7 @@ function updateSidebarVisibility() {
 
 function showViewMode(recordHistory = true, options = {}) {
     if (recordHistory) recordAppNavigation('view');
-    ['editMode','managePanelMode','pastePanelMode','wordListMode','settingsPanelMode','toolsPanelMode','formatPanelMode','authPanelMode'].forEach(id => { if ($(id)) $(id).style.display = 'none'; });
+    hideAllPanels();
     $('viewMode').style.display = 'block';
     renderCurrentWordDetails();
     updateSidebarVisibility();
@@ -685,10 +708,11 @@ function linkifyRegisteredWords(html) {
     const byRenderedName = new Map(terms.map(word => [escapeHtml(word.word), word]));
     return html.replace(/(<code>[\s\S]*?<\/code>|<[^>]+>|[^<]+)/g, part => {
         if (part.startsWith('<')) return part;
-        return part.replace(pattern, match => {
+        // Odd indexes are character references such as &amp; and must stay intact.
+        return part.split(/(&#?\w+;)/).map((segment, index) => index % 2 ? segment : segment.replace(pattern, match => {
             const word = byRenderedName.get(match);
             return word ? '<button type="button" class="word-reference" data-word-id="' + word.id + '">' + match + '</button>' : match;
-        });
+        })).join('');
     });
 }
 
@@ -863,7 +887,7 @@ function showEditForm() {
     if (!word) return;
     isNewWord = false;
     $('formTitle').textContent = '単語の編集';
-    $('viewMode').style.display = 'none'; $('managePanelMode').style.display = 'none'; $('pastePanelMode').style.display = 'none'; $('wordListMode').style.display = 'none'; $('settingsPanelMode').style.display = 'none'; $('toolsPanelMode').style.display = 'none'; $('formatPanelMode').style.display = 'none'; $('editMode').style.display = 'block';
+    hideAllPanels(); $('editMode').style.display = 'block';
     populateEditor(word);
     updateSidebarVisibility();
 }
@@ -871,7 +895,7 @@ function showNewForm() {
     recordAppNavigation('new');
     isNewWord = true;
     $('formTitle').textContent = '新規単語追加';
-    $('viewMode').style.display = 'none'; $('managePanelMode').style.display = 'none'; $('pastePanelMode').style.display = 'none'; $('wordListMode').style.display = 'none'; $('settingsPanelMode').style.display = 'none'; $('toolsPanelMode').style.display = 'none'; $('formatPanelMode').style.display = 'none'; $('editMode').style.display = 'block';
+    hideAllPanels(); $('editMode').style.display = 'block';
     populateEditor({ word: '', category: '指定なし', categoryTags: ['指定なし'], eraTag: '', reading: '', kanji: '', english: '', pronunciation: '', column: '', memo: '', gemini_note: '', other_tags: [], meanings: [{}] });
     updateSidebarVisibility();
 }
@@ -959,7 +983,7 @@ function mergeLimitedTags(existing, incoming, limit, label) {
     const added = mergeList([], incoming);
     const combined = mergeList(current, added);
     if (combined.length <= limit) return combined;
-    const preferIncoming = confirm(label + ' のマージ候補が上限 ' + limit + ' 個を超えています。\\n\\n候補: ' + combined.join('、') + '\\n\\nOK: 取込データのタグを優先\\nキャンセル: 現在のタグを優先');
+    const preferIncoming = confirm(label + ' のマージ候補が上限 ' + limit + ' 個を超えています。\n\n候補: ' + combined.join('、') + '\n\nOK: 取込データのタグを優先\nキャンセル: 現在のタグを優先');
     return (preferIncoming ? mergeList(added, current) : mergeList(current, added)).slice(0, limit);
 }
 function mergeWord(existing, incoming) {
@@ -985,7 +1009,7 @@ function mergeWord(existing, incoming) {
         if (exact) {
             for (const field of ['background', 'nuance']) {
                 if (!exact[field]) exact[field] = incomingMeaning[field];
-                else if (incomingMeaning[field] && normalizeText(exact[field]) !== normalizeText(incomingMeaning[field])) conflicts.push({ field: `意味「${exact.definition}」の${field}`, oldValue: exact[field], newValue: incomingMeaning[field], meaning: exact });
+                else if (incomingMeaning[field] && normalizeText(exact[field]) !== normalizeText(incomingMeaning[field])) conflicts.push({ field: `意味「${exact.definition}」の${field}`, key: field, oldValue: exact[field], newValue: incomingMeaning[field], meaning: exact });
             }
             exact.fieldTag = mergeLimitedTags(exact.fieldTag, incomingMeaning.fieldTag, 2, '意味「' + exact.definition + '」の分野タグ');
             exact.examples = mergeList(exact.examples, incomingMeaning.examples);
@@ -1002,7 +1026,7 @@ function mergeWord(existing, incoming) {
         const details = conflicts.map((item, i) => `${i + 1}. ${item.field}\n現在: ${item.oldValue}\n取込: ${item.newValue}`).join('\n\n');
         const useImported = confirm(`「${existing.word}」のマージで競合があります。\n\n${details}\n\nOK: 競合する値は取り込みデータを採用\nキャンセル: 現在の値を維持`);
         if (useImported) conflicts.forEach(item => {
-            if (item.meaning) item.meaning[item.key || item.field.split('の').pop()] = item.newValue;
+            if (item.meaning) item.meaning[item.key] = item.newValue;
             else merged[item.field] = item.newValue;
         });
     }
@@ -1026,7 +1050,8 @@ async function importJSON(event) {
         const documents = await readJsonFiles(files);
         const incoming = documents.flatMap(doc => doc.words);
         const added = await applyImportedWords(incoming, documents.flatMap(doc => doc.additional_data));
-        alert(`インポートが完了しました。\nファイル数: ${documents.length}\n追加: ${added.added}件\nマージ: ${added.merged}件\nスキップ: ${added.skipped}件`);
+        if (added.cancelled) { alert('インポートを中止しました。現在のデータは変更していません。'); return; }
+        alert(`インポートが完了しました。\nファイル数: ${documents.length}\n追加: ${added.added}件\nマージ: ${added.merged}件\nスキップ: ${added.skipped}件` + describeLimitViolations(incoming));
     } catch (error) { alert(`インポートを中止しました。現在のデータは変更していません。\n${error.message}`); }
     finally { event.target.value = ''; }
 }
@@ -1035,6 +1060,9 @@ async function applyImportedWords(incoming, extra = []) {
     incoming.forEach(validateWord);
     const strategy = confirm('取り込み方法を選択してください。\n\nOK: 現在の辞書に追加・重複マージ\nキャンセル: 取り込み内容で辞書を置き換え');
     if (!strategy) {
+        if (!confirm('現在の辞書 ' + wordData.length + ' 件を、取り込み内容 ' + incoming.length + ' 件で置き換えます。現在の辞書は失われます。続行しますか？\n\nキャンセル: 取り込みを中止（現在のデータは変更しません）')) {
+            return { cancelled: true, added: 0, merged: 0, skipped: 0, wordIds: [] };
+        }
         const replacement = incoming.map(clone);
         const deduped = [];
         let skipped = 0;
@@ -1078,14 +1106,33 @@ async function applyImportedWords(incoming, extra = []) {
     return { added, merged: mergedCount, skipped, wordIds: uniqueImportedWordIds };
 }
 
+// DT-FMT caps (categoryTags <= 3, fieldTag <= 2 per meaning) are only enforced by the editor.
+// Imported data can exceed them, which makes the exported file fail schema validation, so surface it.
+function findLimitViolations(words) {
+    let categoryTags = 0, fieldTag = 0;
+    for (const word of words) {
+        if (getWordCategoryTags(word).length > 3) categoryTags++;
+        fieldTag += word.meanings.filter(meaning => (meaning.fieldTag || []).length > 2).length;
+    }
+    return { categoryTags, fieldTag };
+}
+function describeLimitViolations(words) {
+    const { categoryTags, fieldTag } = findLimitViolations(words);
+    if (!categoryTags && !fieldTag) return '';
+    const parts = [];
+    if (fieldTag) parts.push('分野タグが2個を超える意味が ' + fieldTag + ' 件');
+    if (categoryTags) parts.push('分類タグが3個を超える単語が ' + categoryTags + ' 件');
+    return '\n\n注意: ' + parts.join('、') + 'あります。DT-FMT の上限を超えているため、エクスポートした JSON はスキーマ検証に失敗します。該当する単語は編集時に上限内へ整理してください。';
+}
 function exportJSON() {
     if (!wordData.length) { alert('エクスポートする単語がありません。'); return; }
     let blob;
     try { blob = new Blob([JSON.stringify(serializeNangoDocument(), null, 2)], { type: 'application/json;charset=utf-8' }); }
     catch (error) { alert(`エクスポートできません: ${error.message}`); return; }
     const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'Nango-neo_DTformats.neo.v5.17.json';
-    document.body.appendChild(anchor); anchor.click(); anchor.remove(); URL.revokeObjectURL(url);
+    const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'Nango-neo_' + FORMAT_VERSION + '.json';
+    document.body.appendChild(anchor); anchor.click(); anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 function resetToDefault() {
     if (!confirm('辞書を初期データに戻しますか？\n追加・編集したデータは失われます。先にエクスポートしてください。')) return;
@@ -1224,8 +1271,9 @@ async function importPastedJSON() {
         if (!raw) throw new Error('JSONを貼り付けてください。');
         const parsed = parseNangoDocument(JSON.parse(raw));
         const result = await applyImportedWords(parsed.words, parsed.additional_data);
+        if (result.cancelled) { alert('取り込みを中止しました。現在のデータは変更していません。'); return; }
         $('jsonPasteInput').value = '';
-        alert(`貼り付けデータを取り込みました。追加: ${result.added}件、マージ: ${result.merged}件`);
+        alert(`貼り付けデータを取り込みました。追加: ${result.added}件、マージ: ${result.merged}件` + describeLimitViolations(parsed.words));
     } catch (error) { alert(`貼り付けデータを取り込めませんでした。\n${error.message}`); }
 }
 function showWordList() {
@@ -1240,7 +1288,7 @@ function showWordList() {
     $('wordListGroupJumpMenu').hidden = true;
     wordListColumnSort = { key: null, direction: 'asc' };
     recordAppNavigation('wordList');
-    ['viewMode','editMode','managePanelMode','pastePanelMode','settingsPanelMode','toolsPanelMode','formatPanelMode','authPanelMode'].forEach(id => { if ($(id)) $(id).style.display = 'none'; });
+    hideAllPanels();
     $('wordListMode').style.display = 'block';
     renderWordList();
     updateSidebarVisibility();
@@ -1290,7 +1338,7 @@ function showWordListForWords(wordIds, mode = 'import') {
     $('wordListGroupJumpMenu').hidden = true;
     wordListColumnSort = { key: null, direction: 'asc' };
     recordAppNavigation('wordList');
-    ['viewMode','editMode','managePanelMode','pastePanelMode','settingsPanelMode','toolsPanelMode','formatPanelMode','authPanelMode'].forEach(id => { if ($(id)) $(id).style.display = 'none'; });
+    hideAllPanels();
     $('wordListMode').style.display = 'block';
     renderWordListFilterBanner();
     renderWordList();
@@ -1301,7 +1349,7 @@ function showWordsForTag(type, tag) {
     wordListSelectedCategories = [];
     $('wordListSearch').value = '';
     recordAppNavigation('tagWords');
-    ['viewMode','editMode','managePanelMode','pastePanelMode','settingsPanelMode','toolsPanelMode','formatPanelMode','authPanelMode'].forEach(id => { if ($(id)) $(id).style.display = 'none'; });
+    hideAllPanels();
     $('wordListMode').style.display = 'block';
     renderWordListFilterBanner();
     renderWordList();
@@ -1316,7 +1364,6 @@ function wordHasTag(word, filter) {
     if (filter.type === 'eraTag') return word.eraTag === filter.tag;
     return true;
 }
-function setWordListSort() { wordListColumnSort = { key: null, direction: 'asc' }; renderWordList(); }
 function toggleWordListFilters() {
     wordListFiltersOpen = !wordListFiltersOpen;
     $('wordListCategoryFilters').style.display = wordListFiltersOpen ? 'block' : 'none';
@@ -1407,12 +1454,9 @@ function renderWordList() {
     const container = $('wordListContainer');
     if (!container) return;
     renderWordListCategoryFilters();
-    const sort = $('wordListSort')?.value || 'id';
-    const direction = $('wordListDirection')?.value || 'asc';
-    const multiplier = direction === 'desc' ? -1 : 1;
     const columnSort = wordListColumnSort;
     let items = getFilteredWordListItems();
-    const activeGroupSort = columnSort.key || sort;
+    const activeGroupSort = columnSort.key || 'id';
     const selectedCompare = (a, b) => {
         let result = 0;
         if (columnSort.key === 'reading') result = (a.reading || '').localeCompare(b.reading || '', 'ja') || a.word.localeCompare(b.word, 'ja');
@@ -1426,10 +1470,10 @@ function renderWordList() {
             result = (a.other_tags || []).join(' ').localeCompare((b.other_tags || []).join(' '), 'ja') || a.word.localeCompare(b.word, 'ja');
         } else if (columnSort.key === 'word') result = a.word.localeCompare(b.word, 'ja');
         else if (columnSort.key === 'date') result = asString(a.datetime).localeCompare(asString(b.datetime));
-        else result = sort === 'alpha' ? (a.reading || a.word).localeCompare(b.reading || b.word, 'ja') || a.word.localeCompare(b.word, 'ja') : a.id - b.id;
-        return result * (columnSort.key ? (columnSort.direction === 'desc' ? -1 : 1) : multiplier);
+        else result = a.id - b.id;
+        return result * (columnSort.direction === 'desc' && columnSort.key ? -1 : 1);
     };
-    const groupMultiplier = columnSort.key ? (columnSort.direction === 'desc' ? -1 : 1) : multiplier;
+    const groupMultiplier = columnSort.key && columnSort.direction === 'desc' ? -1 : 1;
     items = [...items].sort((a, b) => {
         const groupComparison = getWordListGroupLabel(a, activeGroupSort).localeCompare(getWordListGroupLabel(b, activeGroupSort), 'ja');
         return (groupComparison * groupMultiplier) || selectedCompare(a, b);
@@ -1593,12 +1637,16 @@ function loadDisplaySettings() {
     const sidebarMode = $('headerWordDisplayMode');
     if (sidebarMode) sidebarMode.value = displaySettings.defaultDisplayMode || 'word';
 }
+function persistDisplaySettings() {
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(displaySettings)); }
+    catch (error) { console.warn('表示設定を保存できませんでした:', error); }
+}
 function saveDisplaySettings() {
     displaySettings = {
         showGeminiNote: $('showGeminiNoteToggle') ? $('showGeminiNoteToggle').checked : displaySettings.showGeminiNote,
         defaultDisplayMode: $('defaultWordDisplayMode') ? $('defaultWordDisplayMode').value : displaySettings.defaultDisplayMode
     };
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(displaySettings));
+    persistDisplaySettings();
     const sidebarMode = $('headerWordDisplayMode');
     if (sidebarMode) sidebarMode.value = displaySettings.defaultDisplayMode;
     renderCurrentWordDetails();
@@ -1609,14 +1657,12 @@ function setWordDisplayMode(mode) {
     displaySettings.defaultDisplayMode = allowed.includes(mode) ? mode : 'word';
     const settingSelect = $('defaultWordDisplayMode');
     if (settingSelect) settingSelect.value = displaySettings.defaultDisplayMode;
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(displaySettings));
+    persistDisplaySettings();
     renderSidebarTree();
 }
 function showAuxPanel(panelId, screen, recordHistory = true) {
     if (recordHistory) recordAppNavigation(screen);
-    ['viewMode','editMode','managePanelMode','pastePanelMode','wordListMode','settingsPanelMode','toolsPanelMode','formatPanelMode','authPanelMode'].forEach(id => {
-        if ($(id)) $(id).style.display = 'none';
-    });
+    hideAllPanels();
     $(panelId).style.display = 'block';
     updateSidebarVisibility();
 }
@@ -1627,6 +1673,10 @@ async function showSettingsPanel(recordHistory = true) {
     if (tagContext) tagContext.value = buildTagPromptContext();
     const input = $('dataSavePath'), status = $('dataPathStatus');
     if (!input) return;
+    if (!isLocalLauncher()) {
+        if (status) status.textContent = '保存先変更は Python ランチャーで起動した場合に利用できます。';
+        return;
+    }
     try {
         const response = await fetch('/api/data-path', { cache: 'no-store' });
         if (!response.ok) throw new Error('HTTP ' + response.status);
@@ -1680,8 +1730,11 @@ function showToolsPanel(recordHistory = true) {
     const categories = unique(wordData.flatMap(getWordCategoryTags)).length;
     const fields = unique(wordData.flatMap(word => word.meanings.flatMap(meaning => meaning.fieldTag || []))).length;
     const eras = unique(wordData.map(word => word.eraTag).filter(Boolean)).length;
+    const violations = findLimitViolations(wordData);
+    const limitExceeded = violations.categoryTags + violations.fieldTag;
     $('toolsStats').innerHTML = [
-        ['単語数', wordData.length], ['意味の数', meanings], ['分類タグ', categories], ['分野タグ', fields], ['時代タグ', eras]
+        ['単語数', wordData.length], ['意味の数', meanings], ['分類タグ', categories], ['分野タグ', fields], ['時代タグ', eras],
+        ...(limitExceeded ? [['DT-FMT上限超過', limitExceeded]] : [])
     ].map(([label,value]) => '<div class="stat-card"><span class="stat-value">' + value + '</span><span class="stat-label">' + label + '</span></div>').join('');
 }
 async function copyTagPromptContext() {
@@ -1760,6 +1813,19 @@ function appendJsonTree(parent, key, value) {
     }
     parent.appendChild(node);
 }
+async function loadFormatDefinition(name) {
+    if (isLocalLauncher()) {
+        try {
+            const response = await fetch('/api/format?name=' + encodeURIComponent(name), { cache: 'no-store' });
+            if (response.ok) return await response.json();
+        } catch (_) { /* fall back to the static copy below */ }
+    }
+    const path = FORMAT_FILE_PATHS[name];
+    if (!path) throw new Error('未知のフォーマット名です: ' + name);
+    const response = await fetch(new URL(path, document.baseURI), { cache: 'no-store' });
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+    return response.json();
+}
 async function renderFormatViewer() {
     const selected = $('dtFormatSelect') ? $('dtFormatSelect').value : 'schema';
     const status = $('dtFormatStatus'), raw = $('dtFormatRaw'), readable = $('dtFormatReadable');
@@ -1768,9 +1834,7 @@ async function renderFormatViewer() {
         if (selected === 'current') value = serializeNangoDocument();
         else if (Object.prototype.hasOwnProperty.call(formatDataCache, selected)) value = formatDataCache[selected];
         else {
-            const response = await fetch('/api/format?name=' + encodeURIComponent(selected), { cache: 'no-store' });
-            if (!response.ok) throw new Error('HTTP ' + response.status);
-            value = await response.json();
+            value = await loadFormatDefinition(selected);
             formatDataCache[selected] = value;
         }
         const textValue = JSON.stringify(value, null, 2);
@@ -1783,7 +1847,7 @@ async function renderFormatViewer() {
     } catch (error) {
         raw.style.display = 'none'; readable.style.display = 'block'; readable.textContent = '';
         const message = document.createElement('p'); message.textContent = 'DT-FMT の読み込みに失敗しました: ' + error.message; readable.appendChild(message);
-        if (status) status.textContent = 'Pythonランチャー経由のローカル起動を確認してください。';
+        if (status) status.textContent = 'HTML を直接開いている場合は、Python ランチャー（run.py）か GitHub Pages から開いてください。';
     }
 }
 
@@ -1870,11 +1934,11 @@ async function fetchCloudRow(userId) {
     if (result.error) throw result.error;
     return result.data || null;
 }
-async function writeCloudDocument(document, userId = authUser && authUser.id) {
+async function writeCloudDocument(payload, userId = authUser && authUser.id) {
     if (!userId) throw new Error('ログイン状態を確認できません。');
     const result = await ensureSupabaseClient().from(SUPABASE_TABLE).upsert({
         user_id: userId,
-        data: typeof document === 'string' ? JSON.parse(document) : document,
+        data: typeof payload === 'string' ? JSON.parse(payload) : payload,
         updated_at: new Date().toISOString()
     }, { onConflict: 'user_id' });
     if (result.error) throw result.error;
@@ -2041,8 +2105,8 @@ function refreshAuthPanel() {
         else setAuthStatus('設定済みです。ログインすると辞書をクラウドに保存できます。');
     }
 }
-function showAuthPanel() {
-    showAuxPanel('authPanelMode', 'auth', false);
+function showAuthPanel(recordHistory = true) {
+    showAuxPanel('authPanelMode', 'auth', recordHistory);
     const config = readSupabaseConfig();
     const urlInput = document.getElementById('supabaseProjectUrl'), keyInput = document.getElementById('supabasePublicKey');
     if (urlInput) urlInput.value = config.url;
@@ -2073,6 +2137,7 @@ async function copyLocalDocumentToCloud() {
     try { parsed = parseNangoDocument(JSON.parse(localRaw)); }
     catch (error) { setAuthStatus('localStorage のデータを読み込めませんでした: ' + error.message); return; }
     if (!confirm('このブラウザーに保存されているローカル辞書 ' + parsed.words.length + ' 件で、アカウント「' + (authUser.email || authUser.id) + '」のクラウド辞書を置き換えます。クラウドの現在の内容は上書きされます。続行しますか？')) return;
+    const previousMode = authSyncMode;
     try {
         authSyncMode = 'pending';
         await writeCloudDocument(JSON.parse(localRaw), authUser.id);
@@ -2080,8 +2145,9 @@ async function copyLocalDocumentToCloud() {
         setAuthStatus('ローカル辞書をクラウドへコピーしました。以後の変更は Supabase に保存されます。');
         showStorageStatus('Supabase クラウドに保存済み'); refreshAuthPanel();
     } catch (error) {
-        authSyncMode = 'pending';
-        setAuthStatus('クラウドへのコピーに失敗しました。ローカルデータは変更していません。詳細: ' + error.message);
+        // The cloud copy was not replaced, so do not silently stop syncing: restore the mode we had.
+        authSyncMode = previousMode;
+        setAuthStatus('クラウドへのコピーに失敗しました。ローカルデータもクラウドデータも変更していません。詳細: ' + error.message);
         refreshAuthPanel();
     }
 }
