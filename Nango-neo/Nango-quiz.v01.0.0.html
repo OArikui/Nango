@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>クイズ | Nango</title>
+<link rel="stylesheet" href="Nango-quiz.v01.0.0.css">
+</head>
+<body>
+<main class="quiz-app">
+<section class="setup-screen" id="setupScreen">
+  <div class="setup-actions"><button class="text-button" type="button" onclick="returnToNango()">← Nangoへ戻る</button><span class="data-chip" id="bankCount">読み込み中</span></div>
+  <div class="setup-intro"><p class="eyebrow">WORD REVIEW</p><h1>クイズ</h1><p>登録した単語の意味を、思い出しながら確認します。</p></div>
+  <section class="setup-card" aria-labelledby="setupTitle">
+    <h2 id="setupTitle">出題設定</h2>
+    <div class="settings-grid">
+      <div class="setting-field"><label for="quizDirection">出題形式</label><select id="quizDirection"><option value="word_to_meaning">単語から意味を選ぶ</option><option value="meaning_to_word">意味から単語を選ぶ</option><option value="mixed">2形式を組み合わせる</option></select></div>
+      <div class="setting-field"><label for="quizCount">問題数</label><select id="quizCount"><option value="5">5問</option><option value="10">10問</option><option value="all">出題できるすべて</option></select></div>
+    </div>
+    <p class="form-note" id="bankSummary" role="status" aria-live="polite"></p>
+    <button class="primary-button" id="startQuizButton" type="button" onclick="startQuiz()" disabled>クイズを開始</button>
+    <p class="status-message" id="setupStatus" role="status" aria-live="polite"></p>
+  </section>
+</section>
+<section class="quiz-screen" id="quizScreen" hidden>
+  <div class="quiz-meta"><button class="text-button" type="button" onclick="quitQuiz()">クイズを終了</button><span id="progressLabel">1 / 5</span></div>
+  <div class="progress-track" aria-hidden="true"><span id="progressBar"></span></div>
+  <article class="question-card"><p class="question-kind" id="questionKind"></p><h1 class="question-prompt" id="questionPrompt"></h1>
+    <div class="option-list" id="optionList" role="group" aria-label="回答の選択肢"></div>
+    <div class="answer-feedback" id="answerFeedback" role="status" aria-live="polite" hidden></div>
+    <div class="question-actions"><span class="keyboard-hint">数字キー 1〜4 で回答、Enter キーで次へ進めます</span><button class="primary-button" id="nextQuestionButton" type="button" onclick="nextQuestion()" disabled>回答を選択</button></div>
+  </article>
+</section>
+<section class="result-screen" id="resultScreen" hidden><div class="result-card">
+  <p class="eyebrow">SESSION COMPLETE</p><h1>クイズ終了</h1><p class="result-score" id="resultScore">0 / 0</p><p class="result-summary" id="resultSummary"></p>
+  <div class="result-actions"><button class="primary-button" type="button" onclick="showSetup()">もう一度挑戦</button><button class="secondary-button" type="button" onclick="returnToNango()">Nangoへ戻る</button></div>
+</div></section>
+</main>
+<script src="Nango-quiz.v01.0.0.js" defer></script>
+</body>
+</html>
