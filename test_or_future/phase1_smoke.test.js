@@ -13,14 +13,18 @@ const pick = (dir, pattern) => {
 };
 const htmlName = pick(appDir, /^Nango-neo\.v\d+\.\d+\.\d+\.html$/);
 const jsName = pick(appDir, /^Nango_main\.v\d+\.\d+\.\d+\.js$/);
-const cssName = pick(appDir, /^style\.v\d+\.\d+\.\d+\.css$/);
+const htmlPath = path.join(appDir, htmlName);
+const htmlSource = fs.readFileSync(htmlPath, 'utf8');
+const cssReference = htmlSource.match(/<link\s+rel=["']stylesheet["']\s+href=["'](style\.v\d+\.\d+\.\d+\.css)["']/i);
+assert.ok(cssReference, 'HTML references a versioned stylesheet');
+const cssName = cssReference[1];
+const cssPath = path.join(appDir, cssName);
+assert.ok(fs.existsSync(cssPath), 'HTML stylesheet exists: ' + cssName);
 const formatDirName = pick(appDir, /^DTformats\.neo\.v\d+\.\d+$/);
 const formatDir = path.join(appDir, formatDirName);
 const appVersion = htmlName.match(/\.v0*(\d+)\.(\d+)\.(\d+)\.html$/).slice(1).join('.');
 const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const jsPath = path.join(appDir, jsName);
-const htmlPath = path.join(appDir, htmlName);
-const cssPath = path.join(appDir, cssName);
 const schemaPath = path.join(formatDir, pick(formatDir, /^DF-FMT_schema\.v\d+\.\d+\.json$/));
 const instructionPath = path.join(formatDir, pick(formatDir, /^DT-FMT_instruction_AI\.v\d+\.\d+\.json$/));
 const templatePath = path.join(formatDir, pick(formatDir, /^DT-FMT_template\.v\d+\.\d+\.json$/));
@@ -40,7 +44,6 @@ const supabaseGuide = fs.readFileSync(supabaseGuidePath, 'utf8');
 const supabaseConfig = JSON.parse(fs.readFileSync(supabaseConfigPath, 'utf8'));
 const privacyPolicyPath = path.join(root, 'Nango-neo', 'privacy-policy.html');
 const privacyPolicy = fs.readFileSync(privacyPolicyPath, 'utf8');
-const htmlSource = fs.readFileSync(htmlPath, 'utf8');
 assert.equal(api.shouldUseLocalStorage(null, 'local'), true, 'anonymous sessions persist to localStorage');
 assert.equal(api.shouldUseLocalStorage({ id: 'user-1' }, 'pending'), true, 'pending cloud sync preserves local persistence');
 assert.equal(api.shouldUseLocalStorage({ id: 'user-1' }, 'cloud'), false, 'active authenticated sessions use cloud persistence');
@@ -342,5 +345,23 @@ assert.match(source, /accountBadge\.textContent = loggedIn \? 'ログイン中'/
 assert.match(source, /status\.textContent = authUser[\s\S]*?同期保留[\s\S]*?保存エラー/, 'storage status is reduced to a concise warning when an error occurs');
 assert.ok(headerStatusCss.includes('.header-meta {\n    display: flex;\n    flex-direction: row;'), 'account status and version use a horizontal header layout');
 assert.match(headerStatusCss, /\.header-account-badge/, 'login state badge has compact styling');
+
+
+const pwaManifest = JSON.parse(fs.readFileSync(path.join(appDir, 'manifest.webmanifest'), 'utf8'));
+const serviceWorker = fs.readFileSync(path.join(appDir, 'service-worker.js'), 'utf8');
+assert.ok(htmlSource.includes('viewport-fit=cover'), 'main app uses the full iOS viewport safely');
+assert.ok(htmlSource.includes('rel="manifest" href="manifest.webmanifest"'), 'main app loads the PWA manifest');
+assert.ok(htmlSource.includes('apple-mobile-web-app-capable'), 'main app declares iOS home-screen web-app support');
+assert.ok(htmlSource.includes('id="iosInstallHint"'), 'iOS users receive a home-screen installation hint');
+assert.ok(htmlSource.includes("serviceWorker.register('./service-worker.js'"), 'main app registers its scoped service worker');
+assert.equal(pwaManifest.display, 'standalone', 'manifest launches the app without browser chrome');
+assert.equal(pwaManifest.lang, 'ja', 'manifest declares the Japanese interface language');
+assert.ok(pwaManifest.icons.some((icon) => icon.src === 'nango-logo.svg' && icon.type === 'image/svg+xml'), 'manifest uses the Nango vector icon');
+assert.ok(serviceWorker.includes("if (request.method !== 'GET') return;"), 'service worker ignores non-GET requests');
+assert.ok(serviceWorker.includes('if (url.origin !== scopeUrl.origin) return;'), 'service worker ignores cross-origin requests');
+assert.ok(serviceWorker.includes("if (scopedPath === 'api' || scopedPath.startsWith('api/'))"), 'service worker excludes local data API requests');
+assert.ok(serviceWorker.includes('await cache.addAll(assets)'), 'service worker pre-caches the app shell');
+assert.ok(serviceWorker.includes('Network-first'), 'navigation uses a network-first strategy with offline fallback');
+assert.ok(serviceWorker.includes('Cache-first'), 'static assets use a cache-first strategy');
 
 console.log(`Nango-NEO v${appVersion} smoke tests passed.`);

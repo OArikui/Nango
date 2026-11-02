@@ -771,3 +771,63 @@ hr { border: 0; border-top: 1px solid var(--border-color); }
         font-size: 9px;
     }
 }
+
+
+/* Nango-neo v3.2.0 — iOS Safari and standalone web-app support. */
+.ios-install-hint {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin: 0 0 16px;
+    padding: 13px 15px;
+    border: 1px solid #c7d2fe;
+    border-radius: 13px;
+    background: #f5f6ff;
+    color: #27356b;
+}
+.ios-install-hint[hidden] { display: none !important; }
+.ios-install-hint strong { display: block; font-size: 13px; }
+.ios-install-hint p { margin: 3px 0 0; color: #475467; font-size: 12px; }
+.ios-install-hint .btn { flex: 0 0 auto; min-height: 40px; padding: 7px 11px; }
+@media (max-width: 760px) {
+    html {
+        min-height: 100%;
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+        scroll-padding-top: 12px;
+    }
+    body {
+        min-height: 100vh;
+        min-height: 100dvh;
+        padding-top: max(12px, env(safe-area-inset-top));
+        padding-right: max(12px, env(safe-area-inset-right));
+        padding-bottom: max(12px, env(safe-area-inset-bottom));
+        padding-left: max(12px, env(safe-area-inset-left));
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+    }
+    .btn { min-height: 44px; }
+    .btn-sm { min-height: 40px; }
+    input.form-control,
+    textarea.form-control,
+    select.form-control,
+    .form-control {
+        min-height: 44px;
+        font-size: 16px;
+        line-height: 1.4;
+    }
+    textarea.form-control { min-height: 96px; }
+    .tree-container,
+    .filter-popover,
+    #wordListContainer {
+        -webkit-overflow-scrolling: touch;
+    }
+    #wordListContainer { overflow-x: auto; }
+    .ios-install-hint { align-items: flex-start; }
+}
+@media (max-width: 420px) {
+    .ios-install-hint { gap: 8px; padding: 11px; }
+    .ios-install-hint p { font-size: 11px; }
+    .ios-install-hint .btn { min-height: 40px; padding: 6px 8px; }
+}
