@@ -12,7 +12,7 @@
 | アプリ | v3.2.0 |
 | 画面 (HTML) | `Nango-neo/Nango-neo.v03.2.0.html` |
 | JavaScript | `Nango-neo/Nango_main.v02.0.6.js` |
-| CSS | `Nango-neo/style.v02.9.0.css` |
+| CSS | `Nango-neo/style.v02.9.1.css` |
 | データ形式 (DT-FMT) | `Nango-neo/DTformats.neo.v5.17/`（[仕様](docs/DT-FMT.md)） |
 | ローカルランチャー | `run.py` / `RUN_NANGO.bat`（Python 3.9 以降、標準ライブラリのみ） |
 
