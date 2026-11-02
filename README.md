@@ -38,7 +38,7 @@ python run.py --no-browser    # ブラウザーを自動で開かない
 この方法で起動すると、辞書は `user_data/nango_data.json` にも自動保存されます。詳しくは [docs/RUN_WITH_PYTHON.md](docs/RUN_WITH_PYTHON.md) を参照してください。
 
 
-### 4. iPhone / iPad（Safari・ホーム画面）
+### iPhone / iPad（Safari・ホーム画面）
 
 Nango は iOS 向けに PWA（ホーム画面から起動できる Web アプリ）として利用できます。App Store からインストールするネイティブアプリではなく、Safari で開く Web アプリです。
 

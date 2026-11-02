@@ -349,6 +349,7 @@ const serviceWorker = fs.readFileSync(path.join(appDir, 'service-worker.js'), 'u
 assert.ok(htmlSource.includes('viewport-fit=cover'), 'main app uses the full iOS viewport safely');
 assert.ok(htmlSource.includes('rel="manifest" href="manifest.webmanifest"'), 'main app loads the PWA manifest');
 assert.ok(htmlSource.includes('apple-mobile-web-app-capable'), 'main app declares iOS home-screen web-app support');
+assert.ok(htmlSource.includes('rel="apple-touch-icon"'), 'main app declares its iOS home-screen icon');
 assert.ok(htmlSource.includes('id="iosInstallHint"'), 'iOS users receive a home-screen installation hint');
 assert.ok(htmlSource.includes("serviceWorker.register('./service-worker.js'"), 'main app registers its scoped service worker');
 assert.equal(pwaManifest.display, 'standalone', 'manifest launches the app without browser chrome');
@@ -356,7 +357,7 @@ assert.equal(pwaManifest.lang, 'ja', 'manifest declares the Japanese interface l
 assert.ok(pwaManifest.icons.some((icon) => icon.src === 'nango-logo.svg' && icon.type === 'image/svg+xml'), 'manifest uses the Nango vector icon');
 assert.ok(serviceWorker.includes("if (request.method !== 'GET') return;"), 'service worker ignores non-GET requests');
 assert.ok(serviceWorker.includes('if (url.origin !== scopeUrl.origin) return;'), 'service worker ignores cross-origin requests');
-assert.ok(serviceWorker.includes('/api(?:\\/|$)/'), 'service worker excludes local data API requests');
+assert.ok(serviceWorker.includes("scopedPath.startsWith('api/')"), 'service worker excludes local data API requests');
 assert.ok(serviceWorker.includes('await cache.addAll(assets)'), 'service worker pre-caches the app shell');
 assert.ok(serviceWorker.includes('Network-first'), 'navigation uses a network-first strategy with offline fallback');
 assert.ok(serviceWorker.includes('Cache-first'), 'static assets use a cache-first strategy');

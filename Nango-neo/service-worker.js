@@ -49,7 +49,8 @@ self.addEventListener('fetch', (event) => {
     // Supabase, CDN, authentication and API traffic must remain outside this cache.
     if (url.origin !== scopeUrl.origin) return;
     if (!url.pathname.startsWith(scopeUrl.pathname)) return;
-    if (/\/api(?:\/|$)/.test(url.pathname.slice(scopeUrl.pathname.length - 1))) return;
+    const scopedPath = url.pathname.slice(scopeUrl.pathname.length);
+    if (scopedPath === 'api' || scopedPath.startsWith('api/')) return;
 
     if (request.mode === 'navigate') {
         // Network-first for pages; use the pre-cached app entry when offline.
