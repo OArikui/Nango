@@ -1737,6 +1737,16 @@ function showToolsPanel(recordHistory = true) {
         ...(limitExceeded ? [['DT-FMT上限超過', limitExceeded]] : [])
     ].map(([label,value]) => '<div class="stat-card"><span class="stat-value">' + value + '</span><span class="stat-label">' + label + '</span></div>').join('');
 }
+function openQuizPage() {
+    // 現在の辞書状態を一時的に渡す。辞書の保存先や内容は変更しない。
+    try {
+        sessionStorage.setItem('nango_quiz_session_data', JSON.stringify(serializeNangoDocument()));
+    } catch (error) {
+        console.warn('クイズ用データをセッションへ渡せませんでした。保存済みデータから読み込みます。', error);
+    }
+    window.location.assign(new URL('Nango-quiz.v01.0.0.html', document.baseURI).href);
+}
+
 async function copyTagPromptContext() {
     const input = $('tagPromptContext');
     if (!input) return;

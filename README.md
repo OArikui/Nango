@@ -9,9 +9,9 @@
 
 | 項目 | ファイル / バージョン |
 | ---- | ---------------------- |
-| アプリ | v3.0.2 |
-| 画面 (HTML) | `Nango-neo/Nango-neo.v03.0.2.html` |
-| JavaScript | `Nango-neo/Nango_main.v02.0.2.js` |
+| アプリ | v3.1.0 |
+| 画面 (HTML) | `Nango-neo/Nango-neo.v03.1.0.html` |
+| JavaScript | `Nango-neo/Nango_main.v02.0.3.js` |
 | CSS | `Nango-neo/style.v02.8.1.css` |
 | データ形式 (DT-FMT) | `Nango-neo/DTformats.neo.v5.17/`（[仕様](docs/DT-FMT.md)） |
 | ローカルランチャー | `run.py` / `RUN_NANGO.bat`（Python 3.9 以降、標準ライブラリのみ） |
@@ -39,7 +39,7 @@ python run.py --no-browser    # ブラウザーを自動で開かない
 
 ### 2. HTML を直接開く
 
-`Nango-neo/Nango-neo.v03.0.2.html` をブラウザーで開いても使えます。この場合の保存先はブラウザーの `localStorage` だけで、
+`Nango-neo/Nango-neo.v03.1.0.html` をブラウザーで開いても使えます。この場合の保存先はブラウザーの `localStorage` だけで、
 同じブラウザー・同じオリジンでしかデータを使えません。ファイルへの自動保存は動作しません。
 
 ### 3. GitHub Pages
@@ -71,6 +71,7 @@ GitHub Pages では未ログイン時はブラウザーの `localStorage`、ロ�
 - **インポート / エクスポート**: 複数 JSON の一括取り込み、JSON の貼り付け取り込み、重複単語のマージと競合確認に対応します（次節）。
 - **AI 入力支援**: 設定の「AIに送るプロンプトをコピー」で、DT-FMT の形式規則と登録済みタグ一覧をまとめてコピーできます。「DT-FMT定義を確認」で形式を画面上でも確認できます。
 - **画面履歴**: 画面上部の「戻る」「進む」でアプリ内の画面を移動できます。一覧から戻るとスクロール位置を復元し、詳細を新しく開くと上端から表示します。サイドバー内の単語切り替えではスクロール位置を維持します。
+- **クイズ**: 登録済みの単語と意味から出題します。単語→意味、意味→単語、混合の3形式に対応し、専用ページで採点と補足説明を表示します。辞書データ自体は変更しません。
 - **ページ上部へ戻る**: 一定量スクロールすると右下に小さなボタンを表示します。
 
 ## データ形式（DT-FMT v5.17）
@@ -165,3 +166,8 @@ Node.js 20 と Python 3.9 以降を想定しています。上記は GitHub Acti
 | 変更履歴を見る | [neo-versions.md](docs/neo-versions.md)、[releases/](docs/releases/) |
 | 今後の予定を見る | [ROADMAP.md](docs/ROADMAP.md) |
 | 実装の経緯を見る | [PHASE1_IMPLEMENTATION.md](docs/PHASE1_IMPLEMENTATION.md)、[archive/](docs/archive/) |
+
+
+### クイズ機能のテスト
+
+`node test_or_future/quiz_smoke.test.js` と `node --check Nango-neo/Nango-quiz.v01.0.0.js` で、専用ページの構造と JavaScript 構文を確認します。
