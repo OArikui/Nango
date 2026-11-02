@@ -334,4 +334,13 @@ assert.deepEqual(
 );
 assert.deepEqual(api.findLimitViolations(parsed.words), { categoryTags: 0, fieldTag: 0 }, 'conforming data reports no violations');
 
+
+assert.match(htmlSource, /id="headerAccountBadge" class="header-account-badge"/, 'header shows a compact signed-in badge');
+assert.match(htmlSource, /id="headerStorageStatus" class="header-storage-status"/, 'header has a compact slot for storage errors');
+assert.match(htmlSource, /id="headerAccountStatus"[\s\S]*?id="headerAccountEmail"[\s\S]*?id="headerAccountBadge"[\s\S]*?id="headerStorageStatus"/, 'email, login state and storage warning share one account row');
+assert.match(source, /accountBadge\.textContent = loggedIn \? 'ログイン中'/, 'header displays the concise login state');
+assert.match(source, /status\.textContent = authUser[\s\S]*?同期保留[\s\S]*?保存エラー/, 'storage status is reduced to a concise warning when an error occurs');
+assert.ok(headerStatusCss.includes('.header-meta {\n    display: flex;\n    flex-direction: row;'), 'account status and version use a horizontal header layout');
+assert.match(headerStatusCss, /\.header-account-badge/, 'login state badge has compact styling');
+
 console.log(`Nango-NEO v${appVersion} smoke tests passed.`);
