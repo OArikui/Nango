@@ -3,8 +3,14 @@ const fs = require('node:fs');
 const path = require('node:path');
 const root = path.join(__dirname, '..');
 const read = (...parts) => fs.readFileSync(path.join(root, ...parts), 'utf8');
-const appHtml = read('Nango-neo', 'Nango-neo.v03.1.2.html');
-const appJs = read('Nango-neo', 'Nango_main.v02.0.5.js');
+const appDir = path.join(root, 'Nango-neo');
+const pickAppFile = (pattern) => {
+  const matches = fs.readdirSync(appDir).filter((name) => pattern.test(name));
+  assert.equal(matches.length, 1, `exactly one app file matching ${pattern} expected, found: ${matches}`);
+  return matches[0];
+};
+const appHtml = read('Nango-neo', pickAppFile(/^Nango-neo\.v\d+\.\d+\.\d+\.html$/));
+const appJs = read('Nango-neo', pickAppFile(/^Nango_main\.v\d+\.\d+\.\d+\.js$/));
 const quizHtml = read('Nango-neo', 'Nango-quiz.v01.0.0.html');
 const quizCss = read('Nango-neo', 'Nango-quiz.v01.0.0.css');
 const quizJs = read('Nango-neo', 'Nango-quiz.v01.0.0.js');

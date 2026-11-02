@@ -298,8 +298,20 @@ const htmlPanelIds = [...html.matchAll(/id="([A-Za-z]+Mode)"/g)].map((match) => 
 const panelIds = [...source.match(/const PANEL_IDS = \[([^\]]*)\]/)[1].matchAll(/'(\w+)'/g)].map((match) => match[1]).sort();
 assert.deepEqual(panelIds, htmlPanelIds, 'PANEL_IDS lists every screen panel in the HTML, so no screen can stay visible behind another');
 assert.doesNotMatch(source, /(?<!PANEL_IDS = )\['(?:view|edit)Mode'/, 'screens are hidden through hideAllPanels() instead of ad-hoc id lists');
-assert.match(source, /state\.screen === 'auth'/, 'the account screen is restored by back/forward navigation');
-assert.match(source, /showAuxPanel\('authPanelMode', 'auth', recordHistory\)/, 'the account screen is recorded in the navigation history');
+assert.ok(source.includes("state.screen === 'settingsAccount'"), 'the settings account page is restored by back/forward navigation');
+assert.ok(source.includes("showAuxPanel('settingsPanelMode', 'settingsAccount', recordHistory)"), 'the account page is recorded in the navigation history');
+assert.ok(source.includes("sidebar.style.display = detailVisible ? '' : 'none'"), 'sidebar is hidden outside the detail screen, including settings');
+assert.ok(source.includes('function updateTodaysWordSidebar()'), 'sidebar renders a clickable daily-word entry');
+assert.ok(source.includes('synonym-separator'), 'synonym lists include separators between adjacent terms');
+assert.ok(source.includes('aria-hidden="true">|</span>'), 'synonym terms are separated by a vertical bar');
+assert.ok(css.includes('.sidebar-today-section'), 'daily-word sidebar section is styled');
+assert.ok(css.includes('.settings-nav'), 'settings sub-navigation is styled');
+assert.ok(html.includes('id="todaysWordButton"'), 'daily word is opened from the sidebar');
+assert.ok(html.indexOf('id="todaysWordButton"') < html.indexOf('id="categoryFilterTrigger"'), 'daily word entry appears above sidebar filters');
+assert.ok(!html.slice(html.indexOf('<div class="toolbar">'), html.indexOf('<div class="main-layout">')).includes('onclick="showTodaysWord()">今日の単語'), 'daily word button is removed from the header');
+assert.ok(!html.slice(html.indexOf('<div class="toolbar">'), html.indexOf('<div class="main-layout">')).includes('onclick="showAuthPanel()">アカウント'), 'account is removed from the top-level header menu');
+assert.ok(html.includes('id="settingsAccountTab"'), 'settings provides an account sub-page');
+assert.ok(html.indexOf('id="settingsPanelMode"') < html.indexOf('id="authPanelMode"') && html.indexOf('id="authPanelMode"') < html.indexOf('id="toolsPanelMode"'), 'account panel is nested inside settings');
 assert.doesNotMatch(source, /\\\\n/, 'no string contains a literal backslash-n sequence');
 assert.match(source, /anchor\.download = 'Nango-neo_' \+ FORMAT_VERSION/, 'export file name follows the DT-FMT version');
 assert.match(source, /cancelled: true/, 'declining to replace the dictionary aborts the import');
@@ -321,5 +333,14 @@ assert.deepEqual(
   'imports that exceed the DT-FMT tag caps are detected'
 );
 assert.deepEqual(api.findLimitViolations(parsed.words), { categoryTags: 0, fieldTag: 0 }, 'conforming data reports no violations');
+
+
+assert.match(htmlSource, /id="headerAccountBadge" class="header-account-badge"/, 'header shows a compact signed-in badge');
+assert.match(htmlSource, /id="headerStorageStatus" class="header-storage-status"/, 'header has a compact slot for storage errors');
+assert.match(htmlSource, /id="headerAccountStatus"[\s\S]*?id="headerAccountEmail"[\s\S]*?id="headerAccountBadge"[\s\S]*?id="headerStorageStatus"/, 'email, login state and storage warning share one account row');
+assert.match(source, /accountBadge\.textContent = loggedIn \? 'ログイン中'/, 'header displays the concise login state');
+assert.match(source, /status\.textContent = authUser[\s\S]*?同期保留[\s\S]*?保存エラー/, 'storage status is reduced to a concise warning when an error occurs');
+assert.ok(headerStatusCss.includes('.header-meta {\n    display: flex;\n    flex-direction: row;'), 'account status and version use a horizontal header layout');
+assert.match(headerStatusCss, /\.header-account-badge/, 'login state badge has compact styling');
 
 console.log(`Nango-NEO v${appVersion} smoke tests passed.`);

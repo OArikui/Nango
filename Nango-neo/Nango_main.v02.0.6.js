@@ -27,544 +27,21 @@ function isLocalLauncher() {
 }
 
 function showStorageStatus(message, isError = false) {
-    let status = document.getElementById('localStorageStatus');
-    if (!status) {
-        status = document.createElement('span');
-        status.id = 'localStorageStatus';
-        status.style.cssText = 'font-size:0.85em;margin-left:0.75em;color:var(--muted-color, #666);';
-        const nav = document.querySelector('.top-bar, .app-header, header');
-        (nav || document.body).appendChild(status);
+    const status = document.getElementById('headerStorageStatus');
+    if (!status) return;
+    if (!isError) {
+        status.textContent = '';
+        status.title = '';
+        status.hidden = true;
+        status.classList.remove('is-error');
+        return;
     }
-    status.textContent = message;
-    status.style.color = isError ? '#b42318' : '';
-}
-
-async function loadServerData() {
-    if (!isLocalLauncher()) { serverStorageAvailable = false; return null; }
-    try {
-        const response = await fetch(LOCAL_DATA_API, { cache: 'no-store' });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const result = await response.json();
-        serverStorageAvailable = true;
-        return result && result.exists ? result.data : null;
-    } catch (error) {
-        serverStorageAvailable = false;
-        console.warn('ローカルファイル保存APIに接続できません。ブラウザー保存を使用します。', error);
-        return null;
-    }
-}
-const FORMAT_VERSION = 'DTformats.neo.v5.17';
-const nowIso = () => new Date().toISOString();
-
-const defaultData = [
-    {
-        word: 'カスケード', id: 1, datetime: '2026-10-09T00:00:00+09:00',
-        category: '外来語', eraTag: '現代', reading: 'かすけーど', kanji: '', english: 'cascade',
-        column: '上流から下流へとつながっていく様子を表す語。', memo: '', gemini_note: '', other_tags: ['IT'],
-        meanings: [{
-            definition: '連鎖的に物事が起きること。または、階段状に流れ落ちる滝や、そのように連なるもの。',
-            background: '英語 cascade は、滝を意味する語に由来する。IT、ビジネス、科学などで、一つの事象が次々と別の事象を引き起こす現象を表す。',
-            nuance: '単に連続するだけでなく、上流から下流へ、ある事象をきっかけに次々と波及する印象がある。',
-            fieldTag: ['エンジニアリング'],
-            examples: [
-                '小さな設定ミスがカスケード障害を引き起こした。',
-                'CSSではスタイルが優先順位に従ってカスケードする。'
-            ], synonyms: ['連鎖', '波及', 'ドミノ倒し']
-        }]
-    },
-    {
-        word: '傅く', id: 2, datetime: '2026-10-09T00:00:00+09:00',
-        category: '古語・大和言葉', eraTag: '中世', reading: 'かしづく', kanji: '傅く', english: '',
-        column: '', memo: '', gemini_note: '', other_tags: [],
-        meanings: [{
-            definition: '人に仕えて大切に世話をする。また、子供を大切に養い育てる。',
-            background: '古語「かしづく」に由来し、貴人に仕えることや、子どもを慈しみ育てることを指した。',
-            nuance: '深い敬意や愛情をこめて世話をするニュアンスがあり、現代では文学的な表現として見られる。',
-            fieldTag: ['日常', '日本語史'],
-            examples: ['若き女王に傅く侍従たちが控えていた。'], synonyms: ['仕える', 'お世話する', '奉公する']
-        }]
-    }
-];
-
-let wordData = [];
-let additionalData = [];
-let currentWordId = -1;
-let isNewWord = false;
-let currentSort = 'id';
-let pastePanelOpen = false;
-let meaningClipboard = null;
-let wordListTagFilter = null;
-let sidebarContextWordIds = null;
-let appNavigationHistory = [];
-let appNavigationIndex = -1;
-let restoringNavigation = false;
-const tagTableSortState = {};
-let wordListColumnSort = { key: null, direction: 'asc' };
-let selectedCategoryFilters = [];
-let wordListSelectedCategories = [];
-let wordListFiltersOpen = false;
-let displaySettings = { ...SETTINGS_DEFAULTS };
-let formatMode = 'readable';
-const formatDataCache = {};
-
-function currentScreenSnapshot(screen, extra = {}) {
-    return {
-        screen,
-        scrollY: Math.max(0, window.scrollY || 0),
-        wordId: currentWordId,
-        tagFilter: wordListTagFilter ? { ...wordListTagFilter, ...(Array.isArray(wordListTagFilter.wordIds) ? { wordIds: [...wordListTagFilter.wordIds] } : {}) } : null,
-        sidebarContextWordIds: sidebarContextWordIds ? [...sidebarContextWordIds] : null,
-        wordListSelectedCategories: [...wordListSelectedCategories],
-        wordListSearch: $('wordListSearch')?.value || '',
-        pasteText: $('jsonPasteInput')?.value || '',
-        ...extra
-    };
-}
-function recordAppNavigation(screen, extra = {}) {
-    if (restoringNavigation) return;
-    const currentScrollY = Math.max(0, window.scrollY || 0);
-    const previous = appNavigationHistory[appNavigationIndex];
-    if (previous) previous.scrollY = currentScrollY;
-    const snapshot = currentScreenSnapshot(screen, {
-        ...extra,
-        scrollY: previous && previous.screen === screen ? currentScrollY : 0
-    });
-    if (previous && JSON.stringify(previous) === JSON.stringify(snapshot)) return;
-    appNavigationHistory = appNavigationHistory.slice(0, appNavigationIndex + 1);
-    appNavigationHistory.push(snapshot);
-    if (appNavigationHistory.length > 100) appNavigationHistory.shift();
-    appNavigationIndex = appNavigationHistory.length - 1;
-    updateAppNavigationButtons();
-}
-function updateAppNavigationButtons() {
-    const back = $('pageBackBtn'), forward = $('pageForwardBtn');
-    if (back) back.disabled = appNavigationIndex <= 0;
-    if (forward) forward.disabled = appNavigationIndex < 0 || appNavigationIndex >= appNavigationHistory.length - 1;
-}
-function navigateAppHistory(delta) {
-    const current = appNavigationHistory[appNavigationIndex];
-    if (current) current.scrollY = Math.max(0, window.scrollY || 0);
-    const next = appNavigationIndex + delta;
-    if (next < 0 || next >= appNavigationHistory.length) return;
-    appNavigationIndex = next;
-    restoreAppNavigation(appNavigationHistory[appNavigationIndex]);
-    updateAppNavigationButtons();
-}
-function scrollWindowTo(top) {
-    const root = document.documentElement;
-    const previousBehavior = root.style.scrollBehavior;
-    root.style.scrollBehavior = 'auto';
-    window.scrollTo({ top: Math.max(0, Number(top) || 0), left: 0, behavior: 'auto' });
-    root.style.scrollBehavior = previousBehavior;
-}
-function restoreAppNavigation(state) {
-    restoringNavigation = true;
-    currentWordId = state.wordId;
-    wordListTagFilter = state.tagFilter ? { ...state.tagFilter, ...(Array.isArray(state.tagFilter.wordIds) ? { wordIds: [...state.tagFilter.wordIds] } : {}) } : null;
-    sidebarContextWordIds = Array.isArray(state.sidebarContextWordIds) ? [...state.sidebarContextWordIds] : null;
-    wordListSelectedCategories = Array.isArray(state.wordListSelectedCategories) ? [...state.wordListSelectedCategories] : [];
-    hideAllPanels();
-    if (state.screen === 'edit') {
-        const word = wordData.find(item => item.id === currentWordId);
-        if (word) { isNewWord = false; $('formTitle').textContent = '単語の編集'; populateEditor(word); }
-        $('editMode').style.display = 'block';
-    } else if (state.screen === 'new') {
-        isNewWord = true; $('formTitle').textContent = '新規単語追加';
-        populateEditor({ word: '', category: '指定なし', categoryTags: ['指定なし'], eraTag: '', reading: '', kanji: '', english: '', pronunciation: '', column: '', memo: '', gemini_note: '', other_tags: [], meanings: [{}] });
-        $('editMode').style.display = 'block';
-    } else if (state.screen === 'manage') {
-        $('managePanelMode').style.display = 'block'; renderTagManagementTables();
-    } else if (state.screen === 'paste') {
-        $('pastePanelMode').style.display = 'block'; $('jsonPasteInput').value = state.pasteText || '';
-    } else if (state.screen === 'settings') {
-        showSettingsPanel(false);
-    } else if (state.screen === 'tools') {
-        showToolsPanel(false);
-    } else if (state.screen === 'format') {
-        showFormatPanel(false);
-    } else if (state.screen === 'auth') {
-        showAuthPanel(false);
-    } else if (state.screen === 'signUp') {
-        showSignUpPage(false);
-    } else if (state.screen === 'emailVerification') {
-        const pendingEmail = localStorage.getItem(SIGNUP_PENDING_EMAIL_KEY) || '';
-        showEmailVerificationResultPage(
-            hasVerifiedEmail(authUser),
-            authUser && authUser.email || pendingEmail,
-            hasVerifiedEmail(authUser)
-                ? 'このアカウントのメールアドレスは認証済みです。'
-                : 'メール内の確認リンクを開くと、認証結果がこの画面に表示されます。',
-            false
-        );
-    } else if (state.screen === 'wordList' || state.screen === 'tagWords') {
-        $('wordListMode').style.display = 'block';
-        $('wordListSearch').value = state.wordListSearch || '';
-        renderWordListFilterBanner();
-        renderWordList();
-    } else {
-        $('viewMode').style.display = 'block'; showViewMode(false, { preserveScroll: true });
-    }
-    renderSidebarTree();
-    updateSidebarVisibility();
-    restoringNavigation = false;
-    updateAppNavigationButtons();
-    const restoreY = typeof state.scrollY === 'number' ? state.scrollY : 0;
-    requestAnimationFrame(() => scrollWindowTo(restoreY));
-}
-
-
-const $ = (id) => document.getElementById(id);
-const clone = (value) => JSON.parse(JSON.stringify(value));
-const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
-const asString = (value) => typeof value === 'string' ? value : (value == null ? '' : String(value));
-const asStringArray = (value) => Array.isArray(value) ? value.map(asString).map(s => s.trim()).filter(Boolean) : (typeof value === 'string' && value.trim() ? [value.trim()] : []);
-const normalizeText = (value) => asString(value).normalize('NFKC').toLocaleLowerCase('ja').replace(/[\s　]+/g, ' ').trim();
-const unique = (values) => [...new Set(values.map(v => asString(v).trim()).filter(Boolean))];
-
-function normalizeLegacyKeys(value) {
-    if (Array.isArray(value)) return value.map(normalizeLegacyKeys);
-    if (!value || typeof value !== 'object') return value;
-    const out = {};
-    for (const [key, item] of Object.entries(value)) {
-        if (key.startsWith('//')) continue;
-        const cleanKey = key.endsWith('$') ? key.slice(0, -1) : key;
-        if (Object.prototype.hasOwnProperty.call(out, cleanKey) && JSON.stringify(out[cleanKey]) !== JSON.stringify(item)) {
-            throw new Error(`必須項目マーカー除去後にキーが重複しました: ${cleanKey}`);
-        }
-        out[cleanKey] = normalizeLegacyKeys(item);
-    }
-    return out;
-}
-
-function isRfc3339DateTime(value) {
-    if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value)) return false;
-    return Number.isFinite(Date.parse(value));
-}
-
-function normalizeFieldTags(value) {
-    // Older AI-generated records sometimes packed several domain tags into one
-    // string with a middle dot (e.g. 'IT・美容・ライフスタイル'). Normalize
-    // those into independent tags while keeping other tag fields untouched.
-    const source = Array.isArray(value) ? value : (typeof value === 'string' ? [value] : []);
-    return unique(source.flatMap(item => asString(item).split(/[・,，、\n]/)));
-}
-
-function normalizeCategoryTags(value, fallback = '') {
-    const candidate = Array.isArray(value) ? value : (typeof value === 'string' && value.trim() ? value.split(/[,，、\n]/) : []);
-    const normalized = unique(candidate.map(asString));
-    return normalized.length ? normalized : (asString(fallback).trim() ? [asString(fallback).trim()] : []);
-}
-
-function normalizeMeaning(raw = {}) {
-    return {
-        definition: asString(raw.definition),
-        background: asString(raw.background),
-        nuance: asString(raw.nuance),
-        fieldTag: normalizeFieldTags(raw.fieldTag),
-        examples: asStringArray(raw.examples),
-        synonyms: asStringArray(raw.synonyms),
-        antonyms: asStringArray(raw.antonyms),
-        similarWordsDifference: asString(raw.similarWordsDifference)
-    };
-}
-
-function normalizeDisplayName(item, rawWord) {
-    const word = asString(rawWord).trim();
-    const match = /^(.*?)\s*[（(]([^（）()]*)[）)]$/.exec(word);
-    if (!match || !match[1].trim()) return word;
-    const base = match[1].trim();
-    const inner = match[2].trim();
-    const reading = asString(item.reading).trim();
-    const category = asString(item.category);
-    const foreignOrSpecial = Boolean(asString(item.english).trim()) ||
-        /外来語|外国語|略語|記号|原語|英語/.test(category);
-
-    // Display names no longer append readings in parentheses. Keep reading in
-    // the dedicated reading field, and preserve legacy foreign spellings in english.
-    if (reading && normalizeText(inner) === normalizeText(reading)) return base;
-    const kanji = asString(item.kanji).trim();
-    if (kanji && inner === kanji && /^[ぁ-ゖァ-ヺー]+$/.test(base)) return kanji;
-    if (foreignOrSpecial) {
-        if (!asString(item.english).trim() && inner) item.english = inner;
-        return base;
-    }
-    return word;
-}
-
-function normalizeWord(raw = {}, key = '') {
-    const item = { ...raw };
-    const word = normalizeDisplayName(item, asString(item.word || key).trim());
-    if (!word) throw new Error('単語名（wordsオブジェクトのキー）が空です。');
-
-    let meanings;
-    if (Array.isArray(item.meanings)) {
-        meanings = item.meanings.map(normalizeMeaning);
-    } else if (item.meaning !== undefined || item.background !== undefined || item.nuance !== undefined || item.examples !== undefined || item.synonyms !== undefined || item.antonyms !== undefined || item.similarWordsDifference !== undefined) {
-        meanings = [normalizeMeaning({
-            definition: item.meaning, background: item.background, nuance: item.nuance,
-            fieldTag: item.fieldTag, examples: item.examples, synonyms: item.synonyms,
-            antonyms: item.antonyms, similarWordsDifference: item.similarWordsDifference
-        })];
-    } else {
-        meanings = [];
-    }
-    if (!meanings.length) throw new Error(`「${word}」に meanings がありません。最低1つの意味を登録してください。`);
-
-    const base = { ...item };
-    ['word', 'word(any)', 'word_any', 'meaning', 'background', 'nuance', 'fieldTag', 'examples', 'synonyms', 'antonyms', 'similarWordsDifference'].forEach(keyName => delete base[keyName]);
-    return {
-        ...base,
-        id: Number.isInteger(item.id) && item.id > 0 ? item.id : 0,
-        datetime: isRfc3339DateTime(item.datetime) ? asString(item.datetime) : nowIso(),
-        word,
-        category: normalizeCategoryTags(item.categoryTags, item.category)[0] || '指定なし',
-        categoryTags: normalizeCategoryTags(item.categoryTags, item.category),
-        eraTag: asString(item.eraTag),
-        reading: asString(item.reading),
-        kanji: asString(item.kanji),
-        english: asString(item.english),
-        pronunciation: asString(item.pronunciation),
-        column: asString(item.column),
-        memo: asString(item.memo),
-        gemini_note: asString(item.gemini_note),
-        other_tags: asStringArray(item.other_tags),
-        meanings
-    };
-}
-
-function parseNangoDocument(documentValue) {
-    const source = normalizeLegacyKeys(documentValue);
-    let entries = [];
-    let extra = [];
-    if (Array.isArray(source)) {
-        // Compatibility with old app exports (array of records).
-        entries = source.map((item, i) => normalizeWord(item, item.word || `legacy-${i + 1}`));
-    } else if (source && typeof source === 'object' && source.words && !Array.isArray(source.words) && typeof source.words === 'object') {
-        entries = Object.entries(source.words).map(([key, value]) => {
-            validateCanonicalWord(key, value);
-            return normalizeWord(value, key);
-        });
-        if (source.additional_data !== undefined && (!Array.isArray(source.additional_data) || !source.additional_data.every(value => typeof value === 'string'))) {
-            throw new Error('additional_data は文字列の配列である必要があります。');
-        }
-        extra = asStringArray(source.additional_data);
-    } else if (source && typeof source === 'object' && Array.isArray(source.words)) {
-        // A short-lived historical shape used a list under words.
-        entries = source.words.map((item, i) => normalizeWord(item, item.word || `legacy-${i + 1}`));
-        extra = asStringArray(source.additional_data);
-    } else {
-        throw new Error('Nango形式ではありません。トップレベルに words オブジェクトが必要です。');
-    }
-
-    const seen = new Set();
-    for (const item of entries) {
-        const key = normalizeText(item.word);
-        if (seen.has(key)) throw new Error(`同じファイル内に同一の単語名があります: 「${item.word}」`);
-        seen.add(key);
-        validateWord(item);
-    }
-    return { words: entries, additional_data: extra };
-}
-
-function validateCanonicalWord(wordName, raw) {
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error(`「${wordName}」のデータはオブジェクトである必要があります。`);
-    const stringFields = ['datetime', 'category', 'eraTag', 'reading', 'kanji', 'english', 'pronunciation', 'column', 'memo', 'gemini_note'];
-    for (const field of stringFields) {
-        if (raw[field] !== undefined && typeof raw[field] !== 'string') throw new Error(`「${wordName}」の ${field} は文字列である必要があります。`);
-    }
-    if (raw.id !== undefined && (!Number.isInteger(raw.id) || raw.id < 1)) throw new Error(`「${wordName}」の id は1以上の整数である必要があります。`);
-    if (raw.datetime !== undefined && !isRfc3339DateTime(raw.datetime)) throw new Error(`「${wordName}」の datetime は RFC 3339形式である必要があります。`);
-    if (raw.categoryTags !== undefined && (!Array.isArray(raw.categoryTags) || !raw.categoryTags.every(value => typeof value === 'string'))) throw new Error(`「${wordName}」の categoryTags は文字列配列である必要があります。`);
-    if (raw.other_tags !== undefined && (!Array.isArray(raw.other_tags) || !raw.other_tags.every(value => typeof value === 'string'))) {
-        throw new Error(`「${wordName}」の other_tags は文字列配列である必要があります。`);
-    }
-    if (!Array.isArray(raw.meanings) || raw.meanings.length === 0) throw new Error(`「${wordName}」には meanings が1つ以上必要です。`);
-    raw.meanings.forEach((meaning, index) => {
-        if (!meaning || typeof meaning !== 'object' || Array.isArray(meaning)) throw new Error(`「${wordName}」の meanings[${index}] はオブジェクトである必要があります。`);
-        if (typeof meaning.definition !== 'string' || !meaning.definition.trim()) throw new Error(`「${wordName}」の意味 ${index + 1}: definition は必須の文字列です。`);
-        for (const field of ['background', 'nuance', 'similarWordsDifference']) {
-            if (meaning[field] !== undefined && typeof meaning[field] !== 'string') throw new Error(`「${wordName}」の意味 ${index + 1}: ${field} は文字列である必要があります。`);
-        }
-        for (const field of ['fieldTag', 'examples', 'synonyms', 'antonyms']) {
-            if (meaning[field] !== undefined && (!Array.isArray(meaning[field]) || !meaning[field].every(value => typeof value === 'string'))) {
-                throw new Error(`「${wordName}」の意味 ${index + 1}: ${field} は文字列配列である必要があります。`);
-            }
-        }
-    });
-}
-
-function validateWord(word) {
-    if (!Array.isArray(word.categoryTags || []) || !(word.categoryTags || []).every(value => typeof value === 'string')) throw new Error(`「${word.word}」の分類タグは文字列配列である必要があります。`);
-    if (!word.word.trim()) throw new Error('単語名は必須です。');
-    if (!Array.isArray(word.meanings) || word.meanings.length === 0) throw new Error(`「${word.word}」には意味が1つ以上必要です。`);
-    for (let i = 0; i < word.meanings.length; i++) {
-        const meaning = word.meanings[i];
-        if (!meaning.definition.trim()) throw new Error(`「${word.word}」の意味 ${i + 1}: definition は必須です。`);
-        for (const key of ['fieldTag', 'examples', 'synonyms', 'antonyms']) {
-            if (!Array.isArray(meaning[key]) || !meaning[key].every(value => typeof value === 'string')) {
-                throw new Error(`「${word.word}」の意味 ${i + 1}: ${key} は文字列配列である必要があります。`);
-            }
-        }
-        if (typeof meaning.similarWordsDifference !== 'string') throw new Error(`「${word.word}」の意味 ${i + 1}: similarWordsDifference は文字列である必要があります。`);
-    }
-}
-
-function serializeNangoDocument(items = wordData, extra = additionalData) {
-    const words = {};
-    const seenNames = new Set();
-    const sorted = [...items].sort((a, b) => a.id - b.id);
-    for (const source of sorted) {
-        const item = normalizeWord(source, source.word);
-        validateWord(item);
-        const uniqueName = normalizeText(item.word);
-        if (seenNames.has(uniqueName)) throw new Error(`辞書形式では同じ単語名を重複登録できません: 「${item.word}」`);
-        seenNames.add(uniqueName);
-        const payload = { ...item };
-        delete payload.word;
-        const orderedPayload = { pronunciation: payload.pronunciation || '' };
-        for (const [key, value] of Object.entries(payload)) {
-            if (key !== 'pronunciation') orderedPayload[key] = value;
-        }
-        words[item.word] = orderedPayload;
-    }
-    return { words, additional_data: asStringArray(extra) };
-}
-
-function reassignIds(items, start = 1) {
-    return items.map((item, index) => ({ ...item, id: start + index }));
-}
-
-
-function installKeyboardNavigation() {
-    document.addEventListener('keydown', event => {
-        if (event.defaultPrevented || event.isComposing || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
-        const target = event.target;
-        if (target?.isContentEditable || target?.matches?.('input, textarea, select, [contenteditable="true"]')) return;
-        if (event.key === 'ArrowLeft' && appNavigationIndex > 0) {
-            event.preventDefault();
-            navigateAppHistory(-1);
-        } else if (event.key === 'ArrowRight' && appNavigationIndex >= 0 && appNavigationIndex < appNavigationHistory.length - 1) {
-            event.preventDefault();
-            navigateAppHistory(1);
-        }
-    });
-}
-function installBackToTopButton() {
-    const button = $('backToTop');
-    if (!button || button.dataset.bound === 'true') return;
-    button.dataset.bound = 'true';
-    const updateVisibility = () => { button.hidden = window.scrollY <= 400; };
-    window.addEventListener('scroll', updateVisibility, { passive: true });
-    button.addEventListener('click', () => window.scrollTo({ top: 0, left: 0, behavior: 'smooth' }));
-    updateVisibility();
-}
-
-async function initApp() {
-    installKeyboardNavigation();
-    installBackToTopButton();
-    await loadRepositorySupabaseConfig();
-    initializeSupabaseClientFromStoredConfig();
-    registerSupabaseAuthListener();
-    const browserSavedData = localStorage.getItem(STORAGE_KEY);
-    let pendingSignupEmail = '';
-    try { pendingSignupEmail = localStorage.getItem(SIGNUP_PENDING_EMAIL_KEY) || ''; } catch (_) {}
-    const signupCallbackDetected = /(?:[?&]type=signup\b|[?&]code=|access_token=|type=signup)/i.test(location.search + location.hash);
-    let emailVerificationLanding = null;
-    let savedData = browserSavedData, cloudLoaded = false;
-    if (supabaseClient) {
-        try {
-            const sessionResult = await supabaseClient.auth.getSession();
-            if (sessionResult.error) throw sessionResult.error;
-            authUser = sessionResult.data && sessionResult.data.session ? sessionResult.data.session.user : null;
-            if (authUser && ((pendingSignupEmail && pendingSignupEmail.toLocaleLowerCase() === (authUser.email || '').toLocaleLowerCase()) || signupCallbackDetected)) {
-                try {
-                    const latestUserResult = await supabaseClient.auth.getUser();
-                    if (!latestUserResult.error && latestUserResult.data && latestUserResult.data.user) {
-                        authUser = latestUserResult.data.user;
-                    }
-                } catch (verificationError) {
-                    console.warn('メール認証状態を取得できませんでした:', verificationError);
-                }
-                if (hasVerifiedEmail(authUser)) {
-                    emailVerificationLanding = { email: authUser.email || pendingSignupEmail };
-                    try { localStorage.removeItem(SIGNUP_PENDING_EMAIL_KEY); } catch (_) {}
-                }
-            }
-            if (authUser) {
-                authSyncMode = 'pending';
-                try {
-                    const row = await fetchCloudRow(authUser.id);
-                    if (row) {
-                        parseNangoDocument(row.data);
-                        savedData = JSON.stringify(row.data);
-                        cloudLoaded = true;
-                        authSyncMode = 'cloud';
-                    } else {
-                        authSyncMode = 'cloud';
-                        savedData = browserSavedData;
-                        if (!savedData) {
-                            const serverData = await loadServerData();
-                            if (serverData) savedData = JSON.stringify(serverData);
-                        }
-                    }
-                } catch (cloudError) {
-                    authSyncMode = 'pending'; savedData = browserSavedData;
-                    setAuthStatus('クラウドデータを確認できなかったため、ローカル保存で起動します。クラウドデータは上書きしません。詳細: ' + cloudError.message);
-                }
-            } else authSyncMode = 'local';
-        } catch (authError) {
-            authUser = null; authSyncMode = 'local';
-            setAuthStatus('ログイン状態を確認できなかったため、ローカル保存で起動します。詳細: ' + authError.message);
-        }
-    } else { authUser = null; authSyncMode = 'local'; }
-    if (!authUser) {
-        const serverData = await loadServerData();
-        savedData = serverData ? JSON.stringify(serverData) : browserSavedData;
-    }
-    try {
-        if (savedData) {
-            const parsed = parseNangoDocument(JSON.parse(savedData));
-            wordData = reassignIds(parsed.words.slice().sort((a, b) => (a.id || 0) - (b.id || 0)));
-            additionalData = parsed.additional_data;
-            if (!cloudLoaded) {
-                try { saveToLocalStorage(); } catch (saveError) { console.warn('保存データを保存できませんでした:', saveError); }
-            }
-        } else {
-            wordData = reassignIds(clone(defaultData).map(word => ({ ...word, categoryTags: normalizeCategoryTags(word.categoryTags, word.category) })));
-            additionalData = [];
-            saveToLocalStorage();
-        }
-    } catch (error) {
-        console.error('Nangoデータの読み込みに失敗しました:', error);
-        if (authUser) authSyncMode = 'pending';
-        wordData = reassignIds(clone(defaultData).map(word => ({ ...word, categoryTags: normalizeCategoryTags(word.categoryTags, word.category) })));
-        additionalData = [];
-        try { saveToLocalStorage(); } catch (saveError) { console.error('初期データを保存できません:', saveError); }
-        setAuthStatus('保存データを読み込めなかったため、初期データで起動しました。元データは上書きしていません。詳細: ' + error.message);
-    }
-    loadDisplaySettings(); 
-    currentWordId = wordData.length ? wordData[0].id : -1;
-    renderSidebarTree();
-    if (wordData.length) showTodaysWord(); else showViewMode();
-    refreshAuthPanel();
-    if (emailVerificationLanding) {
-        showEmailVerificationResultPage(
-            true,
-            emailVerificationLanding.email,
-            'メール内の確認リンクから戻りました。Supabase Auth でメール認証済みであることを確認しました。',
-            false
-        );
-    } else if (pendingSignupEmail) {
-        showEmailVerificationResultPage(
-            false,
-            pendingSignupEmail,
-            '登録後の確認待ちです。メール内の確認リンクを開くと、認証結果がここに表示されます。',
-            false
-        );
-    }
-    if (authUser && authSyncMode === 'cloud') showStorageStatus('Supabase クラウドに接続中');
-    else if (authUser && authSyncMode === 'pending') showStorageStatus('クラウド同期を保留中（ローカル保存）', true);
-    else if (serverStorageAvailable) showStorageStatus('ローカルファイル保存を使用中');
+    status.textContent = authUser
+        ? (authSyncMode === 'pending' ? '同期保留' : '同期エラー')
+        : '保存エラー';
+    status.title = String(message || status.textContent);
+    status.hidden = false;
+    status.classList.add('is-error');
 }
 function saveToLocalStorage() {
     const serialized = JSON.stringify(serializeNangoDocument());
@@ -694,6 +171,7 @@ function getProcessedWords() {
 }
 
 function renderSidebarTree() {
+    updateTodaysWordSidebar();
     const container = $('treeContainer');
     if (!container) return;
     container.replaceChildren();
@@ -729,8 +207,7 @@ function updateSidebarVisibility() {
     const sidebar = document.querySelector('.main-layout > .sidebar');
     if (!sidebar) return;
     const detailVisible = $('viewMode')?.style.display === 'block';
-    const settingsVisible = $('settingsPanelMode')?.style.display === 'block';
-    sidebar.style.display = detailVisible || settingsVisible ? '' : 'none';
+    sidebar.style.display = detailVisible ? '' : 'none';
     if (detailVisible) renderSidebarTree();
 }
 
@@ -813,7 +290,7 @@ function renderCurrentWordDetails() {
             (meaning.background ? '<div class="section-title">背景 / 由来</div>' + renderRichText(meaning.background) : '') +
             (meaning.nuance ? '<div class="section-title">ニュアンス</div>' + renderRichText(meaning.nuance) : '') +
             (meaning.examples.length ? '<div class="section-title">例文</div><ul class="example-list">' + meaning.examples.map(example => '<li>' + renderRichText(example) + '</li>').join('') + '</ul>' : '') +
-            (meaning.synonyms.length ? '<div class="section-title">類義語</div><div class="synonym-container">' + meaning.synonyms.map(term => '<span class="synonym-tag">' + escapeHtml(term) + '</span>').join('') + '</div>' : '') +
+            (meaning.synonyms.length ? '<div class="section-title">類義語</div><div class="synonym-container">' + meaning.synonyms.map((term, termIndex) => (termIndex ? '<span class="synonym-separator" aria-hidden="true">|</span>' : '') + '<span class="synonym-tag">' + escapeHtml(term) + '</span>').join('') + '</div>' : '') +
             (meaning.antonyms.length ? '<div class="section-title">対義語</div><div class="synonym-container">' + meaning.antonyms.map(term => '<span class="synonym-tag">' + escapeHtml(term) + '</span>').join('') + '</div>' : '') +
             (meaning.similarWordsDifference ? '<div class="section-title">似た言葉との違い</div>' + renderRichText(meaning.similarWordsDifference) : '') +
             (fieldTags.length ? '<div class="section-title">分野タグ（この意味）</div><div class="tag-container">' + fieldTags.map(tag => '<button type="button" class="custom-tag tag-field tag-link" data-tag-type="fieldTag" data-tag-value="' + escapeHtml(tag) + '">' + escapeHtml(tag) + '</button>').join('') + '</div>' : '') +
@@ -1659,15 +1136,27 @@ function renderWordList() {
     }));
 }
 
-function showTodaysWord() {
-    if (!wordData.length) { alert('辞書に単語がありません。'); return; }
+function getTodaysWordEntry() {
+    if (!wordData.length) return null;
     const day = new Date();
     const dateSeed = Number(`${day.getFullYear()}${String(day.getMonth() + 1).padStart(2, '0')}${String(day.getDate()).padStart(2, '0')}`);
     const sorted = [...wordData].sort((a, b) => a.id - b.id);
-    const selected = sorted[dateSeed % sorted.length];
+    return sorted[dateSeed % sorted.length] || null;
+}
+function updateTodaysWordSidebar() {
+    const button = $('todaysWordButton');
+    const label = $('todaysWordLabel');
+    if (!button || !label) return;
+    const selected = getTodaysWordEntry();
+    button.disabled = !selected;
+    label.textContent = selected ? selected.word : '単語がありません';
+    button.setAttribute('aria-label', selected ? `今日の単語「${selected.word}」の詳細を表示` : '今日の単語はありません');
+}
+function showTodaysWord() {
+    const selected = getTodaysWordEntry();
+    if (!selected) { alert('辞書に単語がありません。'); return; }
     currentWordId = selected.id;
-    renderSidebarTree(); showViewMode();
-    $('todaysWordBanner').innerHTML = `<strong>今日の単語:</strong> ${escapeHtml(selected.word)} <span>（日付に基づいて毎日同じ単語を表示します）</span>`;
+    showViewMode();
 }
 
 function loadDisplaySettings() {
@@ -1711,8 +1200,31 @@ function showAuxPanel(panelId, screen, recordHistory = true) {
     $(panelId).style.display = 'block';
     updateSidebarVisibility();
 }
+function updateSettingsNavigation(activePage) {
+    const generalTab = $('settingsGeneralTab');
+    const accountTab = $('settingsAccountTab');
+    if (generalTab) {
+        const active = activePage === 'general';
+        generalTab.classList.toggle('active', active);
+        generalTab.setAttribute('aria-selected', String(active));
+    }
+    if (accountTab) {
+        const active = activePage === 'account';
+        accountTab.classList.toggle('active', active);
+        accountTab.setAttribute('aria-selected', String(active));
+    }
+}
+function showSettingsGeneralPage(recordHistory = true) {
+    if (recordHistory) recordAppNavigation('settings');
+    const generalPage = $('settingsGeneralPage');
+    const accountPage = $('authPanelMode');
+    if (generalPage) generalPage.style.display = 'block';
+    if (accountPage) accountPage.style.display = 'none';
+    updateSettingsNavigation('general');
+}
 async function showSettingsPanel(recordHistory = true) {
     showAuxPanel('settingsPanelMode', 'settings', recordHistory);
+    showSettingsGeneralPage(false);
     loadDisplaySettings();
     const tagContext = $('tagPromptContext');
     if (tagContext) tagContext.value = buildTagPromptContext();
@@ -2029,11 +1541,23 @@ function updateEmailVerificationStatus() {
 }
 function updateHeaderAccountStatus() {
     const accountEmail = document.getElementById('headerAccountEmail');
+    const accountBadge = document.getElementById('headerAccountBadge');
+    const storageStatus = document.getElementById('headerStorageStatus');
     const loginButton = document.getElementById('headerLoginButton');
     if (!accountEmail || !loginButton) return;
     const loggedIn = Boolean(authUser);
-    accountEmail.textContent = loggedIn ? (authUser.email || 'ログイン中') : '';
+    accountEmail.textContent = loggedIn ? (authUser.email || 'アカウント') : '';
     accountEmail.hidden = !loggedIn;
+    if (accountBadge) {
+        accountBadge.textContent = loggedIn ? 'ログイン中' : '';
+        accountBadge.hidden = !loggedIn;
+    }
+    if (!loggedIn && storageStatus) {
+        storageStatus.textContent = '';
+        storageStatus.title = '';
+        storageStatus.hidden = true;
+        storageStatus.classList.remove('is-error');
+    }
     loginButton.hidden = loggedIn;
 }
 function setSignUpStatus(message) {
@@ -2293,7 +1817,12 @@ function refreshAuthPanel() {
     }
 }
 function showAuthPanel(recordHistory = true) {
-    showAuxPanel('authPanelMode', 'auth', recordHistory);
+    showAuxPanel('settingsPanelMode', 'settingsAccount', recordHistory);
+    const generalPage = $('settingsGeneralPage');
+    const accountPage = $('authPanelMode');
+    if (generalPage) generalPage.style.display = 'none';
+    if (accountPage) accountPage.style.display = 'block';
+    updateSettingsNavigation('account');
     const config = readSupabaseConfig();
     const urlInput = document.getElementById('supabaseProjectUrl'), keyInput = document.getElementById('supabasePublicKey');
     if (urlInput) urlInput.value = config.url;

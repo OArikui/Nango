@@ -4,13 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="app-name" content="© 2026 Nango-neo (base: v3.10) - Version 3.1.2">
-    <meta name="html-version" content="neo.v03.1.2">
+    <meta name="app-name" content="© 2026 Nango-neo (base: v3.10) - Version 3.1.3">
+    <meta name="html-version" content="neo.v03.1.3">
     <meta name="json-version" content="DTformats.neo.v5.17">
-    <meta name="javascript-version" content="v02.0.5">
+    <meta name="javascript-version" content="v02.0.6">
     <title>Nango-neo — Phase 1</title>
     <link rel="icon" type="image/svg+xml" href="nango-logo.svg">
-    <link rel="stylesheet" href="style.v02.8.3.css">
+    <link rel="stylesheet" href="style.v02.8.4.css">
 </head>
 
 <body>
@@ -26,9 +26,11 @@
             <div class="header-meta">
                 <div id="headerAccountStatus" class="header-account-status" aria-label="アカウント状態" aria-live="polite">
                     <span id="headerAccountEmail" class="header-account-email" hidden></span>
+                    <span id="headerAccountBadge" class="header-account-badge" role="status" hidden></span>
+                    <span id="headerStorageStatus" class="header-storage-status" role="status" aria-live="polite" hidden></span>
                     <button id="headerLoginButton" class="btn btn-secondary header-login-button" type="button" onclick="showAuthPanel()">ログイン</button>
                 </div>
-                <div class="version-chip">NANGO-NEO <strong>v3.1.2</strong></div>
+                <div class="version-chip">NANGO-NEO <strong>v3.1.3</strong></div>
             </div>
         </header>
 
@@ -37,13 +39,11 @@
         </p>
         <div class="toolbar">
             <div class="toolbar-actions toolbar-main-actions" aria-label="メインメニュー">
-                <button class="btn btn-secondary" type="button" onclick="showTodaysWord()">今日の単語</button>
                 <button class="btn btn-secondary" type="button" onclick="showWordList()">単語一覧</button>
                 <button class="btn btn-secondary" type="button" onclick="showManagePanel()">タグ一覧</button>
                 <button class="btn btn-secondary" type="button" onclick="showToolsPanel()">ツール</button>
                 <button class="btn btn-secondary" type="button" onclick="openQuizPage()">クイズ</button>
                 <button class="btn btn-secondary" type="button" onclick="showSettingsPanel()">設定</button>
-                <button class="btn btn-secondary" type="button" onclick="showAuthPanel()">アカウント</button>
                 <div class="page-navigation" aria-label="ページ内移動（左矢印で戻る、右矢印で進む）">
                     <button class="btn btn-icon" id="pageBackBtn" type="button" aria-label="戻る" title="戻る" onclick="navigateAppHistory(-1)" disabled><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"></path><path d="m12 19-7-7 7-7"></path></svg><span>戻る</span></button>
                     <button class="btn btn-icon" id="pageForwardBtn" type="button" aria-label="進む" title="進む" onclick="navigateAppHistory(1)" disabled><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg><span>進む</span></button>
@@ -56,11 +56,16 @@
             </div>
         </div>
 
-        <div id="todaysWordBanner" class="todays-word-banner" aria-live="polite"></div>
-
         <div class="main-layout">
 
             <div class="sidebar">
+                <div class="sidebar-today-section">
+                    <button id="todaysWordButton" class="sidebar-today-link" type="button" onclick="showTodaysWord()">
+                        <span class="sidebar-today-heading">今日の単語</span>
+                        <strong id="todaysWordLabel" class="sidebar-today-word">読み込み中...</strong>
+                        <span class="sidebar-today-help">クリックして単語の詳細を表示</span>
+                    </button>
+                </div>
                 <div class="sidebar-filter-controls">
                     <div class="sidebar-filter-zone">
                         <button class="btn-sm filter-trigger" id="categoryFilterTrigger" type="button" onclick="toggleCategoryFilterPopup()" aria-expanded="false">分類タグで検索 <span id="categoryFilterBadge">0</span></button>
@@ -182,6 +187,11 @@
 
                 <div id="settingsPanelMode" class="app-panel" style="display:none;">
                     <div class="panel-heading"><div><h2>設定</h2><p>表示・保存先・DT-FMT・AI入力支援を設定します。</p></div><button class="btn btn-secondary" type="button" onclick="showViewMode()">閉じる</button></div>
+                    <nav class="settings-nav" role="tablist" aria-label="設定ページ">
+                        <button id="settingsGeneralTab" class="settings-nav-button active" type="button" role="tab" aria-selected="true" onclick="showSettingsGeneralPage()">一般</button>
+                        <button id="settingsAccountTab" class="settings-nav-button" type="button" role="tab" aria-selected="false" onclick="showAuthPanel()">アカウント</button>
+                    </nav>
+                    <div id="settingsGeneralPage">
                     <section class="settings-section">
                         <h3>DT-FMT・AI入力支援</h3>
                         <p class="form-help">データ形式の確認と、AIへ単語情報を渡す際のタグ参照をここから利用できます。</p>
@@ -204,37 +214,12 @@
                         <p class="form-help">Pythonランチャー（RUN_NANGO.bat / run.py）起動時に利用できます。アプリから指定先に既存データを書き込みます。</p>
                         <div class="form-actions"><button class="btn btn-primary" type="button" onclick="saveDataPath()">保存先を変更</button><span id="dataPathStatus" aria-live="polite"></span></div>
                     </section>
-                </div>
+                    </div>
 
-                <div id="toolsPanelMode" class="app-panel" style="display:none;">
-                    <div class="panel-heading"><div><h2>ツール</h2><p>JSONの入出力、統計、クイズ機能をまとめるページです。</p></div><button class="btn btn-secondary" type="button" onclick="showViewMode()">閉じる</button></div>
-                    <section class="settings-section">
-                        <h3>JSON操作</h3>
-                        <p class="form-help">辞書の読み込み・書き出しと初期状態へのリセットを行います。JSON貼り付けはヘッダー右側から開けます。</p>
-                        <div class="form-actions">
-                            <button class="btn btn-secondary" type="button" onclick="triggerImport()">JSONをインポート</button>
-                            <button class="btn btn-secondary" id="exportBtn" type="button" onclick="exportJSON()">JSONをエクスポート</button>
-                            <button class="btn btn-danger" type="button" onclick="resetToDefault()">初期状態にリセット</button>
-                        </div>
-                        <input type="file" id="fileInput" accept=".json" onchange="importJSON(event)" multiple>
-                    </section>
-                    <div id="toolsStats" class="tools-stats"></div>
-                    <section class="settings-section"><h3>クイズ</h3><p>登録した単語の意味を使い、アプリ本体のヘッダーやサイドバーを表示しない専用ページで出題・採点します。</p><div class="form-actions"><button class="btn btn-primary" type="button" onclick="openQuizPage()">クイズを開始</button></div></section>
-                </div>
-
-                <div id="formatPanelMode" class="app-panel" style="display:none;">
-                    <div class="panel-heading"><div><h2>DT-FMT 確認</h2><p>フォーマット定義と指示を読み取り専用で表示します。</p></div><button class="btn btn-secondary" type="button" onclick="showViewMode()">閉じる</button></div>
-                    <div class="format-viewer-controls"><label for="dtFormatSelect">参照するファイル</label><select id="dtFormatSelect" class="form-control" onchange="renderFormatViewer()"><option value="schema">JSON Schema</option><option value="instruction">AI指示</option><option value="template">テンプレート</option><option value="current">現在のデータ</option></select>
-                        <div class="segmented-buttons" role="group" aria-label="表示形式"><button type="button" class="btn-sm active" id="formatRawBtn" onclick="setFormatMode('raw')">Raw</button><button type="button" class="btn-sm" id="formatReadableBtn" onclick="setFormatMode('readable')">見やすい表示</button></div></div>
-                    <div id="dtFormatStatus" class="form-help" aria-live="polite"></div><div id="dtFormatRaw" class="format-raw" style="display:none;"></div><div id="dtFormatReadable" class="format-readable"></div>
-                </div>
-
-
-
-                <div id="authPanelMode" class="app-panel auth-panel" style="display:none;">
+                <div id="authPanelMode" class="auth-panel settings-account-page" style="display:none;">
                     <div class="panel-heading">
                         <div><h2>アカウント</h2><p>ログインとクラウド保存を管理します。</p></div>
-                        <button class="btn btn-secondary" type="button" onclick="showViewMode()">閉じる</button>
+                        <button class="btn btn-secondary" type="button" onclick="showSettingsGeneralPage()">設定に戻る</button>
                     </div>
                     <section class="settings-section auth-section">
                         <h3>Supabase 接続設定</h3>
@@ -281,6 +266,32 @@
                         <p class="form-help">ローカル辞書のコピー操作はクラウド上の辞書を置き換えるため、実行前に確認を表示します。別アカウントのデータは RLS により分離されます。</p>
                     </section>
                 </div>
+                </div>
+
+                <div id="toolsPanelMode" class="app-panel" style="display:none;">
+                    <div class="panel-heading"><div><h2>ツール</h2><p>JSONの入出力、統計、クイズ機能をまとめるページです。</p></div><button class="btn btn-secondary" type="button" onclick="showViewMode()">閉じる</button></div>
+                    <section class="settings-section">
+                        <h3>JSON操作</h3>
+                        <p class="form-help">辞書の読み込み・書き出しと初期状態へのリセットを行います。JSON貼り付けはヘッダー右側から開けます。</p>
+                        <div class="form-actions">
+                            <button class="btn btn-secondary" type="button" onclick="triggerImport()">JSONをインポート</button>
+                            <button class="btn btn-secondary" id="exportBtn" type="button" onclick="exportJSON()">JSONをエクスポート</button>
+                            <button class="btn btn-danger" type="button" onclick="resetToDefault()">初期状態にリセット</button>
+                        </div>
+                        <input type="file" id="fileInput" accept=".json" onchange="importJSON(event)" multiple>
+                    </section>
+                    <div id="toolsStats" class="tools-stats"></div>
+                    <section class="settings-section"><h3>クイズ</h3><p>登録した単語の意味を使い、アプリ本体のヘッダーやサイドバーを表示しない専用ページで出題・採点します。</p><div class="form-actions"><button class="btn btn-primary" type="button" onclick="openQuizPage()">クイズを開始</button></div></section>
+                </div>
+
+                <div id="formatPanelMode" class="app-panel" style="display:none;">
+                    <div class="panel-heading"><div><h2>DT-FMT 確認</h2><p>フォーマット定義と指示を読み取り専用で表示します。</p></div><button class="btn btn-secondary" type="button" onclick="showViewMode()">閉じる</button></div>
+                    <div class="format-viewer-controls"><label for="dtFormatSelect">参照するファイル</label><select id="dtFormatSelect" class="form-control" onchange="renderFormatViewer()"><option value="schema">JSON Schema</option><option value="instruction">AI指示</option><option value="template">テンプレート</option><option value="current">現在のデータ</option></select>
+                        <div class="segmented-buttons" role="group" aria-label="表示形式"><button type="button" class="btn-sm active" id="formatRawBtn" onclick="setFormatMode('raw')">Raw</button><button type="button" class="btn-sm" id="formatReadableBtn" onclick="setFormatMode('readable')">見やすい表示</button></div></div>
+                    <div id="dtFormatStatus" class="form-help" aria-live="polite"></div><div id="dtFormatRaw" class="format-raw" style="display:none;"></div><div id="dtFormatReadable" class="format-readable"></div>
+                </div>
+
+
 
                 <div id="signUpPageMode" class="app-panel auth-panel auth-page" style="display:none;">
                     <div class="panel-heading">
@@ -350,6 +361,6 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js" integrity="sha384-BWcjm9OdFth9TbhCxZPdm+gAOUMAzQy9nmTs12ioXdCcbVnJaPMn+fMUoQCLt60R" crossorigin="anonymous"></script>
-    <script src="Nango_main.v02.0.5.js" defer></script>
+    <script src="Nango_main.v02.0.6.js" defer></script>
 </body>
 </html>

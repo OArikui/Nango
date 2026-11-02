@@ -9,10 +9,10 @@
 
 | 項目 | ファイル / バージョン |
 | ---- | ---------------------- |
-| アプリ | v3.1.2 |
-| 画面 (HTML) | `Nango-neo/Nango-neo.v03.1.2.html` |
-| JavaScript | `Nango-neo/Nango_main.v02.0.5.js` |
-| CSS | `Nango-neo/style.v02.8.3.css` |
+| アプリ | v3.1.3 |
+| 画面 (HTML) | `Nango-neo/Nango-neo.v03.1.3.html` |
+| JavaScript | `Nango-neo/Nango_main.v02.0.6.js` |
+| CSS | `Nango-neo/style.v02.8.4.css` |
 | データ形式 (DT-FMT) | `Nango-neo/DTformats.neo.v5.17/`（[仕様](docs/DT-FMT.md)） |
 | ローカルランチャー | `run.py` / `RUN_NANGO.bat`（Python 3.9 以降、標準ライブラリのみ） |
 
@@ -39,7 +39,7 @@ python run.py --no-browser    # ブラウザーを自動で開かない
 
 ### 2. HTML を直接開く
 
-`Nango-neo/Nango-neo.v03.1.2.html` をブラウザーで開いても使えます。この場合の保存先はブラウザーの `localStorage` だけで、
+`Nango-neo/Nango-neo.v03.1.3.html` をブラウザーで開いても使えます。この場合の保存先はブラウザーの `localStorage` だけで、
 同じブラウザー・同じオリジンでしかデータを使えません。ファイルへの自動保存は動作しません。
 
 ### 3. GitHub Pages
@@ -63,7 +63,7 @@ GitHub Pages では未ログイン時はブラウザーの `localStorage`、ロ�
 
 ## 主な機能
 
-- **今日の単語**: 日付に基づいて、毎日同じ語を提示します。
+- **今日の単語**: サイドバー上部から開けます。日付に基づいて、毎日同じ語を提示します。
 - **単語一覧**: 単語・読み・分類・分野タグ・時代タグ・その他タグ・登録日の列で並び替えできます。並び替えた列に連動したグループ表示（頭文字など）、一覧内検索、分類フィルターがあります。
 - **タグ一覧**: タグ名から該当する単語一覧へ移動できます。タグの一括改名・削除に対応します。
 - **検索・階層表示**: 意味・背景・ニュアンス・例文・類義語・タグを横断して全文検索できます。サイドバーは分類・時代・分野で切り替えられます。
@@ -71,7 +71,7 @@ GitHub Pages では未ログイン時はブラウザーの `localStorage`、ロ�
 - **インポート / エクスポート**: 複数 JSON の一括取り込み、JSON の貼り付け取り込み、重複単語のマージと競合確認に対応します（次節）。
 - **AI 入力支援**: 設定の「AIに送るプロンプトをコピー」で、DT-FMT の形式規則と登録済みタグ一覧をまとめてコピーできます。「DT-FMT定義を確認」で形式を画面上でも確認できます。
 - **画面履歴**: 画面上部の「戻る」「進む」でアプリ内の画面を移動できます。一覧から戻るとスクロール位置を復元し、詳細を新しく開くと上端から表示します。サイドバー内の単語切り替えではスクロール位置を維持します。
-- **アカウント登録・メール認証**: 独立した新規登録ページ、確認メールの再送、認証結果の表示に対応します。
+- **アカウント（設定 > アカウント）**: ログイン、クラウド保存、接続設定をまとめています。独立した新規登録ページ、確認メールの再送、認証結果の表示にも対応します。
 - **クイズ**: 登録済みの単語と意味から出題します。単語→意味、意味→単語、混合の3形式に対応し、専用ページで採点と補足説明を表示します。辞書データ自体は変更しません。
 - **ページ上部へ戻る**: 一定量スクロールすると右下に小さなボタンを表示します。
 
@@ -127,6 +127,7 @@ JSON Schema Draft 2020-12 に基づく形式です。単語名を `words` オブ
 
 ```text
 node test_or_future/phase1_smoke.test.js            # アプリのロジック・HTML/CSS の構造
+node test_or_future/quiz_smoke.test.js             # 独立クイズページとアプリの連携
 node test_or_future/docs_consistency.test.js        # README・ランチャー・HTML のバージョン整合とリンク切れ
 python -m unittest test_or_future.test_phase1_format -v   # DT-FMT のスキーマ検証（pip install "jsonschema[format]" が必要）
 python -m unittest test_or_future.test_run_api -v         # ランチャー API の Host / Origin / Content-Type 検査
