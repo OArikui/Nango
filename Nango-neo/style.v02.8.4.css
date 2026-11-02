@@ -681,3 +681,93 @@ hr { border: 0; border-top: 1px solid var(--border-color); }
 .settings-account-page { padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; }
 .synonym-separator { display:inline-flex; align-items:center; margin:0 -5px; padding:0 2px; color:var(--muted-color); font-weight:500; }
 @media (max-width:760px) { .sidebar-today-link { padding:11px 12px; } .settings-nav { gap:6px; } }
+
+
+/* Nango-NEO v3.1.3: keep account and version metadata on one line. */
+.header-meta {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    gap: 8px;
+    min-width: 0;
+}
+.header-account-status {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex: 0 1 auto;
+    gap: 6px;
+    min-width: 0;
+    max-width: min(420px, 62vw);
+}
+.header-account-email {
+    flex: 0 1 auto;
+    max-width: min(280px, 48vw);
+}
+.header-account-badge,
+.header-storage-status {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    padding: 5px 8px;
+    border: 1px solid #cce8d8;
+    border-radius: 999px;
+    background: #f0faf4;
+    color: #24764a;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+.header-account-badge[hidden],
+.header-storage-status[hidden] {
+    display: none !important;
+}
+.header-storage-status.is-error {
+    border-color: #f0c7c1;
+    background: #fff4f2;
+    color: #a43f32;
+}
+.version-chip {
+    flex: 0 0 auto;
+}
+@media (max-width: 760px) {
+    .header-meta {
+        width: 100%;
+        max-width: 100%;
+        flex-direction: row;
+        justify-content: flex-end;
+        gap: 6px;
+    }
+    .header-account-status {
+        max-width: calc(100vw - 165px);
+        gap: 5px;
+    }
+    .header-account-email {
+        max-width: min(240px, 46vw);
+    }
+}
+@media (max-width: 420px) {
+    .header-meta { gap: 4px; }
+    .header-account-status {
+        max-width: calc(100vw - 140px);
+        gap: 4px;
+    }
+    .header-account-email {
+        max-width: calc(100vw - 240px);
+        padding: 5px 7px;
+        font-size: 10px;
+    }
+    .header-account-badge,
+    .header-storage-status {
+        padding: 4px 6px;
+        font-size: 9px;
+    }
+    .version-chip {
+        padding: 5px 6px;
+        font-size: 9px;
+    }
+}
