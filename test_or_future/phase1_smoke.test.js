@@ -68,8 +68,9 @@ assert.match(htmlSource, /id="headerLoginButton"[^>]*onclick="showAuthPanel\(\)"
 assert.match(source, /function updateHeaderAccountStatus\(/, 'header account state is synchronized with authentication');
 assert.match(source, /accountEmail\.hidden = !loggedIn/, 'header email is visible only for signed-in users');
 assert.match(source, /loginButton\.hidden = loggedIn/, 'header login button is visible only for signed-out users');
-assert.match(css, /\.header-account-status/, 'header account status is styled');
-assert.match(css, /\.auth-verification-badge\.is-success/, 'verified email uses compact badge styling');
+const headerStatusCss = fs.readFileSync(cssPath, 'utf8');
+assert.match(headerStatusCss, /\.header-account-status/, 'header account status is styled');
+assert.match(headerStatusCss, /\.auth-verification-badge\.is-success/, 'verified email uses compact badge styling');
 assert.match(htmlSource, /id="privacyPolicyConsent"[^>]*type="checkbox"/, 'sign-up UI includes privacy policy consent');
 assert.match(htmlSource, /href="privacy-policy\.html"[^>]*>プライバシーポリシー/, 'consent links to the privacy policy');
 assert.match(source, /const consent = document\.getElementById\('privacyPolicyConsent'\);\s*if \(!consent \|\| !consent\.checked\) throw new Error\('プライバシーポリシーを読み、同意欄にチェックしてください。'\)/, 'sign-up is blocked without privacy policy consent');
