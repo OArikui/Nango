@@ -23,5 +23,6 @@
 ## 確認
 
 - `node test_or_future/phase1_smoke.test.js`
+- `node test_or_future/quiz_smoke.test.js`
 - `node test_or_future/docs_consistency.test.js`
 - `python -m py_compile run.py`
