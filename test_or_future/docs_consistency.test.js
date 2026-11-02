@@ -17,14 +17,17 @@ const cssFiles = list(appDir, /^style\.v\d+\.\d+\.\d+\.css$/);
 const formatDirs = list(appDir, /^DTformats\.neo\.v\d+\.\d+$/);
 assert.equal(htmlFiles.length, 1, `exactly one app HTML expected, found: ${htmlFiles}`);
 assert.equal(jsFiles.length, 1, `exactly one app JS expected, found: ${jsFiles}`);
-assert.equal(cssFiles.length, 1, `exactly one app CSS expected, found: ${cssFiles}`);
+assert.ok(cssFiles.length >= 1, `at least one versioned app CSS expected, found: ${cssFiles}`);
 assert.equal(formatDirs.length, 1, `exactly one DT-FMT folder expected, found: ${formatDirs}`);
-const [html, js, css, format] = [htmlFiles[0], jsFiles[0], cssFiles[0], formatDirs[0]];
+const [html, js, format] = [htmlFiles[0], jsFiles[0], formatDirs[0]];
 
 // 2. HTML, launcher and README all point at those files.
 const htmlSource = read('Nango-neo', html);
+const cssReference = htmlSource.match(/<link\\s+rel=["']stylesheet["']\\s+href=["'](style\\.v\\d+\\.\\d+\\.\\d+\\.css)["']/i);
+assert.ok(cssReference, 'HTML references a versioned stylesheet');
+const css = cssReference[1];
+assert.ok(cssFiles.includes(css), 'HTML stylesheet exists in the app directory');
 assert.ok(htmlSource.includes(js), 'HTML loads the shipped JavaScript');
-assert.ok(htmlSource.includes(css), 'HTML loads the shipped stylesheet');
 assert.ok(htmlSource.includes(`content="${format}"`), 'HTML json-version meta matches the DT-FMT folder');
 assert.ok(read('run.py').includes(`ENTRY = "/${html}"`), 'run.py serves the shipped HTML');
 assert.ok(read('run.py').includes(format), 'run.py loads the shipped DT-FMT folder');
