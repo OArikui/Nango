@@ -9,8 +9,8 @@ const pickAppFile = (pattern) => {
   assert.equal(matches.length, 1, `exactly one app file matching ${pattern} expected, found: ${matches}`);
   return matches[0];
 };
-const appHtml = read('Nango-neo', pickAppFile(/^Nango-neo\\.v\\d+\\.\\d+\\.\\d+\\.html$/));
-const appJs = read('Nango-neo', pickAppFile(/^Nango_main\\.v\\d+\\.\\d+\\.\\d+\\.js$/));
+const appHtml = read('Nango-neo', pickAppFile(/^Nango-neo\.v\d+\.\d+\.\d+\.html$/));
+const appJs = read('Nango-neo', pickAppFile(/^Nango_main\.v\d+\.\d+\.\d+\.js$/));
 const quizHtml = read('Nango-neo', 'Nango-quiz.v01.0.0.html');
 const quizCss = read('Nango-neo', 'Nango-quiz.v01.0.0.css');
 const quizJs = read('Nango-neo', 'Nango-quiz.v01.0.0.js');
