@@ -9,10 +9,10 @@
 
 | 項目 | ファイル / バージョン |
 | ---- | ---------------------- |
-| アプリ | v3.1.3 |
-| 画面 (HTML) | `Nango-neo/Nango-neo.v03.1.3.html` |
+| アプリ | v3.2.0 |
+| 画面 (HTML) | `Nango-neo/Nango-neo.v03.2.0.html` |
 | JavaScript | `Nango-neo/Nango_main.v02.0.6.js` |
-| CSS | `Nango-neo/style.v02.8.4.css` |
+| CSS | `Nango-neo/style.v02.9.0.css` |
 | データ形式 (DT-FMT) | `Nango-neo/DTformats.neo.v5.17/`（[仕様](docs/DT-FMT.md)） |
 | ローカルランチャー | `run.py` / `RUN_NANGO.bat`（Python 3.9 以降、標準ライブラリのみ） |
 
@@ -37,9 +37,21 @@ python run.py --no-browser    # ブラウザーを自動で開かない
 アプリは `127.0.0.1`（自分の PC）だけで待ち受け、外部ネットワークには公開されません。保存用の API（`/api/*`）は、ランチャーが開いた画面（同じ `127.0.0.1` / `localhost` のオリジン）からの `application/json` の要求だけを受け付け、他のサイトからは書き込めません。
 この方法で起動すると、辞書は `user_data/nango_data.json` にも自動保存されます。詳しくは [docs/RUN_WITH_PYTHON.md](docs/RUN_WITH_PYTHON.md) を参照してください。
 
+
+### 4. iPhone / iPad（Safari・ホーム画面）
+
+Nango は iOS 向けに PWA（ホーム画面から起動できる Web アプリ）として利用できます。App Store からインストールするネイティブアプリではなく、Safari で開く Web アプリです。
+
+1. iPhone または iPad の Safari で GitHub Pages の Nango を開きます。
+2. 共有メニューを開き、「ホーム画面に追加」を選びます。
+3. 「Webアプリとして開く」が表示される場合は有効にし、「追加」を選びます。
+4. ホーム画面の Nango アイコンから起動します。
+
+アプリ画面と辞書データ形式ファイルは Service Worker でキャッシュします。オフライン中はキャッシュ済みの画面を開けますが、Supabase のログイン・同期にはインターネット接続が必要です。認証情報、Supabase の応答、辞書データの API 通信はキャッシュ対象にしません。未ログイン時の辞書データは既存どおりブラウザーの `localStorage` に保存されます。
+
 ### 2. HTML を直接開く
 
-`Nango-neo/Nango-neo.v03.1.3.html` をブラウザーで開いても使えます。この場合の保存先はブラウザーの `localStorage` だけで、
+`Nango-neo/Nango-neo.v03.2.0.html` をブラウザーで開いても使えます。この場合の保存先はブラウザーの `localStorage` だけで、
 同じブラウザー・同じオリジンでしかデータを使えません。ファイルへの自動保存は動作しません。
 
 ### 3. GitHub Pages
