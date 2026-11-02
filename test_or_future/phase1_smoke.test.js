@@ -356,7 +356,7 @@ assert.equal(pwaManifest.lang, 'ja', 'manifest declares the Japanese interface l
 assert.ok(pwaManifest.icons.some((icon) => icon.src === 'nango-logo.svg' && icon.type === 'image/svg+xml'), 'manifest uses the Nango vector icon');
 assert.ok(serviceWorker.includes("if (request.method !== 'GET') return;"), 'service worker ignores non-GET requests');
 assert.ok(serviceWorker.includes('if (url.origin !== scopeUrl.origin) return;'), 'service worker ignores cross-origin requests');
-assert.ok(serviceWorker.includes('/api(?:\\/|$)/'), 'service worker excludes local data API requests');
+assert.ok(serviceWorker.includes("if (scopedPath === 'api' || scopedPath.startsWith('api/'))"), 'service worker excludes local data API requests');
 assert.ok(serviceWorker.includes('await cache.addAll(assets)'), 'service worker pre-caches the app shell');
 assert.ok(serviceWorker.includes('Network-first'), 'navigation uses a network-first strategy with offline fallback');
 assert.ok(serviceWorker.includes('Cache-first'), 'static assets use a cache-first strategy');
