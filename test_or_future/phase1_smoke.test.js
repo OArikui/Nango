@@ -303,6 +303,7 @@ assert.ok(source.includes("showAuxPanel('settingsPanelMode', 'settingsAccount', 
 assert.ok(source.includes("sidebar.style.display = detailVisible ? '' : 'none'"), 'sidebar is hidden outside the detail screen, including settings');
 assert.ok(source.includes('function updateTodaysWordSidebar()'), 'sidebar renders a clickable daily-word entry');
 assert.ok(source.includes('synonym-separator'), 'synonym lists include separators between adjacent terms');
+assert.ok(source.includes('aria-hidden="true">|</span>'), 'synonym terms are separated by a vertical bar');
 assert.ok(css.includes('.sidebar-today-section'), 'daily-word sidebar section is styled');
 assert.ok(css.includes('.settings-nav'), 'settings sub-navigation is styled');
 assert.ok(html.includes('id="todaysWordButton"'), 'daily word is opened from the sidebar');
