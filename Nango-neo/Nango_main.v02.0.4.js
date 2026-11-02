@@ -10,7 +10,7 @@ const SETTINGS_DEFAULTS = { showGeminiNote: true, defaultDisplayMode: 'word' };
 const LOCAL_DATA_API = '/api/data';
 let serverSaveQueue = Promise.resolve();
 let serverStorageAvailable = false;
-const PANEL_IDS = ['viewMode', 'editMode', 'managePanelMode', 'pastePanelMode', 'wordListMode', 'settingsPanelMode', 'toolsPanelMode', 'formatPanelMode', 'authPanelMode'];
+const PANEL_IDS = ['viewMode', 'editMode', 'managePanelMode', 'pastePanelMode', 'wordListMode', 'settingsPanelMode', 'toolsPanelMode', 'formatPanelMode', 'authPanelMode', 'signUpPageMode', 'emailVerificationPanelMode'];
 // Static copies of the DT-FMT files (served by run.py and GitHub Pages alike).
 // docs_consistency.test.js checks that these paths exist and match FORMAT_VERSION.
 const FORMAT_FILE_PATHS = {
@@ -184,6 +184,18 @@ function restoreAppNavigation(state) {
         showFormatPanel(false);
     } else if (state.screen === 'auth') {
         showAuthPanel(false);
+    } else if (state.screen === 'signUp') {
+        showSignUpPage(false);
+    } else if (state.screen === 'emailVerification') {
+        const pendingEmail = localStorage.getItem(SIGNUP_PENDING_EMAIL_KEY) || '';
+        showEmailVerificationResultPage(
+            hasVerifiedEmail(authUser),
+            authUser && authUser.email || pendingEmail,
+            hasVerifiedEmail(authUser)
+                ? 'このアカウントのメールアドレスは認証済みです。'
+                : 'メール内の確認リンクを開くと、認証結果がこの画面に表示されます。',
+            false
+        );
     } else if (state.screen === 'wordList' || state.screen === 'tagWords') {
         $('wordListMode').style.display = 'block';
         $('wordListSearch').value = state.wordListSearch || '';
@@ -454,12 +466,30 @@ async function initApp() {
     initializeSupabaseClientFromStoredConfig();
     registerSupabaseAuthListener();
     const browserSavedData = localStorage.getItem(STORAGE_KEY);
+    let pendingSignupEmail = '';
+    try { pendingSignupEmail = localStorage.getItem(SIGNUP_PENDING_EMAIL_KEY) || ''; } catch (_) {}
+    const signupCallbackDetected = /(?:[?&]type=signup\b|[?&]code=|access_token=|type=signup)/i.test(location.search + location.hash);
+    let emailVerificationLanding = null;
     let savedData = browserSavedData, cloudLoaded = false;
     if (supabaseClient) {
         try {
             const sessionResult = await supabaseClient.auth.getSession();
             if (sessionResult.error) throw sessionResult.error;
             authUser = sessionResult.data && sessionResult.data.session ? sessionResult.data.session.user : null;
+            if (authUser && ((pendingSignupEmail && pendingSignupEmail.toLocaleLowerCase() === (authUser.email || '').toLocaleLowerCase()) || signupCallbackDetected)) {
+                try {
+                    const latestUserResult = await supabaseClient.auth.getUser();
+                    if (!latestUserResult.error && latestUserResult.data && latestUserResult.data.user) {
+                        authUser = latestUserResult.data.user;
+                    }
+                } catch (verificationError) {
+                    console.warn('メール認証状態を取得できませんでした:', verificationError);
+                }
+                if (hasVerifiedEmail(authUser)) {
+                    emailVerificationLanding = { email: authUser.email || pendingSignupEmail };
+                    try { localStorage.removeItem(SIGNUP_PENDING_EMAIL_KEY); } catch (_) {}
+                }
+            }
             if (authUser) {
                 authSyncMode = 'pending';
                 try {
@@ -517,6 +547,21 @@ async function initApp() {
     renderSidebarTree();
     if (wordData.length) showTodaysWord(); else showViewMode();
     refreshAuthPanel();
+    if (emailVerificationLanding) {
+        showEmailVerificationResultPage(
+            true,
+            emailVerificationLanding.email,
+            'メール内の確認リンクから戻りました。Supabase Auth でメール認証済みであることを確認しました。',
+            false
+        );
+    } else if (pendingSignupEmail) {
+        showEmailVerificationResultPage(
+            false,
+            pendingSignupEmail,
+            '登録後の確認待ちです。メール内の確認リンクを開くと、認証結果がここに表示されます。',
+            false
+        );
+    }
     if (authUser && authSyncMode === 'cloud') showStorageStatus('Supabase クラウドに接続中');
     else if (authUser && authSyncMode === 'pending') showStorageStatus('クラウド同期を保留中（ローカル保存）', true);
     else if (serverStorageAvailable) showStorageStatus('ローカルファイル保存を使用中');
@@ -1863,6 +1908,7 @@ async function renderFormatViewer() {
 
 
 const SUPABASE_CONFIG_KEY = 'nango_supabase_config_v1';
+const SIGNUP_PENDING_EMAIL_KEY = 'nango_signup_pending_email_v1';
 const SUPABASE_TABLE = 'nango_user_data';
 let supabaseClient = null, supabaseClientConfigSignature = '', supabaseAuthSubscription = null;
 let authUser = null, authSyncMode = 'local', authStatusMessage = '';
@@ -1929,7 +1975,26 @@ function registerSupabaseAuthListener() {
     const result = supabaseClient.auth.onAuthStateChange((event, session) => {
         if (event === 'INITIAL_SESSION') return;
         if (event === 'SIGNED_OUT') { if (authUser) handleSignedOut(); return; }
-        if (session && session.user && (!authUser || authUser.id !== session.user.id)) Promise.resolve().then(() => activateAuthenticatedUser(session.user));
+        if (session && session.user) {
+            const sessionUser = session.user;
+            if (!authUser || authUser.id !== sessionUser.id) {
+                Promise.resolve().then(() => activateAuthenticatedUser(sessionUser));
+            } else {
+                authUser = sessionUser;
+                refreshAuthPanel();
+            }
+            let pendingEmail = '';
+            try { pendingEmail = localStorage.getItem(SIGNUP_PENDING_EMAIL_KEY) || ''; } catch (_) {}
+            if (pendingEmail && pendingEmail.toLocaleLowerCase() === (sessionUser.email || '').toLocaleLowerCase() && hasVerifiedEmail(sessionUser)) {
+                try { localStorage.removeItem(SIGNUP_PENDING_EMAIL_KEY); } catch (_) {}
+                Promise.resolve().then(() => showEmailVerificationResultPage(
+                    true,
+                    sessionUser.email,
+                    '確認リンクから戻りました。Supabase Auth でメール認証済みであることを確認しました。',
+                    false
+                ));
+            }
+        }
     });
     supabaseAuthSubscription = result && result.data ? result.data.subscription : null;
 }
@@ -1937,6 +2002,56 @@ function setAuthStatus(message) {
     authStatusMessage = String(message || '');
     const status = document.getElementById('authStatus');
     if (status) status.textContent = authStatusMessage;
+}
+function hasVerifiedEmail(user) {
+    return Boolean(user && user.email_confirmed_at);
+}
+function updateEmailVerificationStatus() {
+    const status = document.getElementById('authEmailVerificationStatus');
+    if (!status) return;
+    if (!authUser) {
+        status.textContent = 'メール認証: 未ログイン';
+        status.className = 'auth-status';
+    } else if (hasVerifiedEmail(authUser)) {
+        status.textContent = 'メール認証: 認証済み';
+        status.className = 'auth-status is-success';
+    } else {
+        status.textContent = 'メール認証: 未認証';
+        status.className = 'auth-status is-pending';
+    }
+}
+function setSignUpStatus(message) {
+    const status = document.getElementById('signUpStatus');
+    if (status) status.textContent = String(message || '');
+}
+function showSignUpPage(recordHistory = true) {
+    showAuxPanel('signUpPageMode', 'signUp', recordHistory);
+    const loginEmail = document.getElementById('authEmail');
+    const signupEmail = document.getElementById('signUpEmail');
+    if (signupEmail && !signupEmail.value && loginEmail && loginEmail.value.trim()) {
+        signupEmail.value = loginEmail.value.trim();
+    }
+    if (signupEmail && !signupEmail.value) {
+        try { signupEmail.value = localStorage.getItem(SIGNUP_PENDING_EMAIL_KEY) || ''; } catch (_) {}
+    }
+    setSignUpStatus('');
+}
+function showEmailVerificationResultPage(verified, email, message, recordHistory = true) {
+    showAuxPanel('emailVerificationPanelMode', 'emailVerification', recordHistory);
+    const title = document.getElementById('emailVerificationResultTitle');
+    const emailLabel = document.getElementById('emailVerificationEmail');
+    const status = document.getElementById('emailVerificationResultStatus');
+    const messageLabel = document.getElementById('emailVerificationResultMessage');
+    const resendButton = document.getElementById('resendSignupConfirmationBtn');
+    if (title) title.textContent = verified ? 'メール認証が完了しました' : 'メール認証待ちです';
+    if (emailLabel) emailLabel.textContent = email || '未指定';
+    if (status) {
+        status.textContent = verified ? '認証済み' : '未認証・確認待ち';
+        status.className = 'auth-status ' + (verified ? 'is-success' : 'is-pending');
+    }
+    if (messageLabel) messageLabel.textContent = message || '';
+    if (resendButton) resendButton.style.display = verified ? 'none' : 'inline-flex';
+    updateEmailVerificationStatus();
 }
 function getSupabaseRedirectUrl() { return window.location.origin + window.location.pathname; }
 async function fetchCloudRow(userId) {
@@ -2041,19 +2156,63 @@ async function signInToNango() {
 async function signUpToNango() {
     try {
         const client = ensureSupabaseClient(); registerSupabaseAuthListener();
-        const email = document.getElementById('authEmail').value.trim(), password = document.getElementById('authPassword').value;
+        const email = document.getElementById('signUpEmail').value.trim();
+        const password = document.getElementById('signUpPassword').value;
+        const passwordConfirm = document.getElementById('signUpPasswordConfirm').value;
         if (!email || !password) throw new Error('メールアドレスとパスワードを入力してください。');
         if (password.length < 8) throw new Error('パスワードは8文字以上にしてください。');
+        if (password !== passwordConfirm) throw new Error('確認用パスワードが一致しません。');
         const consent = document.getElementById('privacyPolicyConsent');
         if (!consent || !consent.checked) throw new Error('プライバシーポリシーを読み、同意欄にチェックしてください。');
-        setAuthStatus('アカウントを作成しています…');
-        const result = await client.auth.signUp({ email, password, options: { emailRedirectTo: getSupabaseRedirectUrl() } });
+        setSignUpStatus('アカウントを作成しています…');
+        const result = await client.auth.signUp({
+            email,
+            password,
+            options: { emailRedirectTo: getSupabaseRedirectUrl() }
+        });
         if (result.error) throw result.error;
-        if (result.data && result.data.session && result.data.user) {
-            await activateAuthenticatedUser(result.data.user);
-            setAuthStatus('アカウントを作成し、ログインしました。');
-        } else setAuthStatus('登録を受け付けました。メール確認を有効にしている場合は確認メールを開いてください。');
-    } catch (error) { setAuthStatus('アカウントを作成できませんでした: ' + error.message); }
+        const user = result.data && result.data.user;
+        if (!user) throw new Error('Supabase Auth からユーザー情報を取得できませんでした。');
+        if (result.data.session) {
+            try { localStorage.removeItem(SIGNUP_PENDING_EMAIL_KEY); } catch (_) {}
+            await activateAuthenticatedUser(user);
+            showEmailVerificationResultPage(
+                hasVerifiedEmail(user),
+                email,
+                hasVerifiedEmail(user)
+                    ? 'アカウントを作成しました。Supabase Auth でメール認証済みであることを確認しました。'
+                    : 'アカウントを作成しましたが、メール認証はまだ確認できません。認証後に状態を確認してください。'
+            );
+        } else {
+            try { localStorage.setItem(SIGNUP_PENDING_EMAIL_KEY, email); } catch (_) {}
+            showEmailVerificationResultPage(
+                false,
+                email,
+                '登録リクエストを受け付けました。入力したアドレス宛の確認メールを開いてください。メールが見当たらない場合は、迷惑メールフォルダーも確認してください。'
+            );
+        }
+    } catch (error) {
+        setSignUpStatus('アカウントを作成できませんでした: ' + error.message);
+    }
+}
+async function resendSignupConfirmationEmail() {
+    try {
+        const emailField = document.getElementById('emailVerificationEmail');
+        const email = (emailField && emailField.textContent.trim()) || localStorage.getItem(SIGNUP_PENDING_EMAIL_KEY) || '';
+        if (!email || email === '未指定') throw new Error('確認メールを再送するメールアドレスを確認できません。');
+        const client = ensureSupabaseClient();
+        const result = await client.auth.resend({
+            type: 'signup',
+            email,
+            options: { emailRedirectTo: getSupabaseRedirectUrl() }
+        });
+        if (result.error) throw result.error;
+        try { localStorage.setItem(SIGNUP_PENDING_EMAIL_KEY, email); } catch (_) {}
+        showEmailVerificationResultPage(false, email, '確認メールの再送リクエストを受け付けました。メールボックスを確認してください。', false);
+    } catch (error) {
+        const email = document.getElementById('emailVerificationEmail')?.textContent.trim() || '';
+        showEmailVerificationResultPage(false, email, '確認メールを再送できませんでした: ' + error.message, false);
+    }
 }
 async function signOutOfNango() {
     try {
@@ -2106,6 +2265,7 @@ function refreshAuthPanel() {
     if (loggedIn) loggedIn.style.display = authUser ? 'block' : 'none';
     if (cloudActions) cloudActions.style.display = authUser ? 'block' : 'none';
     if (accountLabel) accountLabel.textContent = authUser ? (authUser.email || 'ログイン中') : '未ログイン';
+    updateEmailVerificationStatus();
     if (retryButton) retryButton.style.display = authUser && authSyncMode !== 'cloud' ? 'inline-flex' : 'none';
     if (!authStatusMessage) {
         if (!config.url || !config.key) setAuthStatus('未設定です。Supabase プロジェクト URL と公開用キーを設定してください。');
