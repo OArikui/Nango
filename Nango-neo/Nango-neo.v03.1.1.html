@@ -4,13 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="app-name" content="© 2026 Nango-neo (base: v3.10) - Version 3.1.0">
-    <meta name="html-version" content="neo.v03.1.0">
+    <meta name="app-name" content="© 2026 Nango-neo (base: v3.10) - Version 3.1.1">
+    <meta name="html-version" content="neo.v03.1.1">
     <meta name="json-version" content="DTformats.neo.v5.17">
-    <meta name="javascript-version" content="v02.0.3">
+    <meta name="javascript-version" content="v02.0.4">
     <title>Nango-neo — Phase 1</title>
     <link rel="icon" type="image/svg+xml" href="nango-logo.svg">
-    <link rel="stylesheet" href="style.v02.8.1.css">
+    <link rel="stylesheet" href="style.v02.8.2.css">
 </head>
 
 <body>
@@ -23,7 +23,7 @@
                 <h1>難語データビューアー <span>Pro</span></h1>
                 <p class="brand-subtitle">言葉を集め、意味をつなぎ、知識を育てる。</p>
             </div>
-            <div class="version-chip">NANGO-NEO <strong>v3.1.0</strong></div>
+            <div class="version-chip">NANGO-NEO <strong>v3.1.1</strong></div>
         </header>
 
         <p class="release-disclaimer" role="note" style="margin: 0 0 18px; padding: 10px 14px; border: 1px solid #e5c98b; border-radius: 8px; background: #fff8e8; color: #76551b; font-size: 0.9rem;">
@@ -227,7 +227,7 @@
 
                 <div id="authPanelMode" class="app-panel auth-panel" style="display:none;">
                     <div class="panel-heading">
-                        <div><h2>アカウントとクラウド保存</h2><p>未ログイン時は従来どおりローカル保存、ログイン中は Supabase に辞書を保存します。</p></div>
+                        <div><h2>アカウント</h2><p>ログインとクラウド保存を管理します。</p></div>
                         <button class="btn btn-secondary" type="button" onclick="showViewMode()">閉じる</button>
                     </div>
                     <section class="settings-section auth-section">
@@ -244,17 +244,17 @@
                         <p class="form-help">既定の接続先は Nango-neo/supabase-config.json で管理します。この画面で保存した値は、このブラウザーだけの上書き設定として localStorage に保存されます。</p>
                     </section>
                     <section class="settings-section auth-section">
-                        <h3>アカウント</h3>
+                        <h3>ログイン</h3>
                         <p class="auth-account-label">状態: <strong id="authAccountLabel">未ログイン</strong></p>
+                        <p id="authEmailVerificationStatus" class="auth-status" role="status" aria-live="polite">メール認証: 未ログイン</p>
                         <div id="authLoggedOutControls">
                             <label for="authEmail">メールアドレス</label>
                             <input id="authEmail" class="form-control" type="email" autocomplete="username" placeholder="name@example.com">
-                            <label for="authPassword">パスワード（8文字以上）</label>
+                            <label for="authPassword">パスワード</label>
                             <input id="authPassword" class="form-control" type="password" autocomplete="current-password" placeholder="パスワード">
-                            <label class="privacy-consent" for="privacyPolicyConsent"><input id="privacyPolicyConsent" type="checkbox"> <a href="privacy-policy.html" target="_blank" rel="noopener noreferrer">プライバシーポリシー</a>を読み、内容に同意します。</label>
                             <div class="form-actions">
                                 <button class="btn btn-primary" type="button" onclick="signInToNango()">ログイン</button>
-                                <button class="btn btn-secondary" type="button" onclick="signUpToNango()">新規登録</button>
+                                <button class="btn btn-secondary" type="button" onclick="showSignUpPage()">新規登録はこちら</button>
                             </div>
                         </div>
                         <div id="authLoggedInControls" style="display:none;">
@@ -267,13 +267,52 @@
                     </section>
                     <section id="authCloudActions" class="settings-section auth-section" style="display:none;">
                         <h3>データの切り替え</h3>
-                        <p class="form-help">ログイン前の localStorage データは、クラウドデータで置き換えずにブラウザー内に残します。クラウド側が空の場合は、現在の辞書を初回データとして登録します。</p>
+                        <p class="form-help">ログイン前の localStorage データは、クラウドデータで置き換えずにブラウザー内に残します。クラウド側が空の場合は、現在の辞書を初期データとして登録します。</p>
                         <div class="form-actions">
                             <button id="retryCloudConnectionBtn" class="btn btn-secondary" type="button" onclick="retryCloudConnection()" style="display:none;">クラウド再接続</button>
                             <button class="btn btn-secondary" type="button" onclick="reloadCloudDocument()">クラウドから再読込</button>
                             <button class="btn btn-secondary" type="button" onclick="copyLocalDocumentToCloud()">ローカル辞書でクラウドを置き換える</button>
                         </div>
                         <p class="form-help">ローカル辞書のコピー操作はクラウド上の辞書を置き換えるため、実行前に確認を表示します。別アカウントのデータは RLS により分離されます。</p>
+                    </section>
+                </div>
+
+                <div id="signUpPageMode" class="app-panel auth-panel auth-page" style="display:none;">
+                    <div class="panel-heading">
+                        <div><h2>アカウント新規登録</h2><p>登録後、メールアドレスの確認を行います。</p></div>
+                        <button class="btn btn-secondary" type="button" onclick="showAuthPanel()">ログインへ戻る</button>
+                    </div>
+                    <section class="settings-section auth-section">
+                        <p class="form-help">メールアドレスとパスワードを登録してください。パスワードは8文字以上で、確認欄にも同じ内容を入力します。</p>
+                        <label for="signUpEmail">メールアドレス</label>
+                        <input id="signUpEmail" class="form-control" type="email" autocomplete="email" required placeholder="name@example.com">
+                        <label for="signUpPassword">パスワード（8文字以上）</label>
+                        <input id="signUpPassword" class="form-control" type="password" autocomplete="new-password" minlength="8" required placeholder="パスワード">
+                        <label for="signUpPasswordConfirm">パスワード（確認）</label>
+                        <input id="signUpPasswordConfirm" class="form-control" type="password" autocomplete="new-password" minlength="8" required placeholder="もう一度入力">
+                        <label class="privacy-consent" for="privacyPolicyConsent"><input id="privacyPolicyConsent" type="checkbox" required> <a href="privacy-policy.html" target="_blank" rel="noopener noreferrer">プライバシーポリシー</a>を読み、内容に同意します。</label>
+                        <div class="form-actions">
+                            <button class="btn btn-primary" type="button" onclick="signUpToNango()">登録する</button>
+                            <button class="btn btn-secondary" type="button" onclick="showAuthPanel()">ログイン画面に戻る</button>
+                        </div>
+                        <p id="signUpStatus" class="auth-status" role="status" aria-live="polite"></p>
+                    </section>
+                </div>
+
+                <div id="emailVerificationPanelMode" class="app-panel auth-panel auth-verification-page" style="display:none;">
+                    <div class="panel-heading">
+                        <div><h2>メール認証結果</h2><p>Supabase Auth から取得したアカウントの認証状態を表示します。</p></div>
+                        <button class="btn btn-secondary" type="button" onclick="showAuthPanel()">アカウントへ戻る</button>
+                    </div>
+                    <section class="settings-section auth-section">
+                        <p id="emailVerificationResultTitle" class="auth-result-title">メール認証待ちです</p>
+                        <p>対象メールアドレス: <strong id="emailVerificationEmail"></strong></p>
+                        <p id="emailVerificationResultStatus" class="auth-status is-pending" role="status" aria-live="polite">未認証・確認待ち</p>
+                        <p id="emailVerificationResultMessage" class="form-help"></p>
+                        <div class="form-actions">
+                            <button id="resendSignupConfirmationBtn" class="btn btn-secondary" type="button" onclick="resendSignupConfirmationEmail()">確認メールを再送</button>
+                            <button class="btn btn-primary" type="button" onclick="showAuthPanel()">アカウント画面へ</button>
+                        </div>
                     </section>
                 </div>
 
@@ -306,6 +345,6 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js" integrity="sha384-BWcjm9OdFth9TbhCxZPdm+gAOUMAzQy9nmTs12ioXdCcbVnJaPMn+fMUoQCLt60R" crossorigin="anonymous"></script>
-    <script src="Nango_main.v02.0.3.js" defer></script>
+    <script src="Nango_main.v02.0.4.js" defer></script>
 </body>
 </html>

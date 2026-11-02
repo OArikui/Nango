@@ -605,3 +605,45 @@ hr { border: 0; border-top: 1px solid var(--border-color); }
 @media (max-width: 760px) {
     .back-to-top { right: 12px; bottom: 12px; width: 36px; height: 36px; }
 }
+
+
+/* Dedicated account registration and email verification pages. */
+.auth-page,
+.auth-verification-page { max-width: 680px; }
+.auth-page .auth-section,
+.auth-verification-page .auth-section { gap: 12px; }
+.auth-page input[type="email"],
+.auth-page input[type="password"] { width: 100%; min-width: 0; }
+.auth-page .privacy-consent {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-top: 8px;
+    color: var(--text-color);
+    font-size: 13px;
+    line-height: 1.6;
+}
+.auth-page .privacy-consent input { flex: 0 0 auto; margin-top: 4px; }
+.auth-status.is-success {
+    border-color: #a7dfbd;
+    background: #effaf3;
+    color: #176b3a;
+}
+.auth-status.is-pending {
+    border-color: #e8cc91;
+    background: #fff9eb;
+    color: #78561b;
+}
+.auth-result-title {
+    margin: 4px 0 0;
+    color: var(--primary-color);
+    font-size: 1.2rem;
+    font-weight: 800;
+}
+.auth-verification-page strong { overflow-wrap: anywhere; }
+@media (max-width:760px) {
+    .auth-page .form-actions,
+    .auth-verification-page .form-actions { align-items: stretch; }
+    .auth-page .form-actions .btn,
+    .auth-verification-page .form-actions .btn { flex: 1 1 100%; }
+}

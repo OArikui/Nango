@@ -9,17 +9,17 @@
 
 | 項目 | ファイル / バージョン |
 | ---- | ---------------------- |
-| アプリ | v3.1.0 |
-| 画面 (HTML) | `Nango-neo/Nango-neo.v03.1.0.html` |
-| JavaScript | `Nango-neo/Nango_main.v02.0.3.js` |
-| CSS | `Nango-neo/style.v02.8.1.css` |
+| アプリ | v3.1.1 |
+| 画面 (HTML) | `Nango-neo/Nango-neo.v03.1.1.html` |
+| JavaScript | `Nango-neo/Nango_main.v02.0.4.js` |
+| CSS | `Nango-neo/style.v02.8.2.css` |
 | データ形式 (DT-FMT) | `Nango-neo/DTformats.neo.v5.17/`（[仕様](docs/DT-FMT.md)） |
 | ローカルランチャー | `run.py` / `RUN_NANGO.bat`（Python 3.9 以降、標準ライブラリのみ） |
 
 JavaScript と CSS は、内容が変わったときだけ番号が上がります。そのためアプリのバージョンとファイル番号は一致しません。
 バージョンの付け方は [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)、変更履歴は [docs/neo-versions.md](docs/neo-versions.md) と [docs/releases/](docs/releases/) を参照してください。
 
-Supabase Auth + RLS によるアカウント同期にも対応しています（GitHub Pages 対応）。初期設定は [Supabase Auth 設定手順](docs/SUPABASE_AUTH.md) を参照してください。利用者向けの [プライバシーポリシー](Nango-neo/privacy-policy.html) も公開しています。
+Supabase Auth + RLS によるアカウント同期にも対応しています（GitHub Pages 対応）。独立した新規登録ページ、確認メールの再送、メール認証結果の表示に対応しています。初期設定は [Supabase Auth 設定手順](docs/SUPABASE_AUTH.md) を参照してください。利用者向けの [プライバシーポリシー](Nango-neo/privacy-policy.html) も公開しています。
 
 ## 起動方法
 
@@ -39,7 +39,7 @@ python run.py --no-browser    # ブラウザーを自動で開かない
 
 ### 2. HTML を直接開く
 
-`Nango-neo/Nango-neo.v03.1.0.html` をブラウザーで開いても使えます。この場合の保存先はブラウザーの `localStorage` だけで、
+`Nango-neo/Nango-neo.v03.1.1.html` をブラウザーで開いても使えます。この場合の保存先はブラウザーの `localStorage` だけで、
 同じブラウザー・同じオリジンでしかデータを使えません。ファイルへの自動保存は動作しません。
 
 ### 3. GitHub Pages
@@ -71,6 +71,7 @@ GitHub Pages では未ログイン時はブラウザーの `localStorage`、ロ�
 - **インポート / エクスポート**: 複数 JSON の一括取り込み、JSON の貼り付け取り込み、重複単語のマージと競合確認に対応します（次節）。
 - **AI 入力支援**: 設定の「AIに送るプロンプトをコピー」で、DT-FMT の形式規則と登録済みタグ一覧をまとめてコピーできます。「DT-FMT定義を確認」で形式を画面上でも確認できます。
 - **画面履歴**: 画面上部の「戻る」「進む」でアプリ内の画面を移動できます。一覧から戻るとスクロール位置を復元し、詳細を新しく開くと上端から表示します。サイドバー内の単語切り替えではスクロール位置を維持します。
+- **アカウント登録・メール認証**: 独立した新規登録ページ、確認メールの再送、認証結果の表示に対応します。
 - **クイズ**: 登録済みの単語と意味から出題します。単語→意味、意味→単語、混合の3形式に対応し、専用ページで採点と補足説明を表示します。辞書データ自体は変更しません。
 - **ページ上部へ戻る**: 一定量スクロールすると右下に小さなボタンを表示します。
 

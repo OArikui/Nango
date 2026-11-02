@@ -58,9 +58,17 @@ assert.match(privacyPolicy, /プライバシーポリシー/, 'published privacy
 assert.match(privacyPolicy, /localStorage/, 'privacy policy describes local storage');
 assert.match(privacyPolicy, /Supabase/, 'privacy policy describes cloud processing');
 assert.match(htmlSource, /id="authPanelMode"/, 'account and login panel is included');
+assert.match(htmlSource, /id="signUpPageMode"/, 'standalone sign-up page is included');
+assert.match(htmlSource, /id="emailVerificationPanelMode"/, 'email verification result page is included');
+assert.match(htmlSource, /onclick="showSignUpPage\(\)"/, 'account panel links to the sign-up page');
+assert.match(htmlSource, /id="authEmailVerificationStatus"/, 'account panel shows email verification state');
 assert.match(htmlSource, /id="privacyPolicyConsent"[^>]*type="checkbox"/, 'sign-up UI includes privacy policy consent');
 assert.match(htmlSource, /href="privacy-policy\.html"[^>]*>プライバシーポリシー/, 'consent links to the privacy policy');
 assert.match(source, /const consent = document\.getElementById\('privacyPolicyConsent'\);\s*if \(!consent \|\| !consent\.checked\) throw new Error\('プライバシーポリシーを読み、同意欄にチェックしてください。'\)/, 'sign-up is blocked without privacy policy consent');
+assert.match(source, /signUpPasswordConfirm/, 'sign-up validates password confirmation');
+assert.match(source, /email_confirmed_at/, 'email verification status uses Supabase confirmation timestamp');
+assert.match(source, /auth\.resend\(\s*\{\s*type: 'signup'/, 'signup confirmation email can be resent');
+assert.match(source, /SIGNUP_PENDING_EMAIL_KEY/, 'pending signup email is retained until verification');
 assert.match(supabaseSql, /enable row level security/i, 'RLS is enabled for the personal data table');
 assert.match(supabaseSql, /auth\.uid\(\)[\s\S]*?user_id/i, 'policies scope row access to the authenticated user');
 for (const action of ['select', 'insert', 'update', 'delete']) {
