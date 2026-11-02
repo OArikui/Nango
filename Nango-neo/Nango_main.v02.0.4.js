@@ -1977,8 +1977,9 @@ function registerSupabaseAuthListener() {
         if (event === 'SIGNED_OUT') { if (authUser) handleSignedOut(); return; }
         if (session && session.user) {
             const sessionUser = session.user;
+            let activationPromise = Promise.resolve();
             if (!authUser || authUser.id !== sessionUser.id) {
-                Promise.resolve().then(() => activateAuthenticatedUser(sessionUser));
+                activationPromise = Promise.resolve().then(() => activateAuthenticatedUser(sessionUser));
             } else {
                 authUser = sessionUser;
                 refreshAuthPanel();
@@ -1987,7 +1988,7 @@ function registerSupabaseAuthListener() {
             try { pendingEmail = localStorage.getItem(SIGNUP_PENDING_EMAIL_KEY) || ''; } catch (_) {}
             if (pendingEmail && pendingEmail.toLocaleLowerCase() === (sessionUser.email || '').toLocaleLowerCase() && hasVerifiedEmail(sessionUser)) {
                 try { localStorage.removeItem(SIGNUP_PENDING_EMAIL_KEY); } catch (_) {}
-                Promise.resolve().then(() => showEmailVerificationResultPage(
+                activationPromise.then(() => showEmailVerificationResultPage(
                     true,
                     sessionUser.email,
                     '確認リンクから戻りました。Supabase Auth でメール認証済みであることを確認しました。',
