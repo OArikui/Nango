@@ -39,7 +39,7 @@ python run.py --no-browser    # ブラウザーを自動で開かない
 
 ### 2. HTML を直接開く
 
-`Nango-neo/Nango-neo.v03.0.2.html` をブラウザーで開いても使えます。この場合の保存先はブラウザーの `localStorage` だけで、
+`Nango-neo/Nango-neo.v03.1.0.html` をブラウザーで開いても使えます。この場合の保存先はブラウザーの `localStorage` だけで、
 同じブラウザー・同じオリジンでしかデータを使えません。ファイルへの自動保存は動作しません。
 
 ### 3. GitHub Pages
