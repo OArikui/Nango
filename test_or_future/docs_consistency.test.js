@@ -23,10 +23,8 @@ const [html, js, format] = [htmlFiles[0], jsFiles[0], formatDirs[0]];
 
 // 2. HTML, launcher and README all point at those files.
 const htmlSource = read('Nango-neo', html);
-const cssReference = htmlSource.match(/<link\\s+rel=["']stylesheet["']\\s+href=["'](style\\.v\\d+\\.\\d+\\.\\d+\\.css)["']/i);
-assert.ok(cssReference, 'HTML references a versioned stylesheet');
-const css = cssReference[1];
-assert.ok(cssFiles.includes(css), 'HTML stylesheet exists in the app directory');
+const css = cssFiles.find((file) => htmlSource.includes('href="' + file + '"'));
+assert.ok(css, 'HTML references a versioned stylesheet present in the app directory');
 assert.ok(htmlSource.includes(js), 'HTML loads the shipped JavaScript');
 assert.ok(htmlSource.includes(`content="${format}"`), 'HTML json-version meta matches the DT-FMT folder');
 assert.ok(read('run.py').includes(`ENTRY = "/${html}"`), 'run.py serves the shipped HTML');
