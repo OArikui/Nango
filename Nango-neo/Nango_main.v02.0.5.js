@@ -2011,15 +2011,30 @@ function updateEmailVerificationStatus() {
     const status = document.getElementById('authEmailVerificationStatus');
     if (!status) return;
     if (!authUser) {
-        status.textContent = 'メール認証: 未ログイン';
-        status.className = 'auth-status';
+        status.textContent = '';
+        status.className = 'auth-verification-badge';
+        status.hidden = true;
+        status.removeAttribute('aria-label');
     } else if (hasVerifiedEmail(authUser)) {
-        status.textContent = 'メール認証: 認証済み';
-        status.className = 'auth-status is-success';
+        status.textContent = '認証済み';
+        status.className = 'auth-verification-badge is-success';
+        status.hidden = false;
+        status.setAttribute('aria-label', 'メールアドレスは認証済みです');
     } else {
-        status.textContent = 'メール認証: 未認証';
-        status.className = 'auth-status is-pending';
+        status.textContent = '未認証';
+        status.className = 'auth-verification-badge is-pending';
+        status.hidden = false;
+        status.setAttribute('aria-label', 'メールアドレスは未認証です');
     }
+}
+function updateHeaderAccountStatus() {
+    const accountEmail = document.getElementById('headerAccountEmail');
+    const loginButton = document.getElementById('headerLoginButton');
+    if (!accountEmail || !loginButton) return;
+    const loggedIn = Boolean(authUser);
+    accountEmail.textContent = loggedIn ? (authUser.email || 'ログイン中') : '';
+    accountEmail.hidden = !loggedIn;
+    loginButton.hidden = loggedIn;
 }
 function setSignUpStatus(message) {
     const status = document.getElementById('signUpStatus');
@@ -2266,6 +2281,7 @@ function refreshAuthPanel() {
     if (loggedIn) loggedIn.style.display = authUser ? 'block' : 'none';
     if (cloudActions) cloudActions.style.display = authUser ? 'block' : 'none';
     if (accountLabel) accountLabel.textContent = authUser ? (authUser.email || 'ログイン中') : '未ログイン';
+    updateHeaderAccountStatus();
     updateEmailVerificationStatus();
     if (retryButton) retryButton.style.display = authUser && authSyncMode !== 'cloud' ? 'inline-flex' : 'none';
     if (!authStatusMessage) {

@@ -242,7 +242,7 @@ function returnToNango() {
             }
         } catch (_) { /* Use the app URL if the referrer is unavailable. */ }
     }
-    location.assign(new URL('Nango-neo.v03.1.1.html', document.baseURI).href);
+    location.assign(new URL('Nango-neo.v03.1.2.html', document.baseURI).href);
 }
 function quitQuiz() {
     if (confirm('現在のクイズを終了してNangoへ戻りますか？')) returnToNango();

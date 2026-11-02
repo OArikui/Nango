@@ -4,13 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="app-name" content="© 2026 Nango-neo (base: v3.10) - Version 3.1.1">
-    <meta name="html-version" content="neo.v03.1.1">
+    <meta name="app-name" content="© 2026 Nango-neo (base: v3.10) - Version 3.1.2">
+    <meta name="html-version" content="neo.v03.1.2">
     <meta name="json-version" content="DTformats.neo.v5.17">
-    <meta name="javascript-version" content="v02.0.4">
+    <meta name="javascript-version" content="v02.0.5">
     <title>Nango-neo — Phase 1</title>
     <link rel="icon" type="image/svg+xml" href="nango-logo.svg">
-    <link rel="stylesheet" href="style.v02.8.2.css">
+    <link rel="stylesheet" href="style.v02.8.3.css">
 </head>
 
 <body>
@@ -23,7 +23,13 @@
                 <h1>難語データビューアー <span>Pro</span></h1>
                 <p class="brand-subtitle">言葉を集め、意味をつなぎ、知識を育てる。</p>
             </div>
-            <div class="version-chip">NANGO-NEO <strong>v3.1.1</strong></div>
+            <div class="header-meta">
+                <div id="headerAccountStatus" class="header-account-status" aria-label="アカウント状態" aria-live="polite">
+                    <span id="headerAccountEmail" class="header-account-email" hidden></span>
+                    <button id="headerLoginButton" class="btn btn-secondary header-login-button" type="button" onclick="showAuthPanel()">ログイン</button>
+                </div>
+                <div class="version-chip">NANGO-NEO <strong>v3.1.2</strong></div>
+            </div>
         </header>
 
         <p class="release-disclaimer" role="note" style="margin: 0 0 18px; padding: 10px 14px; border: 1px solid #e5c98b; border-radius: 8px; background: #fff8e8; color: #76551b; font-size: 0.9rem;">
@@ -245,8 +251,7 @@
                     </section>
                     <section class="settings-section auth-section">
                         <h3>ログイン</h3>
-                        <p class="auth-account-label">状態: <strong id="authAccountLabel">未ログイン</strong></p>
-                        <p id="authEmailVerificationStatus" class="auth-status" role="status" aria-live="polite">メール認証: 未ログイン</p>
+                        <p class="auth-account-label">状態: <strong id="authAccountLabel">未ログイン</strong><span id="authEmailVerificationStatus" class="auth-verification-badge" role="status" aria-live="polite" hidden></span></p>
                         <div id="authLoggedOutControls">
                             <label for="authEmail">メールアドレス</label>
                             <input id="authEmail" class="form-control" type="email" autocomplete="username" placeholder="name@example.com">
@@ -345,6 +350,6 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js" integrity="sha384-BWcjm9OdFth9TbhCxZPdm+gAOUMAzQy9nmTs12ioXdCcbVnJaPMn+fMUoQCLt60R" crossorigin="anonymous"></script>
-    <script src="Nango_main.v02.0.4.js" defer></script>
+    <script src="Nango_main.v02.0.5.js" defer></script>
 </body>
 </html>
