@@ -61,7 +61,15 @@ assert.match(htmlSource, /id="authPanelMode"/, 'account and login panel is inclu
 assert.match(htmlSource, /id="signUpPageMode"/, 'standalone sign-up page is included');
 assert.match(htmlSource, /id="emailVerificationPanelMode"/, 'email verification result page is included');
 assert.match(htmlSource, /onclick="showSignUpPage\(\)"/, 'account panel links to the sign-up page');
-assert.match(htmlSource, /id="authEmailVerificationStatus"/, 'account panel shows email verification state');
+assert.match(htmlSource, /id="authEmailVerificationStatus" class="auth-verification-badge"/, 'account panel shows email verification as a compact badge');
+assert.match(htmlSource, /id="headerAccountStatus"/, 'header exposes account status');
+assert.match(htmlSource, /id="headerAccountEmail"/, 'header has an email slot for signed-in users');
+assert.match(htmlSource, /id="headerLoginButton"[^>]*onclick="showAuthPanel\(\)"/, 'header login button opens the account/login panel');
+assert.match(source, /function updateHeaderAccountStatus\(/, 'header account state is synchronized with authentication');
+assert.match(source, /accountEmail\.hidden = !loggedIn/, 'header email is visible only for signed-in users');
+assert.match(source, /loginButton\.hidden = loggedIn/, 'header login button is visible only for signed-out users');
+assert.match(css, /\.header-account-status/, 'header account status is styled');
+assert.match(css, /\.auth-verification-badge\.is-success/, 'verified email uses compact badge styling');
 assert.match(htmlSource, /id="privacyPolicyConsent"[^>]*type="checkbox"/, 'sign-up UI includes privacy policy consent');
 assert.match(htmlSource, /href="privacy-policy\.html"[^>]*>プライバシーポリシー/, 'consent links to the privacy policy');
 assert.match(source, /const consent = document\.getElementById\('privacyPolicyConsent'\);\s*if \(!consent \|\| !consent\.checked\) throw new Error\('プライバシーポリシーを読み、同意欄にチェックしてください。'\)/, 'sign-up is blocked without privacy policy consent');
