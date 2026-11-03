@@ -1,8 +1,8 @@
-/* Nango-neo v3.2.0: cache only the static app shell, never account or dictionary data. */
+/* Nango-neo v3.2.1: cache only the static app shell, never account or dictionary data. */
 'use strict';
 
-const CACHE_NAME = 'nango-app-shell-v3.2.0';
-const APP_ENTRY = 'Nango-neo.v03.2.0.html';
+const CACHE_NAME = 'nango-app-shell-v3.2.1';
+const APP_ENTRY = 'Nango-neo.v03.2.1.html';
 const SHELL_ASSETS = [
     APP_ENTRY,
     'style.v02.9.1.css',
@@ -13,6 +13,7 @@ const SHELL_ASSETS = [
     'nango-logo.svg',
     'manifest.webmanifest',
     'privacy-policy.html',
+    'release-docs.html',
     'supabase-config.json',
     'DTformats.neo.v5.17/DF-FMT_schema.v01.17.json',
     'DTformats.neo.v5.17/DT-FMT_instruction_AI.v01.17.json',

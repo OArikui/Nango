@@ -4,7 +4,7 @@
   "short_name": "Nango",
   "description": "言葉を集め、意味をつなぎ、知識を育てる辞書アプリ",
   "lang": "ja",
-  "start_url": "./Nango-neo.v03.2.0.html",
+  "start_url": "./Nango-neo.v03.2.1.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#f4f6fb",

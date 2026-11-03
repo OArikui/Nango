@@ -9,8 +9,8 @@
 
 | 項目 | ファイル / バージョン |
 | ---- | ---------------------- |
-| アプリ | v3.2.0 |
-| 画面 (HTML) | `Nango-neo/Nango-neo.v03.2.0.html` |
+| アプリ | v3.2.1 |
+| 画面 (HTML) | `Nango-neo/Nango-neo.v03.2.1.html` |
 | JavaScript | `Nango-neo/Nango_main.v02.0.6.js` |
 | CSS | `Nango-neo/style.v02.9.1.css` |
 | データ形式 (DT-FMT) | `Nango-neo/DTformats.neo.v5.17/`（[仕様](docs/DT-FMT.md)） |
@@ -20,6 +20,10 @@ JavaScript と CSS は、内容が変わったときだけ番号が上がりま�
 バージョンの付け方は [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)、変更履歴は [docs/neo-versions.md](docs/neo-versions.md) と [docs/releases/](docs/releases/) を参照してください。
 
 Supabase Auth + RLS によるアカウント同期にも対応しています（GitHub Pages 対応）。独立した新規登録ページ、確認メールの再送、メール認証結果の表示に対応しています。初期設定は [Supabase Auth 設定手順](docs/SUPABASE_AUTH.md) を参照してください。利用者向けの [プライバシーポリシー](Nango-neo/privacy-policy.html) も公開しています。
+
+## リリース・ドキュメント
+
+リリース履歴と各種仕様書・開発資料は、[リリース・ドキュメントページ](Nango-neo/release-docs.html)からまとめて閲覧できます。リリースノートは新しいバージョンから表示され、docs 内の Markdown・SQL・アーカイブ資料を検索して開けます。
 
 ## 起動方法
 
@@ -51,7 +55,7 @@ Nango は iOS 向けに PWA（ホーム画面から起動できる Web アプリ
 
 ### 2. HTML を直接開く
 
-`Nango-neo/Nango-neo.v03.2.0.html` をブラウザーで開いても使えます。この場合の保存先はブラウザーの `localStorage` だけで、
+`Nango-neo/Nango-neo.v03.2.1.html` をブラウザーで開いても使えます。この場合の保存先はブラウザーの `localStorage` だけで、
 同じブラウザー・同じオリジンでしかデータを使えません。ファイルへの自動保存は動作しません。
 
 ### 3. GitHub Pages
