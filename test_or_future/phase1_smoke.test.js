@@ -121,8 +121,8 @@ assert.match(source, /function installDisplaySettingsOnlineSync\(/, 'pending set
 assert.match(source, /const SUPABASE_VIEW_EVENTS_TABLE = 'nango_user_view_events'/, 'view statistics use a dedicated Supabase table');
 assert.match(source, /function recordWordDetailView\(/, 'opening a word detail records a view event');
 assert.match(source, /recordWordDetailView\(currentWordId\)/, 'view events are recorded by detail navigation');
-assert.match(source, /function syncUserViewEvents\\(/, 'user view events support cloud synchronization');
-assert.match(source, /function renderStatsLineChart\\(/, 'statistics charts are rendered with native SVG');
+assert.match(source, /function syncUserViewEvents\(/, 'user view events support cloud synchronization');
+assert.match(source, /function renderStatsLineChart\(/, 'statistics charts are rendered with native SVG');
 assert.doesNotMatch(source, /Chart\.js|highcharts|echarts|d3\.js/i, 'statistics do not rely on an external chart library');
 assert.match(source, /from\(SUPABASE_TABLE\)[\s\S]*?upsert/, 'authenticated data saves through the Supabase Data API');
 assert.match(source, /supabase-config\.json/, 'client fetches the repository JSON config');
