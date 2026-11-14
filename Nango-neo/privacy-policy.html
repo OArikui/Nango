@@ -19,16 +19,17 @@
 </head>
 <body>
 <main>
-  <p><a href="Nango-neo.v03.2.0.html">Nango-neo に戻る</a></p>
+  <p><a href="Nango-neo.v03.3.0.html">Nango-neo に戻る</a></p>
   <h1>プライバシーポリシー</h1>
-  <p class="updated">最終更新日：2026年10月16日</p>
+  <p class="updated">最終更新日：2026年11月14日</p>
   <p>本ポリシーは、Nango-neo（以下「本アプリ」）における情報の保存、利用、外部サービスとの通信について説明します。本アプリは、利用者が単語・意味・タグなどを管理するための辞書アプリです。</p>
 
   <h2>1. 取り扱う情報</h2>
   <ul>
     <li><strong>ローカル利用時の辞書データ：</strong>単語、読み、定義、例文、タグ、メモなど、本アプリに入力した内容。未ログイン時は原則として利用中のブラウザーの localStorage に保存されます。</li>
     <li><strong>アカウント情報：</strong>クラウド同期を利用する場合のメールアドレス、認証ユーザー ID、認証セッションなど。パスワード認証は Supabase Auth に送信され、本アプリのコードがパスワードを独自のデータベースへ保存することはありません。</li>
-    <li><strong>クラウド辞書データ：</strong>ログイン中に同期する辞書データ。Supabase のデータベースにユーザー ID と関連付けて保存されます。</li>
+    <li><strong>クラウド辞書データ：</strong>ログイン中に同期する辞書データ。Supabase の public.nango_user_data にユーザー ID と関連付けて保存されます。</li>
+    <li><strong>ユーザー別表示設定：</strong>AIからの一言の表示状態と既定の単語表示モード。ログイン中は Supabase の public.nango_user_settings にユーザー ID と関連付けて保存され、ブラウザーの localStorage にもキャッシュされます。</li>
     <li><strong>サービス運用情報：</strong>ホスティング、認証、CDN などの事業者が、サービス提供・セキュリティのために処理する IP アドレス、アクセス日時、リクエスト情報等。取得・保存の範囲は各事業者の運用とポリシーによります。</li>
   </ul>
 
@@ -38,7 +39,7 @@
   <h2>3. 保存先と外部サービス</h2>
   <ul>
     <li><strong>未ログイン時：</strong>辞書はブラウザーの localStorage に保存されます。ブラウザーのデータ削除、プロファイル変更、端末の故障などで失われる可能性があるため、必要に応じて JSON エクスポートでバックアップしてください。</li>
-    <li><strong>ログイン時：</strong>辞書データは Supabase のクラウドデータベースへ同期されます。Supabase の認証・データ提供サービスが、アカウントとクラウド保存の処理を行います。</li>
+    <li><strong>ログイン時：</strong>辞書データは Supabase の public.nango_user_data へ、表示設定は public.nango_user_settings へ、それぞれユーザー ID に紐付けて同期されます。表示設定の localStorage はキャッシュとして残ります。Supabase の認証・データ提供サービスが、アカウントとクラウド保存の処理を行います。</li>
     <li><strong>配信・ホスティング：</strong>本アプリは GitHub Pages で配信される場合があり、Supabase JavaScript ライブラリを jsDelivr CDN から読み込みます。これらのサービスへの通信には各事業者の規約・プライバシー方針が適用されます。</li>
   </ul>
   <p>未ログインで利用している辞書データは、利用者がログインやクラウドへのコピーなどの同期操作をしない限り、クラウド辞書として保存されません。ログアウトしても Supabase に保存された辞書は削除されません。</p>
