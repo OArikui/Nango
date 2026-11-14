@@ -7,6 +7,34 @@
 const STORAGE_KEY = 'nango_data';
 const SETTINGS_KEY = 'nango_settings_v272';
 const SETTINGS_DEFAULTS = { showGeminiNote: true, defaultDisplayMode: 'word' };
+const DISPLAY_SETTINGS_PENDING_KEY = 'nango_settings_pending_cloud_v1';
+function normalizeDisplaySettings(value) {
+    const settings = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+    const modes = ['word', 'reading', 'kanji', 'pronunciation'];
+    return {
+        showGeminiNote: typeof settings.showGeminiNote === 'boolean' ? settings.showGeminiNote : SETTINGS_DEFAULTS.showGeminiNote,
+        defaultDisplayMode: modes.includes(settings.defaultDisplayMode) ? settings.defaultDisplayMode : SETTINGS_DEFAULTS.defaultDisplayMode
+    };
+}
+function hasDisplaySettingsValue(value) {
+    return Boolean(value && typeof value === 'object' && !Array.isArray(value)
+        && (Object.prototype.hasOwnProperty.call(value, 'showGeminiNote')
+            || Object.prototype.hasOwnProperty.call(value, 'defaultDisplayMode')));
+}
+function resolveDisplaySettingsSource(localSettings, cloudRow, pendingRecord) {
+    if (cloudRow && hasDisplaySettingsValue(cloudRow.settings)) {
+        const cloudTimestamp = Date.parse(cloudRow.updated_at || '') || 0;
+        const pendingTimestamp = pendingRecord && Date.parse(pendingRecord.updatedAt || '') || 0;
+        if (pendingRecord && hasDisplaySettingsValue(pendingRecord.settings) && pendingTimestamp > cloudTimestamp) {
+            return { source: 'pending', settings: normalizeDisplaySettings(pendingRecord.settings) };
+        }
+        return { source: 'cloud', settings: normalizeDisplaySettings(cloudRow.settings) };
+    }
+    if (pendingRecord && hasDisplaySettingsValue(pendingRecord.settings)) {
+        return { source: 'pending', settings: normalizeDisplaySettings(pendingRecord.settings) };
+    }
+    return { source: 'local', settings: normalizeDisplaySettings(localSettings) };
+}
 const LOCAL_DATA_API = '/api/data';
 let serverSaveQueue = Promise.resolve();
 let serverStorageAvailable = false;
@@ -109,6 +137,8 @@ let selectedCategoryFilters = [];
 let wordListSelectedCategories = [];
 let wordListFiltersOpen = false;
 let displaySettings = { ...SETTINGS_DEFAULTS };
+let displaySettingsLoaded = false;
+const pendingCloudDisplaySettingsMemory = Object.create(null);
 let formatMode = 'readable';
 const formatDataCache = {};
 
@@ -467,6 +497,7 @@ function installBackToTopButton() {
 async function initApp() {
     installKeyboardNavigation();
     installBackToTopButton();
+    installDisplaySettingsOnlineSync();
     await loadRepositorySupabaseConfig();
     initializeSupabaseClientFromStoredConfig();
     registerSupabaseAuthListener();
@@ -547,7 +578,15 @@ async function initApp() {
         try { saveToLocalStorage(); } catch (saveError) { console.error('初期データを保存できません:', saveError); }
         setAuthStatus('保存データを読み込めなかったため、初期データで起動しました。元データは上書きしていません。詳細: ' + error.message);
     }
-    loadDisplaySettings(); 
+    if (authUser) {
+        try { await syncCloudDisplaySettingsForUser(authUser.id); }
+        catch (settingsError) {
+            showStorageStatus('表示設定の同期に失敗しました', true);
+            setAuthStatus('辞書データは利用できますが、表示設定の同期を保留しています。通信状態と Supabase の nango_user_settings テーブルを確認してください。詳細: ' + settingsError.message);
+            console.warn('表示設定の初期同期に失敗しました:', settingsError);
+        }
+    }
+    loadDisplaySettings();
     currentWordId = wordData.length ? wordData[0].id : -1;
     renderSidebarTree();
     if (wordData.length) showTodaysWord(); else showViewMode();
@@ -1687,27 +1726,85 @@ function showTodaysWord() {
     showViewMode();
 }
 
-function loadDisplaySettings() {
-    try {
-        const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
-        displaySettings = { ...SETTINGS_DEFAULTS, ...(saved && typeof saved === 'object' ? saved : {}) };
-    } catch (_) { displaySettings = { ...SETTINGS_DEFAULTS }; }
+function readLocalDisplaySettings() {
+    try { return normalizeDisplaySettings(JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); }
+    catch (_) { return { ...SETTINGS_DEFAULTS }; }
+}
+function cacheDisplaySettings(settings) {
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(normalizeDisplaySettings(settings))); }
+    catch (error) {
+        console.warn('表示設定のローカルキャッシュを保存できませんでした:', error);
+        showStorageStatus('表示設定のローカルキャッシュを保存できませんでした', true);
+    }
+}
+function updateDisplaySettingsControls() {
     const aiToggle = $('showGeminiNoteToggle');
     const modeSelect = $('defaultWordDisplayMode');
-    if (aiToggle) aiToggle.checked = Boolean(displaySettings.showGeminiNote);
-    if (modeSelect) modeSelect.value = displaySettings.defaultDisplayMode || 'word';
+    if (aiToggle) aiToggle.checked = displaySettings.showGeminiNote;
+    if (modeSelect) modeSelect.value = displaySettings.defaultDisplayMode;
     const sidebarMode = $('headerWordDisplayMode');
-    if (sidebarMode) sidebarMode.value = displaySettings.defaultDisplayMode || 'word';
+    if (sidebarMode) sidebarMode.value = displaySettings.defaultDisplayMode;
+}
+function applyDisplaySettings(settings) {
+    displaySettings = normalizeDisplaySettings(settings);
+    displaySettingsLoaded = true;
+    cacheDisplaySettings(displaySettings);
+    updateDisplaySettingsControls();
+}
+function loadDisplaySettings() {
+    if (!displaySettingsLoaded) {
+        displaySettings = readLocalDisplaySettings();
+        displaySettingsLoaded = true;
+    }
+    updateDisplaySettingsControls();
+}
+function readPendingCloudDisplaySettings(userId) {
+    if (pendingCloudDisplaySettingsMemory[userId]) return pendingCloudDisplaySettingsMemory[userId];
+    try {
+        const pendingByUser = JSON.parse(localStorage.getItem(DISPLAY_SETTINGS_PENDING_KEY) || '{}');
+        const pending = pendingByUser && typeof pendingByUser === 'object' ? pendingByUser[userId] : null;
+        return pending && hasDisplaySettingsValue(pending.settings) ? pending : null;
+    } catch (_) { return null; }
+}
+function storePendingCloudDisplaySettings(userId, settings) {
+    const pending = { settings: normalizeDisplaySettings(settings), updatedAt: new Date().toISOString() };
+    pendingCloudDisplaySettingsMemory[userId] = pending;
+    try {
+        const pendingByUser = JSON.parse(localStorage.getItem(DISPLAY_SETTINGS_PENDING_KEY) || '{}');
+        const entries = pendingByUser && typeof pendingByUser === 'object' && !Array.isArray(pendingByUser) ? pendingByUser : {};
+        entries[userId] = pending;
+        localStorage.setItem(DISPLAY_SETTINGS_PENDING_KEY, JSON.stringify(entries));
+    } catch (error) { console.warn('表示設定の同期保留情報を保存できませんでした:', error); }
+}
+function clearPendingCloudDisplaySettings(userId, settings) {
+    const normalized = normalizeDisplaySettings(settings);
+    const memoryPending = pendingCloudDisplaySettingsMemory[userId];
+    if (memoryPending && JSON.stringify(normalizeDisplaySettings(memoryPending.settings)) === JSON.stringify(normalized)) {
+        delete pendingCloudDisplaySettingsMemory[userId];
+    }
+    try {
+        const pendingByUser = JSON.parse(localStorage.getItem(DISPLAY_SETTINGS_PENDING_KEY) || '{}');
+        const pending = pendingByUser && typeof pendingByUser === 'object' ? pendingByUser[userId] : null;
+        if (pending && JSON.stringify(normalizeDisplaySettings(pending.settings)) === JSON.stringify(normalized)) {
+            delete pendingByUser[userId];
+            if (Object.keys(pendingByUser).length) localStorage.setItem(DISPLAY_SETTINGS_PENDING_KEY, JSON.stringify(pendingByUser));
+            else localStorage.removeItem(DISPLAY_SETTINGS_PENDING_KEY);
+        }
+    } catch (_) {}
 }
 function persistDisplaySettings() {
-    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(displaySettings)); }
-    catch (error) { console.warn('表示設定を保存できませんでした:', error); }
+    displaySettings = normalizeDisplaySettings(displaySettings);
+    displaySettingsLoaded = true;
+    cacheDisplaySettings(displaySettings);
+    if (!authUser || !authUser.id) return;
+    storePendingCloudDisplaySettings(authUser.id, displaySettings);
+    if (authSyncMode === 'cloud') queueCloudDisplaySettingsSave(authUser.id, displaySettings);
 }
 function saveDisplaySettings() {
-    displaySettings = {
+    displaySettings = normalizeDisplaySettings({
         showGeminiNote: $('showGeminiNoteToggle') ? $('showGeminiNoteToggle').checked : displaySettings.showGeminiNote,
         defaultDisplayMode: $('defaultWordDisplayMode') ? $('defaultWordDisplayMode').value : displaySettings.defaultDisplayMode
-    };
+    });
     persistDisplaySettings();
     const sidebarMode = $('headerWordDisplayMode');
     if (sidebarMode) sidebarMode.value = displaySettings.defaultDisplayMode;
@@ -1950,9 +2047,12 @@ async function renderFormatViewer() {
 const SUPABASE_CONFIG_KEY = 'nango_supabase_config_v1';
 const SIGNUP_PENDING_EMAIL_KEY = 'nango_signup_pending_email_v1';
 const SUPABASE_TABLE = 'nango_user_data';
+const SUPABASE_SETTINGS_TABLE = 'nango_user_settings';
 let supabaseClient = null, supabaseClientConfigSignature = '', supabaseAuthSubscription = null;
 let authUser = null, authSyncMode = 'local', authStatusMessage = '';
-let cloudSaveQueue = Promise.resolve(), authActivationPromise = null, authActivationUserId = null;
+let cloudSaveQueue = Promise.resolve(), displaySettingsSaveQueue = Promise.resolve();
+const displaySettingsSyncPromises = new Map();
+let authActivationPromise = null, authActivationUserId = null;
 function shouldUseLocalStorage(user, mode) { return !user || mode !== 'cloud'; }
 let repositorySupabaseConfig = { url: '', publicKey: '' };
 async function loadRepositorySupabaseConfig() {
@@ -2136,6 +2236,66 @@ async function writeCloudDocument(payload, userId = authUser && authUser.id) {
     }, { onConflict: 'user_id' });
     if (result.error) throw result.error;
 }
+async function fetchCloudDisplaySettingsRow(userId) {
+    const result = await ensureSupabaseClient().from(SUPABASE_SETTINGS_TABLE)
+        .select('user_id, settings, updated_at').eq('user_id', userId).maybeSingle();
+    if (result.error) throw result.error;
+    return result.data || null;
+}
+async function writeCloudDisplaySettings(settings, userId = authUser && authUser.id) {
+    if (!userId) throw new Error('ログイン状態を確認できません。');
+    const result = await ensureSupabaseClient().from(SUPABASE_SETTINGS_TABLE).upsert({
+        user_id: userId,
+        settings: normalizeDisplaySettings(settings),
+        updated_at: new Date().toISOString()
+    }, { onConflict: 'user_id' });
+    if (result.error) throw result.error;
+}
+function queueCloudDisplaySettingsSave(userId, settings) {
+    const snapshot = normalizeDisplaySettings(settings);
+    displaySettingsSaveQueue = displaySettingsSaveQueue.then(async () => {
+        if (!authUser || authUser.id !== userId || authSyncMode !== 'cloud') return;
+        await writeCloudDisplaySettings(snapshot, userId);
+        clearPendingCloudDisplaySettings(userId, snapshot);
+    }).catch(error => {
+        showStorageStatus('表示設定のクラウド保存に失敗しました', true);
+        setAuthStatus('表示設定はブラウザーに保持され、通信回復後に再同期します。詳細: ' + error.message);
+        console.error('Supabase への表示設定保存に失敗しました:', error);
+    });
+    return displaySettingsSaveQueue;
+}
+async function syncCloudDisplaySettingsForUser(userId) {
+    if (!userId) return 'local';
+    if (displaySettingsSyncPromises.has(userId)) return displaySettingsSyncPromises.get(userId);
+    const syncPromise = (async () => {
+        await displaySettingsSaveQueue;
+        const localSettings = readLocalDisplaySettings();
+        const pendingRecord = readPendingCloudDisplaySettings(userId);
+        const cloudRow = await fetchCloudDisplaySettingsRow(userId);
+        const resolution = resolveDisplaySettingsSource(localSettings, cloudRow, pendingRecord);
+        applyDisplaySettings(resolution.settings);
+        if (resolution.source !== 'cloud') {
+            storePendingCloudDisplaySettings(userId, resolution.settings);
+            await writeCloudDisplaySettings(resolution.settings, userId);
+            clearPendingCloudDisplaySettings(userId, resolution.settings);
+        }
+        return resolution.source;
+    })();
+    displaySettingsSyncPromises.set(userId, syncPromise);
+    try { return await syncPromise; }
+    finally { displaySettingsSyncPromises.delete(userId); }
+}
+function installDisplaySettingsOnlineSync() {
+    window.addEventListener('online', () => {
+        const userId = authUser && authUser.id;
+        if (!userId) return;
+        syncCloudDisplaySettingsForUser(userId).catch(error => {
+            showStorageStatus('表示設定の再同期に失敗しました', true);
+            setAuthStatus('表示設定の再同期を保留しています。通信状態を確認してください。詳細: ' + error.message);
+            console.warn('表示設定の再同期に失敗しました:', error);
+        });
+    });
+}
 function applyParsedDocument(parsed) {
     wordData = reassignIds(parsed.words.slice().sort((a, b) => (a.id || 0) - (b.id || 0)));
     additionalData = parsed.additional_data;
@@ -2189,7 +2349,15 @@ async function activateAuthenticatedUser(user, forceRetry = false) {
             showStorageStatus('クラウド同期を保留中（ローカル保存）', true);
             setAuthStatus('クラウドを読み込めないため、ローカル保存に切り替えました。クラウド側のデータは上書きしていません。設定と RLS を確認し「クラウド再接続」を実行してください。詳細: ' + error.message);
             try { saveToLocalStorage(); } catch (saveError) { console.error('ローカルへの退避保存に失敗しました:', saveError); }
-        } finally { refreshAuthPanel(); }
+        }
+        try {
+            await syncCloudDisplaySettingsForUser(user.id);
+        } catch (settingsError) {
+            showStorageStatus('表示設定の同期に失敗しました', true);
+            setAuthStatus('辞書データは利用できますが、表示設定の同期を保留しています。通信状態と Supabase の nango_user_settings テーブルを確認してください。詳細: ' + settingsError.message);
+            console.warn('表示設定の同期に失敗しました:', settingsError);
+        }
+        refreshAuthPanel();
     })();
     try { await authActivationPromise; }
     finally { authActivationPromise = null; authActivationUserId = null; }
@@ -2398,5 +2566,10 @@ async function copyLocalDocumentToCloud() {
 
 
 // Expose small pure helpers for browser console/manual tests.
-window.NangoPhase1 = { parseNangoDocument, serializeNangoDocument, normalizeWord, validateWord, findDuplicateIndex, mergeWord, shouldUseLocalStorage, get data() { return clone(wordData); } };
+window.NangoPhase1 = {
+    parseNangoDocument, serializeNangoDocument, normalizeWord, validateWord,
+    findDuplicateIndex, mergeWord, shouldUseLocalStorage,
+    normalizeDisplaySettings, hasDisplaySettingsValue, resolveDisplaySettingsSource,
+    get data() { return clone(wordData); }
+};
 initApp();

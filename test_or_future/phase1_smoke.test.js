@@ -34,20 +34,60 @@ const supabaseConfigPath = path.join(root, 'Nango-neo', 'supabase-config.json');
 
 let source = fs.readFileSync(jsPath, 'utf8');
 source = source.replace(/\/\/ Expose small pure helpers for browser console\/manual tests\.[\s\S]*$/, '');
-const api = new Function(source + '\nreturn { parseNangoDocument, serializeNangoDocument, normalizeWord, normalizeCategoryTags, normalizeMeaning, validateWord, findDuplicateIndex, mergeWord, reassignIds, getInitial, getWordListGroupLabel, buildAiPrompt, shouldUseLocalStorage, findLimitViolations };')();
+const api = new Function(source + '\nreturn { parseNangoDocument, serializeNangoDocument, normalizeWord, normalizeCategoryTags, normalizeMeaning, validateWord, findDuplicateIndex, mergeWord, reassignIds, getInitial, getWordListGroupLabel, buildAiPrompt, shouldUseLocalStorage, findLimitViolations, normalizeDisplaySettings, hasDisplaySettingsValue, resolveDisplaySettingsSource };')();
 const generatedPrompt = api.buildAiPrompt();
 assert.ok(generatedPrompt.includes('\n'), 'AI prompt is separated with actual newlines');
 assert.equal(generatedPrompt.includes('\\n'), false, 'AI prompt does not contain escaped newline text');
 
+assert.deepEqual(api.normalizeDisplaySettings({ showGeminiNote: false, defaultDisplayMode: 'reading', ignored: true }),
+  { showGeminiNote: false, defaultDisplayMode: 'reading' }, 'display settings retain only supported preferences');
+assert.deepEqual(api.normalizeDisplaySettings({ showGeminiNote: 'false', defaultDisplayMode: 'unknown' }),
+  { showGeminiNote: true, defaultDisplayMode: 'word' }, 'invalid legacy settings use safe defaults');
+assert.equal(api.hasDisplaySettingsValue({}), false, 'empty settings object is treated as missing');
+assert.equal(api.hasDisplaySettingsValue({ unrelated: true }), false, 'unrelated data is not a display settings document');
+assert.deepEqual(api.resolveDisplaySettingsSource(
+  { showGeminiNote: false, defaultDisplayMode: 'kanji' },
+  { settings: { showGeminiNote: true, defaultDisplayMode: 'reading' }, updated_at: '2026-11-01T00:00:00.000Z' }, null),
+  { source: 'cloud', settings: { showGeminiNote: true, defaultDisplayMode: 'reading' } },
+  'existing cloud settings take precedence over the local cache');
+assert.deepEqual(api.resolveDisplaySettingsSource(
+  { showGeminiNote: true, defaultDisplayMode: 'word' },
+  { settings: { showGeminiNote: true, defaultDisplayMode: 'reading' }, updated_at: '2026-11-14T12:00:00.000Z' },
+  { settings: { showGeminiNote: false, defaultDisplayMode: 'pronunciation' }, updatedAt: '2026-11-14T12:01:00.000Z' }),
+  { source: 'pending', settings: { showGeminiNote: false, defaultDisplayMode: 'pronunciation' } },
+  'a newer pending user-scoped update is retried before an older cloud snapshot');
+assert.deepEqual(api.resolveDisplaySettingsSource(
+  { showGeminiNote: false, defaultDisplayMode: 'kanji' },
+  { settings: { showGeminiNote: true, defaultDisplayMode: 'reading' }, updated_at: '2026-11-14T12:02:00.000Z' },
+  { settings: { showGeminiNote: false, defaultDisplayMode: 'pronunciation' }, updatedAt: '2026-11-14T12:01:00.000Z' }),
+  { source: 'cloud', settings: { showGeminiNote: true, defaultDisplayMode: 'reading' } },
+  'a newer cloud update remains authoritative over stale pending data');
+assert.deepEqual(api.resolveDisplaySettingsSource(
+  { showGeminiNote: false, defaultDisplayMode: 'kanji' }, { settings: {} }, null),
+  { source: 'local', settings: { showGeminiNote: false, defaultDisplayMode: 'kanji' } },
+  'an empty cloud settings row triggers one-time migration from local settings');
+
 const supabaseSql = fs.readFileSync(supabaseSqlPath, 'utf8');
 const supabaseGuide = fs.readFileSync(supabaseGuidePath, 'utf8');
 const supabaseConfig = JSON.parse(fs.readFileSync(supabaseConfigPath, 'utf8'));
+assert.match(supabaseSql, /create table if not exists public\.nango_user_settings/, 'display settings have a dedicated Supabase table');
+assert.match(supabaseSql, /settings jsonb not null default '\{\}'::jsonb/, 'settings are stored as a separate JSONB document');
+for (const action of ['select', 'insert', 'update', 'delete']) {
+  assert.match(supabaseSql, new RegExp('on public\\.nango_user_settings for ' + action + ' to authenticated'), 'settings table has an authenticated ' + action + ' policy');
+}
+assert.match(supabaseGuide, /nango_user_settings/, 'Supabase setup guide documents the dedicated settings table');
 const privacyPolicyPath = path.join(root, 'Nango-neo', 'privacy-policy.html');
 const privacyPolicy = fs.readFileSync(privacyPolicyPath, 'utf8');
+assert.match(privacyPolicy, /nango_user_settings/, 'privacy policy documents the separate settings storage');
 assert.equal(api.shouldUseLocalStorage(null, 'local'), true, 'anonymous sessions persist to localStorage');
 assert.equal(api.shouldUseLocalStorage({ id: 'user-1' }, 'pending'), true, 'pending cloud sync preserves local persistence');
 assert.equal(api.shouldUseLocalStorage({ id: 'user-1' }, 'cloud'), false, 'active authenticated sessions use cloud persistence');
 assert.match(source, /supabase\.createClient/, 'browser client initializes Supabase without a server API');
+assert.match(source, /const SUPABASE_SETTINGS_TABLE = 'nango_user_settings'/, 'display settings use their own Supabase table');
+assert.match(source, /async function fetchCloudDisplaySettingsRow\(/, 'cloud display settings have a dedicated loader');
+assert.match(source, /async function writeCloudDisplaySettings\([\s\S]*?from\(SUPABASE_SETTINGS_TABLE\)\.upsert/, 'settings are written separately from dictionary data');
+assert.match(source, /function storePendingCloudDisplaySettings\(/, 'failed settings updates keep a user-scoped retry record');
+assert.match(source, /function installDisplaySettingsOnlineSync\(/, 'pending settings retry when connectivity returns');
 assert.match(source, /from\(SUPABASE_TABLE\)[\s\S]*?upsert/, 'authenticated data saves through the Supabase Data API');
 assert.match(source, /supabase-config\.json/, 'client fetches the repository JSON config');
 assert.match(source, /loadRepositorySupabaseConfig/, 'repository config is loaded before Supabase initialization');
@@ -363,5 +403,7 @@ assert.ok(serviceWorker.includes("if (scopedPath === 'api' || scopedPath.startsW
 assert.ok(serviceWorker.includes('await cache.addAll(assets)'), 'service worker pre-caches the app shell');
 assert.ok(serviceWorker.includes('Network-first'), 'navigation uses a network-first strategy with offline fallback');
 assert.ok(serviceWorker.includes('Cache-first'), 'static assets use a cache-first strategy');
+assert.ok(serviceWorker.includes(htmlName), 'service worker caches the current HTML version');
+assert.ok(serviceWorker.includes(jsName), 'service worker caches the current application JavaScript version');
 
 console.log(`Nango-NEO v${appVersion} smoke tests passed.`);

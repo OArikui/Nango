@@ -9,9 +9,9 @@
 
 | 項目 | ファイル / バージョン |
 | ---- | ---------------------- |
-| アプリ | v3.2.0 |
-| 画面 (HTML) | `Nango-neo/Nango-neo.v03.2.0.html` |
-| JavaScript | `Nango-neo/Nango_main.v02.0.6.js` |
+| アプリ | v3.3.0 |
+| 画面 (HTML) | `Nango-neo/Nango-neo.v03.3.0.html` |
+| JavaScript | `Nango-neo/Nango_main.v02.0.7.js` |
 | CSS | `Nango-neo/style.v02.9.1.css` |
 | データ形式 (DT-FMT) | `Nango-neo/DTformats.neo.v5.17/`（[仕様](docs/DT-FMT.md)） |
 | ローカルランチャー | `run.py` / `RUN_NANGO.bat`（Python 3.9 以降、標準ライブラリのみ） |
@@ -51,21 +51,22 @@ Nango は iOS 向けに PWA（ホーム画面から起動できる Web アプリ
 
 ### 2. HTML を直接開く
 
-`Nango-neo/Nango-neo.v03.2.0.html` をブラウザーで開いても使えます。この場合の保存先はブラウザーの `localStorage` だけで、
+`Nango-neo/Nango-neo.v03.3.0.html` をブラウザーで開いても使えます。この場合の保存先はブラウザーの `localStorage` だけで、
 同じブラウザー・同じオリジンでしかデータを使えません。ファイルへの自動保存は動作しません。
 
 ### 3. GitHub Pages
 
 `NEO` ブランチへの push で、`.github/workflows/pages.yml` が最新の `Nango-neo.v*.html` を `index.html` として公開します。
 `Nango-neo/supabase-config.json` の `url` と `publicKey` に公開用の値を設定してコミットすると、公開ページの利用者が初めからその接続先を利用できます。これらは公開される値です。secret / service_role キーは絶対に記述しないでください。RLS を含む初期設定は [セットアップ手順](docs/SUPABASE_AUTH.md) を参照してください。
-GitHub Pages では未ログイン時はブラウザーの `localStorage`、ログイン時は Supabase に辞書データを保存します。
+GitHub Pages では未ログイン時はブラウザーの `localStorage`、ログイン時は Supabase に辞書データを保存します。表示設定は未ログイン時は `localStorage`、ログイン時はユーザー別の `nango_user_settings.settings` に保存し、localStorage はキャッシュとして残します。
 
 ## データの保存とバックアップ
 
 | 起動方法 | 保存先 |
 | -------- | ------ |
 | Python ランチャー | `user_data/nango_data.json`（ブラウザーの `localStorage` にも予備として保存） |
-| HTML 直接 / GitHub Pages | 未ログイン時はブラウザーの `localStorage`、ログイン時は Supabase |
+| HTML 直接 / GitHub Pages | 未ログイン時はブラウザーの `localStorage`、ログイン時は Supabase の `nango_user_data` |
+| 表示設定 | 未ログイン時は `localStorage`、ログイン時は Supabase の `nango_user_settings`（localStorage にもキャッシュ） |
 
 - バックアップや別環境への移行には、ツールの「JSONエクスポート」を使ってください。出力は `Nango-neo_DTformats.neo.v5.17.json` です。
 - Python ランチャーを使う場合は、`user_data` フォルダーもバックアップしてください。
@@ -139,6 +140,7 @@ JSON Schema Draft 2020-12 に基づく形式です。単語名を `words` オブ
 
 ```text
 node test_or_future/phase1_smoke.test.js            # アプリのロジック・HTML/CSS の構造
+node --check Nango-neo/Nango_main.v02.0.7.js        # メイン JavaScript の構文確認
 node test_or_future/quiz_smoke.test.js             # 独立クイズページとアプリの連携
 node test_or_future/docs_consistency.test.js        # README・ランチャー・HTML のバージョン整合とリンク切れ
 python -m unittest test_or_future.test_phase1_format -v   # DT-FMT のスキーマ検証（pip install "jsonschema[format]" が必要）
