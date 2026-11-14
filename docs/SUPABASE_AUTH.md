@@ -6,9 +6,9 @@ Nango は静的な GitHub Pages サイトから Supabase Auth と PostgreSQL Dat
 
 1. Supabase でプロジェクトを作成します。
 2. **SQL Editor** を開き、[`supabase-setup.sql`](supabase-setup.sql) の内容を実行します。
-3. SQL の実行後、Table Editor で `public.nango_user_data` と `public.nango_user_settings` が作成されていることを確認します。
+3. SQL の実行後、Table Editor で `public.nango_user_data`、`public.nango_user_settings`、`public.nango_user_view_events` が作成されていることを確認します。
 
-辞書全体は `nango_user_data.data` に、表示設定は `nango_user_settings.settings` に、それぞれ別の JSONB として格納します。どちらも主キー `user_id` は認証ユーザー ID で、RLS ポリシーは select / insert / update / delete のすべてで `auth.uid() = user_id` を要求します。表示設定を辞書 JSON に混ぜることはありません。
+辞書全体は `nango_user_data.data`、表示設定は `nango_user_settings.settings` に、それぞれ別の JSONB として格納します。単語詳細の閲覧イベントは `nango_user_view_events` に1閲覧1行で記録します。辞書・設定の行は本人のみ select / insert / update / delete、閲覧イベントは本人のみ select / insert できるRLSポリシーを設定します。いずれも `auth.uid() = user_id` を要求し、統計を辞書JSONに混ぜることはありません。
 
 ## 2. GitHub Pages の URL を Supabase Auth に登録
 
@@ -42,7 +42,7 @@ Supabase 側で Email Confirmations を無効にしている場合は、確認�
 ## 5. データの保存・移行
 
 - **未ログイン:** 辞書データと表示設定は、これまでどおり `localStorage` を使用します。Python ランチャーから起動した場合は、従来のローカル JSON 保存も動作します。
-- **ログイン済み:** 辞書データは `nango_user_data.data`、表示設定（`showGeminiNote` と `defaultDisplayMode`）は `nango_user_settings.settings` にユーザー単位で保存します。表示設定の `localStorage` はキャッシュとして残ります。
+- **ログイン済み:** 辞書データは `nango_user_data.data`、表示設定（`showGeminiNote` と `defaultDisplayMode`）は `nango_user_settings.settings` にユーザー単位で保存します。単語詳細の閲覧イベントは `nango_user_view_events` にユーザー単位で保存します。表示設定・閲覧統計の `localStorage` はキャッシュ／同期保留用として使い、辞書JSONには含めません。
 - **既存のクラウド辞書がある:** ログイン時にクラウド辞書を読み込みます。ログイン前の localStorage データは自動で削除・上書きしません。
 - **クラウド辞書がまだない:** 現在表示している辞書を、そのアカウントの初期クラウドデータとして保存します。
 - **クラウド表示設定がある:** ログイン時はクラウド側の表示設定を正として読み込み、ブラウザーのキャッシュを更新します。
@@ -50,13 +50,14 @@ Supabase 側で Email Confirmations を無効にしている場合は、確認�
 - **表示設定の保存に失敗した:** 表示設定はメモリと localStorage のキャッシュに保持し、ユーザー ID 付きの同期保留情報を残します。通信回復時または次回ログイン・クラウド再接続時に再送します。別ユーザーの保留設定を他のアカウントへ送ることはありません。
 - **ローカル辞書をクラウドへ移したい:** ログイン後に **ローカル辞書でクラウドを置き換える** を押します。クラウド側の全データを置き換えるため、表示される確認を読んでから実行してください。
 - **クラウド読込に失敗した:** 同期を保留して localStorage で動作します。エラーを解消し、**クラウド再接続** を実行するまでクラウドデータを自動上書きしません。
-- **ログアウト:** localStorage に保持されているブラウザー内の辞書へ戻ります。クラウド上の辞書は削除されません。
+- **閲覧統計:** 登録数は既存の各単語のRFC 3339 `datetime` から集計するため、新しい登録日時データは追加しません。閲覧数は単語詳細を表示するたびにイベントとして記録し、未ログイン時はlocalStorage、ログイン時は `nango_user_view_events` に保存します。通信に失敗したイベントはユーザーIDごとに保留し、オンライン復帰時に再送します。以前は閲覧イベントを記録していなかったため、導入前の閲覧数は復元できません。
+- **ログアウト:** localStorage に保持されているブラウザー内の辞書へ戻ります。クラウド上の辞書・表示設定・閲覧統計は削除されません。
 
 ログイン中の辞書編集と表示設定は、それぞれ専用の Supabase テーブルへ保存されます。表示設定の保存に失敗してもアプリの操作は継続でき、同期保留情報を利用して再送します。辞書データの保存に失敗した場合は、画面に保存エラーが出たときにページを閉じる前に JSON エクスポートでバックアップしてください。
 
 ## 6. テストと制約
 
-GitHub Actions は辞書テーブル・表示設定テーブル双方の RLS SQL と、クライアント側の保存・同期モードを検査します。実際のログイン・メール確認・クラウド保存には、各利用者の Supabase プロジェクト設定が必要です。公開用設定ファイルには Project URL と publishable キーだけを含めてください。秘密鍵をリポジトリに保存する構成ではありません。
+GitHub Actions は辞書・表示設定・閲覧イベントの各テーブルとRLS SQL、およびクライアント側の保存・同期処理を検査します。実際のログイン・メール確認・クラウド保存には、各利用者の Supabase プロジェクト設定が必要です。公開用設定ファイルには Project URL と publishable キーだけを含めてください。秘密鍵をリポジトリに保存する構成ではありません。
 
 ## 7. プライバシーポリシー
 
