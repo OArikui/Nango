@@ -142,7 +142,7 @@ JSON Schema Draft 2020-12 に基づく形式です。単語名を `words` オブ
 
 ```text
 node test_or_future/phase1_smoke.test.js            # アプリのロジック・HTML/CSS の構造
-node --check Nango-neo/Nango_main.v02.0.7.js        # メイン JavaScript の構文確認
+node --check Nango-neo/Nango_main.v02.0.8.js        # メイン JavaScript の構文確認
 node test_or_future/quiz_smoke.test.js             # 独立クイズページとアプリの連携
 node test_or_future/docs_consistency.test.js        # README・ランチャー・HTML のバージョン整合とリンク切れ
 python -m unittest test_or_future.test_phase1_format -v   # DT-FMT のスキーマ検証（pip install "jsonschema[format]" が必要）
