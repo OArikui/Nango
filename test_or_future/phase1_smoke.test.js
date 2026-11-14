@@ -92,7 +92,7 @@ assert.deepEqual(api.aggregateViewEventCounts([
 const supabaseSql = fs.readFileSync(supabaseSqlPath, 'utf8');
 const supabaseGuide = fs.readFileSync(supabaseGuidePath, 'utf8');
 const supabaseConfig = JSON.parse(fs.readFileSync(supabaseConfigPath, 'utf8'));
-assert.match(supabaseSql, /create table if not exists public\\.nango_user_view_events/, 'view statistics have a dedicated Supabase event table');
+assert.match(supabaseSql, /create table if not exists public\.nango_user_view_events/, 'view statistics have a dedicated Supabase event table');
 assert.match(supabaseSql, /view_date date not null/, 'view events store a local calendar date');
 assert.match(supabaseSql, /viewed_at timestamptz not null/, 'view events store an RFC 3339 timestamp');
 for (const action of ['select', 'insert']) {
@@ -119,11 +119,11 @@ assert.match(source, /async function writeCloudDisplaySettings\([\s\S]*?from\(SU
 assert.match(source, /function storePendingCloudDisplaySettings\(/, 'failed settings updates keep a user-scoped retry record');
 assert.match(source, /function installDisplaySettingsOnlineSync\(/, 'pending settings retry when connectivity returns');
 assert.match(source, /const SUPABASE_VIEW_EVENTS_TABLE = 'nango_user_view_events'/, 'view statistics use a dedicated Supabase table');
-assert.match(source, /function recordWordDetailView\\(/, 'opening a word detail records a view event');
-assert.match(source, /recordWordDetailView\\(currentWordId\\)/, 'view events are recorded by detail navigation');
+assert.match(source, /function recordWordDetailView\(/, 'opening a word detail records a view event');
+assert.match(source, /recordWordDetailView\(currentWordId\)/, 'view events are recorded by detail navigation');
 assert.match(source, /function syncUserViewEvents\\(/, 'user view events support cloud synchronization');
 assert.match(source, /function renderStatsLineChart\\(/, 'statistics charts are rendered with native SVG');
-assert.doesNotMatch(source, /Chart\\.js|highcharts|echarts|d3\\.js/i, 'statistics do not rely on an external chart library');
+assert.doesNotMatch(source, /Chart\.js|highcharts|echarts|d3\.js/i, 'statistics do not rely on an external chart library');
 assert.match(source, /from\(SUPABASE_TABLE\)[\s\S]*?upsert/, 'authenticated data saves through the Supabase Data API');
 assert.match(source, /supabase-config\.json/, 'client fetches the repository JSON config');
 assert.match(source, /loadRepositorySupabaseConfig/, 'repository config is loaded before Supabase initialization');
