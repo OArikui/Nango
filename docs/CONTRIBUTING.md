@@ -15,6 +15,9 @@ Nango-neo は、Nango v3.10 をもとに作り直した辞書アプリです。�
 
 ```text
 node test_or_future/phase1_smoke.test.js
+node test_or_future/quiz_smoke.test.js
+node --check Nango-neo/Nango_main.v02.0.7.js
+node --check Nango-neo/Nango-quiz.v01.0.0.js
 node test_or_future/docs_consistency.test.js
 python -m unittest test_or_future.test_phase1_format -v
 python -m unittest test_or_future.test_run_api -v
@@ -22,6 +25,8 @@ python -m py_compile run.py
 ```
 
 - `phase1_smoke.test.js`: アプリのロジックと、HTML/CSS の構造を確認します。
+- `quiz_smoke.test.js`: 独立クイズページとアプリの連携を確認します。
+- `node --check`: メインアプリとクイズの JavaScript 構文を確認します。
 - `docs_consistency.test.js`: HTML・`run.py`・README のバージョンとファイル名が一致していること、リリースノートがあること、Markdown の相対リンクが切れていないことを確認します。
 - `test_phase1_format.py`: DT-FMT のスキーマ・テンプレート・AI 指示・`sample.json` を検証します。
 - `test_run_api.py`: `run.py` の保存 API が、ランチャー自身のページ以外（他サイト・別ホスト名・`application/json` 以外）からの書き込みを拒否することを確認します。
