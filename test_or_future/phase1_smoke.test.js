@@ -84,10 +84,10 @@ assert.equal(api.shouldUseLocalStorage({ id: 'user-1' }, 'pending'), true, 'pend
 assert.equal(api.shouldUseLocalStorage({ id: 'user-1' }, 'cloud'), false, 'active authenticated sessions use cloud persistence');
 assert.match(source, /supabase\.createClient/, 'browser client initializes Supabase without a server API');
 assert.match(source, /const SUPABASE_SETTINGS_TABLE = 'nango_user_settings'/, 'display settings use their own Supabase table');
-assert.match(source, /async function fetchCloudDisplaySettingsRow\\(/, 'cloud display settings have a dedicated loader');
-assert.match(source, /async function writeCloudDisplaySettings\\([\\s\\S]*?from\\(SUPABASE_SETTINGS_TABLE\\)\\.upsert/, 'settings are written separately from dictionary data');
-assert.match(source, /function storePendingCloudDisplaySettings\\(/, 'failed settings updates keep a user-scoped retry record');
-assert.match(source, /function installDisplaySettingsOnlineSync\\(/, 'pending settings retry when connectivity returns');
+assert.match(source, /async function fetchCloudDisplaySettingsRow\(/, 'cloud display settings have a dedicated loader');
+assert.match(source, /async function writeCloudDisplaySettings\([\s\S]*?from\(SUPABASE_SETTINGS_TABLE\)\.upsert/, 'settings are written separately from dictionary data');
+assert.match(source, /function storePendingCloudDisplaySettings\(/, 'failed settings updates keep a user-scoped retry record');
+assert.match(source, /function installDisplaySettingsOnlineSync\(/, 'pending settings retry when connectivity returns');
 assert.match(source, /from\(SUPABASE_TABLE\)[\s\S]*?upsert/, 'authenticated data saves through the Supabase Data API');
 assert.match(source, /supabase-config\.json/, 'client fetches the repository JSON config');
 assert.match(source, /loadRepositorySupabaseConfig/, 'repository config is loaded before Supabase initialization');
