@@ -29,7 +29,7 @@ jobs:
       - name: Run data and UI smoke tests
         run: node test_or_future/phase1_smoke.test.js
       - name: Check main application JavaScript syntax
-        run: node --check Nango-neo/Nango_main.v02.0.7.js
+        run: node --check Nango-neo/Nango_main.v02.0.8.js
       - name: Check standalone quiz page
         run: node test_or_future/quiz_smoke.test.js
       - name: Check quiz JavaScript syntax
