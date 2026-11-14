@@ -2503,15 +2503,14 @@ function saveStoredDailyViewCounts(counts) {
     catch (error) { console.warn('閲覧統計をローカル保存できませんでした:', error); }
 }
 function readPendingViewEvents(userId) {
-    const byId = new Map();
-    const memory = pendingViewEventsMemory[userId] || [];
-    memory.forEach(event => { if (event && event.eventId) byId.set(event.eventId, event); });
+    if (Object.prototype.hasOwnProperty.call(pendingViewEventsMemory, userId)) {
+        return pendingViewEventsMemory[userId].slice();
+    }
     try {
         const stored = JSON.parse(localStorage.getItem(VIEW_EVENTS_PENDING_KEY) || '{}');
         const list = stored && typeof stored === 'object' ? stored[userId] : [];
-        if (Array.isArray(list)) list.forEach(event => { if (event && event.eventId) byId.set(event.eventId, event); });
-    } catch (_) {}
-    return [...byId.values()];
+        return Array.isArray(list) ? list.filter(event => event && event.eventId) : [];
+    } catch (_) { return []; }
 }
 function savePendingViewEvents(userId, events) {
     pendingViewEventsMemory[userId] = events;
@@ -2621,10 +2620,12 @@ async function getViewDailyCountsForStatistics() {
     if (!authUser || !authUser.id) return readStoredDailyViewCounts();
     const userId = authUser.id;
     let cached = readCachedUserViewCounts(userId);
-    const pendingCounts = aggregateViewEventCounts(readPendingViewEvents(userId));
+    let pendingCounts = aggregateViewEventCounts(readPendingViewEvents(userId));
     if (authSyncMode === 'cloud') {
-        try { cached = await syncUserViewEvents(userId); }
-        catch (error) {
+        try {
+            cached = await syncUserViewEvents(userId);
+            pendingCounts = aggregateViewEventCounts(readPendingViewEvents(userId));
+        } catch (error) {
             console.warn('閲覧統計の読込を保留し、キャッシュを表示します:', error);
             const status = $('statsSyncStatus');
             if (status) status.textContent = 'Supabase と同期できないため、保存済みの統計キャッシュを表示しています。';
