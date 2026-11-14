@@ -75,10 +75,10 @@ assert.match(supabaseSql, /settings jsonb not null default '\{\}'::jsonb/, 'sett
 for (const action of ['select', 'insert', 'update', 'delete']) {
   assert.match(supabaseSql, new RegExp('on public\\.nango_user_settings for ' + action + ' to authenticated'), 'settings table has an authenticated ' + action + ' policy');
 }
-assert.match(authGuide, /nango_user_settings/, 'Supabase setup guide documents the dedicated settings table');
-assert.match(privacyPolicy, /nango_user_settings/, 'privacy policy documents the separate settings storage');
+assert.match(supabaseGuide, /nango_user_settings/, 'Supabase setup guide documents the dedicated settings table');
 const privacyPolicyPath = path.join(root, 'Nango-neo', 'privacy-policy.html');
 const privacyPolicy = fs.readFileSync(privacyPolicyPath, 'utf8');
+assert.match(privacyPolicy, /nango_user_settings/, 'privacy policy documents the separate settings storage');
 assert.equal(api.shouldUseLocalStorage(null, 'local'), true, 'anonymous sessions persist to localStorage');
 assert.equal(api.shouldUseLocalStorage({ id: 'user-1' }, 'pending'), true, 'pending cloud sync preserves local persistence');
 assert.equal(api.shouldUseLocalStorage({ id: 'user-1' }, 'cloud'), false, 'active authenticated sessions use cloud persistence');
