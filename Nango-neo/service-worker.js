@@ -1,7 +1,7 @@
 /* Nango-neo v3.4.0: cache only the static app shell, never account or dictionary data. */
 'use strict';
 
-const CACHE_NAME = 'nango-app-shell-v3.3.0';
+const CACHE_NAME = 'nango-app-shell-v3.4.0';
 const APP_ENTRY = 'Nango-neo.v03.4.0.html';
 const SHELL_ASSETS = [
     APP_ENTRY,
