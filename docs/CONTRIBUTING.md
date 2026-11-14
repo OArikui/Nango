@@ -16,7 +16,7 @@ Nango-neo は、Nango v3.10 をもとに作り直した辞書アプリです。�
 ```text
 node test_or_future/phase1_smoke.test.js
 node test_or_future/quiz_smoke.test.js
-node --check Nango-neo/Nango_main.v02.0.7.js
+node --check Nango-neo/Nango_main.v02.0.8.js
 node --check Nango-neo/Nango-quiz.v01.0.0.js
 node test_or_future/docs_consistency.test.js
 python -m unittest test_or_future.test_phase1_format -v
