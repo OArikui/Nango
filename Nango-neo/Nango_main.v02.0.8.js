@@ -37,7 +37,7 @@ function resolveDisplaySettingsSource(localSettings, cloudRow, pendingRecord) {
 }
 
 function parseCivilDateKey(value) {
-    const match = /^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(String(value || ''));
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ''));
     if (!match) return null;
     const year = Number(match[1]), month = Number(match[2]), day = Number(match[3]);
     const date = new Date(Date.UTC(year, month - 1, day));
@@ -71,7 +71,7 @@ function shiftPeriodDateKey(dateKey, period) {
 }
 function getRfc3339DateKey(value) {
     const textValue = String(value || '');
-    if (!/^\\d{4}-\\d{2}-\\d{2}T/.test(textValue) || !isRfc3339DateTime(textValue)) return null;
+    if (!/^\d{4}-\d{2}-\d{2}T/.test(textValue) || !isRfc3339DateTime(textValue)) return null;
     const dateKey = textValue.slice(0, 10);
     return parseCivilDateKey(dateKey) ? dateKey : null;
 }
@@ -2065,8 +2065,8 @@ function showToolsPanel(recordHistory = true) {
         ['単語数', wordData.length], ['意味の数', meanings], ['分類タグ', categories], ['分野タグ', fields], ['時代タグ', eras],
         ...(limitExceeded ? [['DT-FMT上限超過', limitExceeded]] : [])
     ].map(([label,value]) => '<div class="stat-card"><span class="stat-value">' + value + '</span><span class="stat-label">' + label + '</span></div>').join('');
-}
     renderUsageStatistics().catch(error => console.warn('統計を描画できませんでした:', error));
+}
 async function renderUsageStatistics() {
     const periodSelect = $('statsPeriodSelect');
     const period = periodSelect && ['day', 'week', 'month'].includes(periodSelect.value) ? periodSelect.value : 'day';
