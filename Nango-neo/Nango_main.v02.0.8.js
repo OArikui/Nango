@@ -175,7 +175,7 @@ function renderStatsLineChart(series, valueKey, titleText) {
     const dots = points.length <= 80
         ? points.map(point => '<circle class="stats-point" cx="' + point.x.toFixed(1) + '" cy="' + point.y.toFixed(1) + '" r="3.2"><title>' + point.value + '</title></circle>').join('')
         : '';
-    return '<svg class="stats-line-chart" viewBox="0 0 ' + width + ' ' + height + '" role="img" aria-label="' + escapeHtml(titleText) + '" xmlns="http://www.w3.org/2000/svg">'
+    return '<svg class="stats-line-chart" width="' + width + '" height="' + height + '" viewBox="0 0 ' + width + ' ' + height + '" role="img" aria-label="' + escapeHtml(titleText) + '" xmlns="http://www.w3.org/2000/svg">'
         + '<title>' + escapeHtml(titleText) + '</title>' + grid
         + '<polyline class="stats-series-line" points="' + line + '"></polyline>' + dots + labels + '</svg>';
 }
