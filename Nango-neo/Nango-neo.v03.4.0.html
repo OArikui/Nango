@@ -9,14 +9,14 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Nango">
     <link rel="manifest" href="manifest.webmanifest">
-    <meta name="app-name" content="© 2026 Nango-neo (base: v3.10) - Version 3.3.0">
-    <meta name="html-version" content="neo.v03.3.0">
+    <meta name="app-name" content="© 2026 Nango-neo (base: v3.10) - Version 3.4.0">
+    <meta name="html-version" content="neo.v03.4.0">
     <meta name="json-version" content="DTformats.neo.v5.17">
-    <meta name="javascript-version" content="v02.0.7">
+    <meta name="javascript-version" content="v02.0.8">
     <title>Nango-neo — Phase 1</title>
     <link rel="icon" type="image/svg+xml" href="nango-logo.svg">
     <link rel="apple-touch-icon" href="nango-logo.svg">
-    <link rel="stylesheet" href="style.v02.9.1.css">
+    <link rel="stylesheet" href="style.v02.10.0.css">
 </head>
 
 <body>
@@ -36,7 +36,7 @@
                     <span id="headerStorageStatus" class="header-storage-status" role="status" aria-live="polite" hidden></span>
                     <button id="headerLoginButton" class="btn btn-secondary header-login-button" type="button" onclick="showAuthPanel()">ログイン</button>
                 </div>
-                <div class="version-chip">NANGO-NEO <strong>v3.3.0</strong></div>
+                <div class="version-chip">NANGO-NEO <strong>v3.4.0</strong></div>
             </div>
         </header>
 
@@ -294,6 +294,37 @@
                         <input type="file" id="fileInput" accept=".json" onchange="importJSON(event)" multiple>
                     </section>
                     <div id="toolsStats" class="tools-stats"></div>
+                    <section class="settings-section usage-statistics-section" aria-labelledby="usageStatisticsHeading">
+                        <div class="usage-statistics-heading">
+                            <div>
+                                <h3 id="usageStatisticsHeading">単語の登録・閲覧推移</h3>
+                                <p class="form-help">登録数は単語データの登録日時から集計します。閲覧数は単語詳細を開いた回数です。</p>
+                            </div>
+                            <label for="statsPeriodSelect">集計単位
+                                <select id="statsPeriodSelect" class="form-control stats-period-select" onchange="renderUsageStatistics()">
+                                    <option value="day">日別</option>
+                                    <option value="week">週別</option>
+                                    <option value="month">月別</option>
+                                </select>
+                            </label>
+                        </div>
+                        <div id="usageStatsSummary" class="tools-stats" aria-live="polite"></div>
+                        <div class="stats-plot-section">
+                            <h4>期間別の単語登録数</h4>
+                            <div id="registrationCountChart" class="stats-chart-scroll"></div>
+                        </div>
+                        <div class="stats-plot-section">
+                            <h4>単語登録数の累計</h4>
+                            <div id="registrationCumulativeChart" class="stats-chart-scroll"></div>
+                        </div>
+                        <div class="stats-plot-section">
+                            <h4>単語詳細の閲覧数</h4>
+                            <p class="form-help">閲覧数の記録はこの機能の導入後に開始します。導入前の閲覧履歴は記録されていないため、過去分は復元できません。</p>
+                            <div id="viewCountChart" class="stats-chart-scroll"></div>
+                        </div>
+                        <p id="statsSyncStatus" class="form-help" role="status" aria-live="polite"></p>
+                        <div class="form-actions"><button class="btn btn-secondary" type="button" onclick="renderUsageStatistics()">統計を再読み込み</button></div>
+                    </section>
                     <section class="settings-section"><h3>クイズ</h3><p>登録した単語の意味を使い、アプリ本体のヘッダーやサイドバーを表示しない専用ページで出題・採点します。</p><div class="form-actions"><button class="btn btn-primary" type="button" onclick="openQuizPage()">クイズを開始</button></div></section>
                 </div>
 
@@ -407,6 +438,6 @@
         })();
     </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js" integrity="sha384-BWcjm9OdFth9TbhCxZPdm+gAOUMAzQy9nmTs12ioXdCcbVnJaPMn+fMUoQCLt60R" crossorigin="anonymous"></script>
-    <script src="Nango_main.v02.0.7.js" defer></script>
+    <script src="Nango_main.v02.0.8.js" defer></script>
 </body>
 </html>

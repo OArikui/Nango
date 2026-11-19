@@ -9,10 +9,10 @@
 
 | 項目 | ファイル / バージョン |
 | ---- | ---------------------- |
-| アプリ | v3.3.0 |
-| 画面 (HTML) | `Nango-neo/Nango-neo.v03.3.0.html` |
-| JavaScript | `Nango-neo/Nango_main.v02.0.7.js` |
-| CSS | `Nango-neo/style.v02.9.1.css` |
+| アプリ | v3.4.0 |
+| 画面 (HTML) | `Nango-neo/Nango-neo.v03.4.0.html` |
+| JavaScript | `Nango-neo/Nango_main.v02.0.8.js` |
+| CSS | `Nango-neo/style.v02.10.0.css` |
 | データ形式 (DT-FMT) | `Nango-neo/DTformats.neo.v5.17/`（[仕様](docs/DT-FMT.md)） |
 | ローカルランチャー | `run.py` / `RUN_NANGO.bat`（Python 3.9 以降、標準ライブラリのみ） |
 
@@ -51,7 +51,7 @@ Nango は iOS 向けに PWA（ホーム画面から起動できる Web アプリ
 
 ### 2. HTML を直接開く
 
-`Nango-neo/Nango-neo.v03.3.0.html` をブラウザーで開いても使えます。この場合の保存先はブラウザーの `localStorage` だけで、
+`Nango-neo/Nango-neo.v03.4.0.html` をブラウザーで開いても使えます。この場合の保存先はブラウザーの `localStorage` だけで、
 同じブラウザー・同じオリジンでしかデータを使えません。ファイルへの自動保存は動作しません。
 
 ### 3. GitHub Pages
@@ -67,6 +67,7 @@ GitHub Pages では未ログイン時はブラウザーの `localStorage`、ロ�
 | Python ランチャー | `user_data/nango_data.json`（ブラウザーの `localStorage` にも予備として保存） |
 | HTML 直接 / GitHub Pages | 未ログイン時はブラウザーの `localStorage`、ログイン時は Supabase の `nango_user_data` |
 | 表示設定 | 未ログイン時は `localStorage`、ログイン時は Supabase の `nango_user_settings`（localStorage にもキャッシュ） |
+| 閲覧統計 | 未ログイン時は `localStorage`、ログイン時は Supabase の `nango_user_view_events`（辞書JSONとは独立） |
 
 - バックアップや別環境への移行には、ツールの「JSONエクスポート」を使ってください。出力は `Nango-neo_DTformats.neo.v5.17.json` です。
 - Python ランチャーを使う場合は、`user_data` フォルダーもバックアップしてください。
@@ -85,6 +86,7 @@ GitHub Pages では未ログイン時はブラウザーの `localStorage`、ロ�
 - **AI 入力支援**: 設定の「AIに送るプロンプトをコピー」で、DT-FMT の形式規則と登録済みタグ一覧をまとめてコピーできます。「DT-FMT定義を確認」で形式を画面上でも確認できます。
 - **画面履歴**: 画面上部の「戻る」「進む」でアプリ内の画面を移動できます。一覧から戻るとスクロール位置を復元し、詳細を新しく開くと上端から表示します。サイドバー内の単語切り替えではスクロール位置を維持します。
 - **アカウント（設定 > アカウント）**: ログイン、クラウド保存、接続設定をまとめています。独立した新規登録ページ、確認メールの再送、認証結果の表示にも対応します。
+- **登録・閲覧統計**: 登録数は各単語の `datetime` から日別・週別・月別に再集計し、件数と累計をSVGグラフで表示します。単語詳細の閲覧は導入後から日次記録します。過去の閲覧履歴は復元できません。
 - **クイズ**: 登録済みの単語と意味から出題します。単語→意味、意味→単語、混合の3形式に対応し、専用ページで採点と補足説明を表示します。辞書データ自体は変更しません。
 - **ページ上部へ戻る**: 一定量スクロールすると右下に小さなボタンを表示します。
 
@@ -140,7 +142,7 @@ JSON Schema Draft 2020-12 に基づく形式です。単語名を `words` オブ
 
 ```text
 node test_or_future/phase1_smoke.test.js            # アプリのロジック・HTML/CSS の構造
-node --check Nango-neo/Nango_main.v02.0.7.js        # メイン JavaScript の構文確認
+node --check Nango-neo/Nango_main.v02.0.8.js        # メイン JavaScript の構文確認
 node test_or_future/quiz_smoke.test.js             # 独立クイズページとアプリの連携
 node test_or_future/docs_consistency.test.js        # README・ランチャー・HTML のバージョン整合とリンク切れ
 python -m unittest test_or_future.test_phase1_format -v   # DT-FMT のスキーマ検証（pip install "jsonschema[format]" が必要）

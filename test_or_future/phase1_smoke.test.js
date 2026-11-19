@@ -34,7 +34,7 @@ const supabaseConfigPath = path.join(root, 'Nango-neo', 'supabase-config.json');
 
 let source = fs.readFileSync(jsPath, 'utf8');
 source = source.replace(/\/\/ Expose small pure helpers for browser console\/manual tests\.[\s\S]*$/, '');
-const api = new Function(source + '\nreturn { parseNangoDocument, serializeNangoDocument, normalizeWord, normalizeCategoryTags, normalizeMeaning, validateWord, findDuplicateIndex, mergeWord, reassignIds, getInitial, getWordListGroupLabel, buildAiPrompt, shouldUseLocalStorage, findLimitViolations, normalizeDisplaySettings, hasDisplaySettingsValue, resolveDisplaySettingsSource };')();
+const api = new Function(source + '\nreturn { parseNangoDocument, serializeNangoDocument, normalizeWord, normalizeCategoryTags, normalizeMeaning, validateWord, findDuplicateIndex, mergeWord, reassignIds, getInitial, getWordListGroupLabel, buildAiPrompt, shouldUseLocalStorage, findLimitViolations, normalizeDisplaySettings, hasDisplaySettingsValue, resolveDisplaySettingsSource, buildRegistrationDailyCounts, aggregateViewEventCounts, buildPeriodSeries, normalizeDailyCountMap };')();
 const generatedPrompt = api.buildAiPrompt();
 assert.ok(generatedPrompt.includes('\n'), 'AI prompt is separated with actual newlines');
 assert.equal(generatedPrompt.includes('\\n'), false, 'AI prompt does not contain escaped newline text');
@@ -66,10 +66,40 @@ assert.deepEqual(api.resolveDisplaySettingsSource(
   { showGeminiNote: false, defaultDisplayMode: 'kanji' }, { settings: {} }, null),
   { source: 'local', settings: { showGeminiNote: false, defaultDisplayMode: 'kanji' } },
   'an empty cloud settings row triggers one-time migration from local settings');
+assert.deepEqual(api.buildRegistrationDailyCounts([
+  { datetime: '2026-11-01T08:00:00+09:00' },
+  { datetime: '2026-11-01T10:30:00+09:00' },
+  { datetime: '2026-11-03T00:15:00Z' },
+  { datetime: 'not-a-date' }
+]), { '2026-11-01': 2, '2026-11-03': 1 },
+'registration counts are derived from existing RFC 3339 datetime values');
+const dailySeries = api.buildPeriodSeries({ '2026-11-01': 2, '2026-11-03': 1 }, 'day', '2026-11-03');
+assert.deepEqual(dailySeries.keys, ['2026-11-01', '2026-11-02', '2026-11-03'], 'daily series fills dates with no registrations');
+assert.deepEqual(dailySeries.counts, [2, 0, 1], 'daily series contains per-day registration counts');
+assert.deepEqual(dailySeries.cumulative, [2, 2, 3], 'daily series includes cumulative registration totals');
+const weeklySeries = api.buildPeriodSeries({ '2026-11-09': 2, '2026-11-12': 1, '2026-11-16': 4 }, 'week', '2026-11-16');
+assert.deepEqual(weeklySeries.keys, ['2026-11-09', '2026-11-16'], 'weekly periods start on Monday');
+assert.deepEqual(weeklySeries.counts, [3, 4], 'weekly registration counts are aggregated');
+assert.deepEqual(weeklySeries.cumulative, [3, 7], 'weekly cumulative counts are correct');
+const monthlySeries = api.buildPeriodSeries({ '2026-10-31': 1, '2026-11-01': 2, '2026-11-14': 3 }, 'month', '2026-11-14');
+assert.deepEqual(monthlySeries.keys, ['2026-10-01', '2026-11-01'], 'monthly periods start on the first day');
+assert.deepEqual(monthlySeries.counts, [1, 5], 'monthly registration counts are aggregated');
+assert.deepEqual(monthlySeries.cumulative, [1, 6], 'monthly cumulative counts are correct');
+assert.deepEqual(api.aggregateViewEventCounts([
+  { viewDate: '2026-11-14' }, { view_date: '2026-11-14' }, { view_date: 'invalid' }
+]), { '2026-11-14': 2 }, 'view events are reduced to daily statistics');
 
 const supabaseSql = fs.readFileSync(supabaseSqlPath, 'utf8');
 const supabaseGuide = fs.readFileSync(supabaseGuidePath, 'utf8');
 const supabaseConfig = JSON.parse(fs.readFileSync(supabaseConfigPath, 'utf8'));
+assert.match(supabaseSql, /create table if not exists public\.nango_user_view_events/, 'view statistics have a dedicated Supabase event table');
+assert.match(supabaseSql, /view_date date not null/, 'view events store a local calendar date');
+assert.match(supabaseSql, /viewed_at timestamptz not null/, 'view events store an RFC 3339 timestamp');
+for (const action of ['select', 'insert']) {
+  assert.match(supabaseSql, new RegExp('on public\\.nango_user_view_events for ' + action + ' to authenticated'), 'view event table has authenticated ' + action + ' RLS');
+}
+assert.match(supabaseGuide, /nango_user_view_events/, 'Supabase guide documents user view event storage');
+assert.match(supabaseGuide, /復元できません/, 'Supabase guide explains that previous view counts cannot be recovered');
 assert.match(supabaseSql, /create table if not exists public\.nango_user_settings/, 'display settings have a dedicated Supabase table');
 assert.match(supabaseSql, /settings jsonb not null default '\{\}'::jsonb/, 'settings are stored as a separate JSONB document');
 for (const action of ['select', 'insert', 'update', 'delete']) {
@@ -88,6 +118,21 @@ assert.match(source, /async function fetchCloudDisplaySettingsRow\(/, 'cloud dis
 assert.match(source, /async function writeCloudDisplaySettings\([\s\S]*?from\(SUPABASE_SETTINGS_TABLE\)\.upsert/, 'settings are written separately from dictionary data');
 assert.match(source, /function storePendingCloudDisplaySettings\(/, 'failed settings updates keep a user-scoped retry record');
 assert.match(source, /function installDisplaySettingsOnlineSync\(/, 'pending settings retry when connectivity returns');
+assert.match(source, /const SUPABASE_VIEW_EVENTS_TABLE = 'nango_user_view_events'/, 'view statistics use a dedicated Supabase table');
+assert.match(source, /function recordWordDetailView\(/, 'opening a word detail records a view event');
+assert.match(source, /recordWordDetailView\(currentWordId\)/, 'view events are recorded by detail navigation');
+assert.match(source, /function syncUserViewEvents\(/, 'user view events support cloud synchronization');
+const viewOnlineSync = source.match(/function installViewStatisticsOnlineSync\(\) \{([\s\S]*?)\n\}/);
+assert.ok(viewOnlineSync, 'view events install an online retry handler');
+assert.match(viewOnlineSync[1], /if \(!userId\) return;/, 'online retry requires an authenticated user');
+assert.match(viewOnlineSync[1], /uploadPendingViewEvents\(userId\)/, 'online retry uploads only pending events');
+assert.doesNotMatch(viewOnlineSync[1], /authSyncMode\s*!==\s*'cloud'/, 'online retry also runs when initial cloud activation is pending');
+assert.match(source, /async function uploadPendingViewEvents\(/, 'view events have an upload-only sync path');
+assert.match(source, /async function syncUserViewEvents\(/, 'statistics refresh has a separate full history sync');
+assert.match(source, /viewEventsPendingVersions\[userId\] = \(viewEventsPendingVersions\[userId\] \|\| 0\) \+ 1/, 'statistics sync detects events queued during a refresh');
+assert.match(source, /\.order\('view_date', \{ ascending: true \}\)\s*\.order\('event_id', \{ ascending: true \}\)/, 'view-event pagination uses a stable tie-break order');
+assert.match(source, /function renderStatsLineChart\(/, 'statistics charts are rendered with native SVG');
+assert.doesNotMatch(source, /Chart\.js|highcharts|echarts|d3\.js/i, 'statistics do not rely on an external chart library');
 assert.match(source, /from\(SUPABASE_TABLE\)[\s\S]*?upsert/, 'authenticated data saves through the Supabase Data API');
 assert.match(source, /supabase-config\.json/, 'client fetches the repository JSON config');
 assert.match(source, /loadRepositorySupabaseConfig/, 'repository config is loaded before Supabase initialization');
@@ -393,6 +438,10 @@ assert.ok(htmlSource.includes('viewport-fit=cover'), 'main app uses the full iOS
 assert.ok(htmlSource.includes('rel="manifest" href="manifest.webmanifest"'), 'main app loads the PWA manifest');
 assert.ok(htmlSource.includes('apple-mobile-web-app-capable'), 'main app declares iOS home-screen web-app support');
 assert.ok(htmlSource.includes('id="iosInstallHint"'), 'iOS users receive a home-screen installation hint');
+assert.ok(htmlSource.includes('id="registrationCountChart"'), 'tools view includes the registration trend chart');
+assert.ok(htmlSource.includes('id="registrationCumulativeChart"'), 'tools view includes the cumulative registration chart');
+assert.ok(htmlSource.includes('id="viewCountChart"'), 'tools view includes the word detail view chart');
+assert.match(htmlSource, /過去分は復元できません/, 'statistics UI explains unavailable historical view counts');
 assert.ok(htmlSource.includes("serviceWorker.register('./service-worker.js'"), 'main app registers its scoped service worker');
 assert.equal(pwaManifest.display, 'standalone', 'manifest launches the app without browser chrome');
 assert.equal(pwaManifest.lang, 'ja', 'manifest declares the Japanese interface language');
