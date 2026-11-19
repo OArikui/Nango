@@ -2561,6 +2561,7 @@ async function fetchCloudViewDailyCounts(userId) {
             .select('event_id, view_date')
             .eq('user_id', userId)
             .order('view_date', { ascending: true })
+            .order('event_id', { ascending: true })
             .range(offset, offset + pageSize - 1);
         if (result.error) throw result.error;
         const rows = Array.isArray(result.data) ? result.data : [];
@@ -2636,7 +2637,7 @@ async function getViewDailyCountsForStatistics() {
 function installViewStatisticsOnlineSync() {
     window.addEventListener('online', () => {
         const userId = authUser && authUser.id;
-        if (!userId || authSyncMode !== 'cloud') return;
+        if (!userId) return;
         syncUserViewEvents(userId).catch(error => {
             console.warn('閲覧統計の再同期を保留しました:', error);
         });
