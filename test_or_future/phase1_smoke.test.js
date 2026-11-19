@@ -125,7 +125,11 @@ assert.match(source, /function syncUserViewEvents\(/, 'user view events support 
 const viewOnlineSync = source.match(/function installViewStatisticsOnlineSync\(\) \{([\s\S]*?)\n\}/);
 assert.ok(viewOnlineSync, 'view events install an online retry handler');
 assert.match(viewOnlineSync[1], /if \(!userId\) return;/, 'online retry requires an authenticated user');
+assert.match(viewOnlineSync[1], /uploadPendingViewEvents\(userId\)/, 'online retry uploads only pending events');
 assert.doesNotMatch(viewOnlineSync[1], /authSyncMode\s*!==\s*'cloud'/, 'online retry also runs when initial cloud activation is pending');
+assert.match(source, /async function uploadPendingViewEvents\(/, 'view events have an upload-only sync path');
+assert.match(source, /async function syncUserViewEvents\(/, 'statistics refresh has a separate full history sync');
+assert.match(source, /viewEventsPendingVersions\[userId\] = \(viewEventsPendingVersions\[userId\] \|\| 0\) \+ 1/, 'statistics sync detects events queued during a refresh');
 assert.match(source, /\.order\('view_date', \{ ascending: true \}\)\s*\.order\('event_id', \{ ascending: true \}\)/, 'view-event pagination uses a stable tie-break order');
 assert.match(source, /function renderStatsLineChart\(/, 'statistics charts are rendered with native SVG');
 assert.doesNotMatch(source, /Chart\.js|highcharts|echarts|d3\.js/i, 'statistics do not rely on an external chart library');
