@@ -122,11 +122,11 @@ assert.match(source, /const SUPABASE_VIEW_EVENTS_TABLE = 'nango_user_view_events
 assert.match(source, /function recordWordDetailView\(/, 'opening a word detail records a view event');
 assert.match(source, /recordWordDetailView\(currentWordId\)/, 'view events are recorded by detail navigation');
 assert.match(source, /function syncUserViewEvents\(/, 'user view events support cloud synchronization');
-const viewOnlineSync = source.match(/function installViewStatisticsOnlineSync\\(\\) \\{([\\s\\S]*?)\\n\\}/);
+const viewOnlineSync = source.match(/function installViewStatisticsOnlineSync\(\) \{([\s\S]*?)\n\}/);
 assert.ok(viewOnlineSync, 'view events install an online retry handler');
-assert.match(viewOnlineSync[1], /if \\(!userId\\) return;/, 'online retry requires an authenticated user');
-assert.doesNotMatch(viewOnlineSync[1], /authSyncMode\\s*!==\\s*'cloud'/, 'online retry also runs when initial cloud activation is pending');
-assert.match(source, /\\.order\\('view_date', \\{ ascending: true \\}\\)\\s*\\.order\\('event_id', \\{ ascending: true \\}\\)/, 'view-event pagination uses a stable tie-break order');
+assert.match(viewOnlineSync[1], /if \(!userId\) return;/, 'online retry requires an authenticated user');
+assert.doesNotMatch(viewOnlineSync[1], /authSyncMode\s*!==\s*'cloud'/, 'online retry also runs when initial cloud activation is pending');
+assert.match(source, /\.order\('view_date', \{ ascending: true \}\)\s*\.order\('event_id', \{ ascending: true \}\)/, 'view-event pagination uses a stable tie-break order');
 assert.match(source, /function renderStatsLineChart\(/, 'statistics charts are rendered with native SVG');
 assert.doesNotMatch(source, /Chart\.js|highcharts|echarts|d3\.js/i, 'statistics do not rely on an external chart library');
 assert.match(source, /from\(SUPABASE_TABLE\)[\s\S]*?upsert/, 'authenticated data saves through the Supabase Data API');
