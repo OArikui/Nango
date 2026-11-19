@@ -51,7 +51,7 @@ Nango は iOS 向けに PWA（ホーム画面から起動できる Web アプリ
 
 ### 2. HTML を直接開く
 
-`Nango-neo/Nango-neo.v03.3.0.html` をブラウザーで開いても使えます。この場合の保存先はブラウザーの `localStorage` だけで、
+`Nango-neo/Nango-neo.v03.4.0.html` をブラウザーで開いても使えます。この場合の保存先はブラウザーの `localStorage` だけで、
 同じブラウザー・同じオリジンでしかデータを使えません。ファイルへの自動保存は動作しません。
 
 ### 3. GitHub Pages
