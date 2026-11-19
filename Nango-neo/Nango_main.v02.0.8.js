@@ -2235,6 +2235,8 @@ const VIEW_EVENTS_CACHE_KEY = 'nango_view_events_cache_v1';
 const pendingViewEventsMemory = Object.create(null);
 const viewEventsCacheMemory = Object.create(null);
 const viewEventsSyncPromises = new Map();
+const viewEventsUploadPromises = new Map();
+const viewEventsPendingVersions = Object.create(null);
 let supabaseClient = null, supabaseClientConfigSignature = '', supabaseAuthSubscription = null;
 let authUser = null, authSyncMode = 'local', authStatusMessage = '';
 let cloudSaveQueue = Promise.resolve(), displaySettingsSaveQueue = Promise.resolve();
@@ -2527,6 +2529,7 @@ function queuePendingViewEvent(userId, event) {
     const events = readPendingViewEvents(userId);
     events.push(event);
     savePendingViewEvents(userId, events);
+    viewEventsPendingVersions[userId] = (viewEventsPendingVersions[userId] || 0) + 1;
 }
 function clearPendingViewEvents(userId, eventIds) {
     const ids = new Set(eventIds);
@@ -2574,12 +2577,13 @@ async function fetchCloudViewDailyCounts(userId) {
     }
     return counts;
 }
-async function syncUserViewEvents(userId) {
-    if (!userId) return {};
-    if (viewEventsSyncPromises.has(userId)) return viewEventsSyncPromises.get(userId);
-    const syncPromise = (async () => {
-        const pending = readPendingViewEvents(userId);
-        if (pending.length) {
+async function uploadPendingViewEvents(userId) {
+    if (!userId) return;
+    if (viewEventsUploadPromises.has(userId)) return viewEventsUploadPromises.get(userId);
+    const uploadPromise = (async () => {
+        while (true) {
+            const pending = readPendingViewEvents(userId);
+            if (!pending.length) return;
             const payload = pending.map(event => ({
                 event_id: event.eventId,
                 user_id: userId,
@@ -2591,7 +2595,23 @@ async function syncUserViewEvents(userId) {
             if (write.error) throw write.error;
             clearPendingViewEvents(userId, pending.map(event => event.eventId));
         }
-        const counts = await fetchCloudViewDailyCounts(userId);
+    })();
+    viewEventsUploadPromises.set(userId, uploadPromise);
+    try { await uploadPromise; }
+    finally { viewEventsUploadPromises.delete(userId); }
+}
+async function syncUserViewEvents(userId) {
+    if (!userId) return {};
+    if (viewEventsSyncPromises.has(userId)) return viewEventsSyncPromises.get(userId);
+    const syncPromise = (async () => {
+        let counts = {};
+        while (true) {
+            const pendingVersion = viewEventsPendingVersions[userId] || 0;
+            await uploadPendingViewEvents(userId);
+            counts = await fetchCloudViewDailyCounts(userId);
+            if ((viewEventsPendingVersions[userId] || 0) === pendingVersion
+                && readPendingViewEvents(userId).length === 0) break;
+        }
         saveCachedUserViewCounts(userId, counts);
         return counts;
     })();
@@ -2606,11 +2626,9 @@ function recordWordDetailView(wordId) {
     const event = { eventId: createViewEventId(), viewDate, viewedAt };
     if (authUser && authUser.id) {
         queuePendingViewEvent(authUser.id, event);
-        if (authSyncMode === 'cloud') {
-            syncUserViewEvents(authUser.id).catch(error => {
-                console.warn('単語閲覧イベントのクラウド同期を保留しました:', error);
-            });
-        }
+        uploadPendingViewEvents(authUser.id).catch(error => {
+            console.warn('単語閲覧イベントのクラウド同期を保留しました:', error);
+        });
         return;
     }
     const counts = readStoredDailyViewCounts();
@@ -2638,7 +2656,7 @@ function installViewStatisticsOnlineSync() {
     window.addEventListener('online', () => {
         const userId = authUser && authUser.id;
         if (!userId) return;
-        syncUserViewEvents(userId).catch(error => {
+        uploadPendingViewEvents(userId).catch(error => {
             console.warn('閲覧統計の再同期を保留しました:', error);
         });
     });
