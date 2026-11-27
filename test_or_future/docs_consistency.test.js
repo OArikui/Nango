@@ -103,4 +103,12 @@ for (const file of markdownFiles) {
 }
 assert.deepEqual(staleRefs, [], `docs mention paths that do not exist:\n${staleRefs.join('\n')}`);
 
+const portalPath = path.join(appDir, 'release-docs.html');
+assert.ok(fs.existsSync(portalPath), 'release and documentation portal exists');
+const portalSource = fs.readFileSync(portalPath, 'utf8');
+assert.ok(htmlSource.includes('href="release-docs.html"'), 'app menu links to the portal');
+assert.ok(readme.includes('release-docs.html'), 'README links to the portal');
+assert.ok(portalSource.includes('api.github.com/repos/OArikui/Nango'), 'portal reads repository data from GitHub API');
+assert.ok(portalSource.includes('docs/releases') && portalSource.includes('docs/archive'), 'portal indexes release notes and archived docs');
+
 console.log(`Documentation consistency checks passed for v${appVersion}.`);
