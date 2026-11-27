@@ -35,6 +35,151 @@ function resolveDisplaySettingsSource(localSettings, cloudRow, pendingRecord) {
     }
     return { source: 'local', settings: normalizeDisplaySettings(localSettings) };
 }
+
+function parseCivilDateKey(value) {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ''));
+    if (!match) return null;
+    const year = Number(match[1]), month = Number(match[2]), day = Number(match[3]);
+    const date = new Date(Date.UTC(year, month - 1, day));
+    if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
+    return date;
+}
+function dateKeyFromUtcDate(date) {
+    return date.getUTCFullYear().toString().padStart(4, '0') + '-'
+        + (date.getUTCMonth() + 1).toString().padStart(2, '0') + '-'
+        + date.getUTCDate().toString().padStart(2, '0');
+}
+function shiftDateKey(dateKey, days) {
+    const date = parseCivilDateKey(dateKey);
+    if (!date) return null;
+    date.setUTCDate(date.getUTCDate() + days);
+    return dateKeyFromUtcDate(date);
+}
+function getPeriodStartDateKey(dateKey, period) {
+    const date = parseCivilDateKey(dateKey);
+    if (!date) return null;
+    if (period === 'month') date.setUTCDate(1);
+    else if (period === 'week') date.setUTCDate(date.getUTCDate() - ((date.getUTCDay() + 6) % 7));
+    return dateKeyFromUtcDate(date);
+}
+function shiftPeriodDateKey(dateKey, period) {
+    const date = parseCivilDateKey(dateKey);
+    if (!date) return null;
+    if (period === 'month') date.setUTCMonth(date.getUTCMonth() + 1);
+    else date.setUTCDate(date.getUTCDate() + (period === 'week' ? 7 : 1));
+    return dateKeyFromUtcDate(date);
+}
+function getRfc3339DateKey(value) {
+    const textValue = String(value || '');
+    if (!/^\d{4}-\d{2}-\d{2}T/.test(textValue) || !isRfc3339DateTime(textValue)) return null;
+    const dateKey = textValue.slice(0, 10);
+    return parseCivilDateKey(dateKey) ? dateKey : null;
+}
+function buildRegistrationDailyCounts(words) {
+    const counts = {};
+    for (const word of Array.isArray(words) ? words : []) {
+        const dateKey = getRfc3339DateKey(word && word.datetime);
+        if (dateKey) counts[dateKey] = (counts[dateKey] || 0) + 1;
+    }
+    return counts;
+}
+function aggregateViewEventCounts(events) {
+    const counts = {};
+    for (const event of Array.isArray(events) ? events : []) {
+        const dateKey = String(event && (event.viewDate || event.view_date) || '');
+        if (!parseCivilDateKey(dateKey)) continue;
+        counts[dateKey] = (counts[dateKey] || 0) + 1;
+    }
+    return counts;
+}
+function normalizeDailyCountMap(value) {
+    const result = {};
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return result;
+    for (const [dateKey, rawCount] of Object.entries(value)) {
+        const count = Number(rawCount);
+        if (parseCivilDateKey(dateKey) && Number.isSafeInteger(count) && count > 0) result[dateKey] = count;
+    }
+    return result;
+}
+function mergeDailyCountMaps(...maps) {
+    const result = {};
+    for (const map of maps) {
+        for (const [dateKey, count] of Object.entries(normalizeDailyCountMap(map))) {
+            result[dateKey] = (result[dateKey] || 0) + count;
+        }
+    }
+    return result;
+}
+function buildPeriodSeries(dailyCounts, period, endDateKey = null) {
+    const normalized = normalizeDailyCountMap(dailyCounts);
+    const dates = Object.keys(normalized).sort();
+    if (!dates.length) return { period, keys: [], labels: [], counts: [], cumulative: [], total: 0 };
+    const unit = ['day', 'week', 'month'].includes(period) ? period : 'day';
+    const end = parseCivilDateKey(endDateKey) ? endDateKey : dates[dates.length - 1];
+    const lastDate = end > dates[dates.length - 1] ? end : dates[dates.length - 1];
+    const firstBucket = getPeriodStartDateKey(dates[0], unit);
+    const lastBucket = getPeriodStartDateKey(lastDate, unit);
+    const bucketCounts = {};
+    for (const [dateKey, count] of Object.entries(normalized)) {
+        const bucket = getPeriodStartDateKey(dateKey, unit);
+        bucketCounts[bucket] = (bucketCounts[bucket] || 0) + count;
+    }
+    const keys = [], labels = [], counts = [], cumulative = [];
+    let cursor = firstBucket, runningTotal = 0, guard = 0;
+    while (cursor && cursor <= lastBucket && guard < 20000) {
+        const count = bucketCounts[cursor] || 0;
+        runningTotal += count;
+        keys.push(cursor);
+        counts.push(count);
+        cumulative.push(runningTotal);
+        labels.push(unit === 'month'
+            ? cursor.slice(0, 7).replace('-', '/')
+            : unit === 'week'
+                ? '週 ' + cursor.slice(5).replace('-', '/')
+                : cursor.slice(5).replace('-', '/'));
+        cursor = shiftPeriodDateKey(cursor, unit);
+        guard += 1;
+    }
+    return { period: unit, keys, labels, counts, cumulative, total: runningTotal };
+}
+function getLocalDateKey(date = new Date()) {
+    return date.getFullYear().toString().padStart(4, '0') + '-'
+        + (date.getMonth() + 1).toString().padStart(2, '0') + '-'
+        + date.getDate().toString().padStart(2, '0');
+}
+function renderStatsLineChart(series, valueKey, titleText) {
+    const values = series && Array.isArray(series[valueKey]) ? series[valueKey] : [];
+    if (!values.length) return '<p class="stats-empty">表示できるデータがありません。</p>';
+    const width = Math.max(720, values.length * 44 + 92);
+    const height = 248, left = 54, right = 22, top = 24, bottom = 50;
+    const plotWidth = width - left - right, plotHeight = height - top - bottom;
+    const maximum = Math.max(1, ...values);
+    const points = values.map((value, index) => {
+        const x = left + (values.length === 1 ? plotWidth / 2 : index * plotWidth / (values.length - 1));
+        const y = top + plotHeight - (value / maximum) * plotHeight;
+        return { x, y, value };
+    });
+    const grid = Array.from({ length: 5 }, (_, index) => {
+        const value = Math.ceil(maximum * (4 - index) / 4);
+        const y = top + plotHeight * index / 4;
+        return '<line class="stats-grid-line" x1="' + left + '" y1="' + y.toFixed(1) + '" x2="' + (width - right) + '" y2="' + y.toFixed(1) + '"></line>'
+            + '<text class="stats-axis-label" x="' + (left - 9) + '" y="' + (y + 4).toFixed(1) + '" text-anchor="end">' + value + '</text>';
+    }).join('');
+    const line = points.map(point => point.x.toFixed(1) + ',' + point.y.toFixed(1)).join(' ');
+    const step = Math.max(1, Math.ceil(values.length / 9));
+    const labels = points.map((point, index) => {
+        if (index % step !== 0 && index !== points.length - 1) return '';
+        return '<text class="stats-x-label" x="' + point.x.toFixed(1) + '" y="' + (height - 18) + '" text-anchor="middle">'
+            + escapeHtml(series.labels[index] || '') + '</text>';
+    }).join('');
+    const dots = points.length <= 80
+        ? points.map(point => '<circle class="stats-point" cx="' + point.x.toFixed(1) + '" cy="' + point.y.toFixed(1) + '" r="3.2"><title>' + point.value + '</title></circle>').join('')
+        : '';
+    return '<svg class="stats-line-chart" width="' + width + '" height="' + height + '" viewBox="0 0 ' + width + ' ' + height + '" role="img" aria-label="' + escapeHtml(titleText) + '" xmlns="http://www.w3.org/2000/svg">'
+        + '<title>' + escapeHtml(titleText) + '</title>' + grid
+        + '<polyline class="stats-series-line" points="' + line + '"></polyline>' + dots + labels + '</svg>';
+}
+
 const LOCAL_DATA_API = '/api/data';
 let serverSaveQueue = Promise.resolve();
 let serverStorageAvailable = false;
@@ -498,6 +643,7 @@ async function initApp() {
     installKeyboardNavigation();
     installBackToTopButton();
     installDisplaySettingsOnlineSync();
+    installViewStatisticsOnlineSync();
     await loadRepositorySupabaseConfig();
     initializeSupabaseClientFromStoredConfig();
     registerSupabaseAuthListener();
@@ -783,6 +929,7 @@ function showViewMode(recordHistory = true, options = {}) {
     hideAllPanels();
     $('viewMode').style.display = 'block';
     renderCurrentWordDetails();
+    recordWordDetailView(currentWordId);
     updateSidebarVisibility();
     if (!options.preserveScroll) scrollWindowTo(0);
 }
@@ -1918,6 +2065,42 @@ function showToolsPanel(recordHistory = true) {
         ['単語数', wordData.length], ['意味の数', meanings], ['分類タグ', categories], ['分野タグ', fields], ['時代タグ', eras],
         ...(limitExceeded ? [['DT-FMT上限超過', limitExceeded]] : [])
     ].map(([label,value]) => '<div class="stat-card"><span class="stat-value">' + value + '</span><span class="stat-label">' + label + '</span></div>').join('');
+    renderUsageStatistics().catch(error => console.warn('統計を描画できませんでした:', error));
+}
+let usageStatsRenderToken = 0;
+async function renderUsageStatistics() {
+    const renderToken = ++usageStatsRenderToken;
+    const periodSelect = $('statsPeriodSelect');
+    const period = periodSelect && ['day', 'week', 'month'].includes(periodSelect.value) ? periodSelect.value : 'day';
+    const status = $('statsSyncStatus');
+    if (status) status.textContent = authUser ? '閲覧統計を同期しています…' : '閲覧履歴はこのブラウザーに保存されます。';
+    const registrationDaily = buildRegistrationDailyCounts(wordData);
+    const registrationSeries = buildPeriodSeries(registrationDaily, period, getLocalDateKey());
+    const viewDaily = await getViewDailyCountsForStatistics();
+    if (renderToken !== usageStatsRenderToken) return;
+    const viewSeries = buildPeriodSeries(viewDaily, period, getLocalDateKey());
+    const target = (id, key, title) => {
+        const element = $(id);
+        if (element) element.innerHTML = renderStatsLineChart(registrationSeries, key, title);
+    };
+    target('registrationCountChart', 'counts', '期間別の単語登録数');
+    target('registrationCumulativeChart', 'cumulative', '単語登録数の累計');
+    const viewTarget = $('viewCountChart');
+    if (viewTarget) viewTarget.innerHTML = viewSeries.counts.length
+        ? renderStatsLineChart(viewSeries, 'counts', '期間別の単語詳細閲覧数')
+        : '<p class="stats-empty">閲覧履歴はまだありません。この機能の導入後、単語詳細を開くと記録されます。</p>';
+    const registrationsTotal = Object.values(registrationDaily).reduce((sum, count) => sum + count, 0);
+    const viewsTotal = Object.values(viewDaily).reduce((sum, count) => sum + count, 0);
+    const summary = $('usageStatsSummary');
+    if (summary) summary.innerHTML = [
+        ['登録日時から集計', registrationsTotal + ' 件'],
+        ['記録済みの詳細閲覧', viewsTotal + ' 回']
+    ].map(([label, value]) => '<div class="stat-card"><span class="stat-value">' + value + '</span><span class="stat-label">' + label + '</span></div>').join('');
+    if (status && !status.textContent.includes('同期できない')) {
+        status.textContent = authUser
+            ? (authSyncMode === 'cloud' ? '閲覧イベントはSupabaseのアカウント別領域に保存されます。' : 'クラウド同期保留中の閲覧イベントは、再接続時に送信します。')
+            : '閲覧イベントはlocalStorageに保存されます。';
+    }
 }
 function openQuizPage() {
     // 現在の辞書状態を一時的に渡す。辞書の保存先や内容は変更しない。
@@ -2048,6 +2231,15 @@ const SUPABASE_CONFIG_KEY = 'nango_supabase_config_v1';
 const SIGNUP_PENDING_EMAIL_KEY = 'nango_signup_pending_email_v1';
 const SUPABASE_TABLE = 'nango_user_data';
 const SUPABASE_SETTINGS_TABLE = 'nango_user_settings';
+const SUPABASE_VIEW_EVENTS_TABLE = 'nango_user_view_events';
+const VIEW_EVENTS_LOCAL_KEY = 'nango_view_events_local_v1';
+const VIEW_EVENTS_PENDING_KEY = 'nango_view_events_pending_v1';
+const VIEW_EVENTS_CACHE_KEY = 'nango_view_events_cache_v1';
+const pendingViewEventsMemory = Object.create(null);
+const viewEventsCacheMemory = Object.create(null);
+const viewEventsSyncPromises = new Map();
+const viewEventsUploadPromises = new Map();
+const viewEventsPendingVersions = Object.create(null);
 let supabaseClient = null, supabaseClientConfigSignature = '', supabaseAuthSubscription = null;
 let authUser = null, authSyncMode = 'local', authStatusMessage = '';
 let cloudSaveQueue = Promise.resolve(), displaySettingsSaveQueue = Promise.resolve();
@@ -2296,6 +2488,183 @@ function installDisplaySettingsOnlineSync() {
         });
     });
 }
+
+function createViewEventId() {
+    if (window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID();
+    const bytes = new Uint8Array(16);
+    if (window.crypto && typeof window.crypto.getRandomValues === 'function') window.crypto.getRandomValues(bytes);
+    else for (let index = 0; index < bytes.length; index += 1) bytes[index] = Math.floor(Math.random() * 256);
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = [...bytes].map(value => value.toString(16).padStart(2, '0')).join('');
+    return hex.slice(0, 8) + '-' + hex.slice(8, 12) + '-' + hex.slice(12, 16) + '-' + hex.slice(16, 20) + '-' + hex.slice(20);
+}
+function readStoredDailyViewCounts() {
+    try { return normalizeDailyCountMap(JSON.parse(localStorage.getItem(VIEW_EVENTS_LOCAL_KEY) || '{}')); }
+    catch (_) { return {}; }
+}
+function saveStoredDailyViewCounts(counts) {
+    try { localStorage.setItem(VIEW_EVENTS_LOCAL_KEY, JSON.stringify(normalizeDailyCountMap(counts))); }
+    catch (error) { console.warn('閲覧統計をローカル保存できませんでした:', error); }
+}
+function readPendingViewEvents(userId) {
+    if (Object.prototype.hasOwnProperty.call(pendingViewEventsMemory, userId)) {
+        return pendingViewEventsMemory[userId].slice();
+    }
+    try {
+        const stored = JSON.parse(localStorage.getItem(VIEW_EVENTS_PENDING_KEY) || '{}');
+        const list = stored && typeof stored === 'object' ? stored[userId] : [];
+        return Array.isArray(list) ? list.filter(event => event && event.eventId) : [];
+    } catch (_) { return []; }
+}
+function savePendingViewEvents(userId, events) {
+    pendingViewEventsMemory[userId] = events;
+    try {
+        const stored = JSON.parse(localStorage.getItem(VIEW_EVENTS_PENDING_KEY) || '{}');
+        const byUser = stored && typeof stored === 'object' && !Array.isArray(stored) ? stored : {};
+        if (events.length) byUser[userId] = events;
+        else delete byUser[userId];
+        if (Object.keys(byUser).length) localStorage.setItem(VIEW_EVENTS_PENDING_KEY, JSON.stringify(byUser));
+        else localStorage.removeItem(VIEW_EVENTS_PENDING_KEY);
+    } catch (error) { console.warn('閲覧イベントの同期保留情報を保存できませんでした:', error); }
+}
+function queuePendingViewEvent(userId, event) {
+    const events = readPendingViewEvents(userId);
+    events.push(event);
+    savePendingViewEvents(userId, events);
+    viewEventsPendingVersions[userId] = (viewEventsPendingVersions[userId] || 0) + 1;
+}
+function clearPendingViewEvents(userId, eventIds) {
+    const ids = new Set(eventIds);
+    savePendingViewEvents(userId, readPendingViewEvents(userId).filter(event => !ids.has(event.eventId)));
+}
+function readCachedUserViewCounts(userId) {
+    if (viewEventsCacheMemory[userId]) return viewEventsCacheMemory[userId];
+    try {
+        const stored = JSON.parse(localStorage.getItem(VIEW_EVENTS_CACHE_KEY) || '{}');
+        const counts = stored && typeof stored === 'object' ? normalizeDailyCountMap(stored[userId]) : {};
+        viewEventsCacheMemory[userId] = counts;
+        return counts;
+    } catch (_) { return {}; }
+}
+function saveCachedUserViewCounts(userId, counts) {
+    const normalized = normalizeDailyCountMap(counts);
+    viewEventsCacheMemory[userId] = normalized;
+    try {
+        const stored = JSON.parse(localStorage.getItem(VIEW_EVENTS_CACHE_KEY) || '{}');
+        const byUser = stored && typeof stored === 'object' && !Array.isArray(stored) ? stored : {};
+        byUser[userId] = normalized;
+        localStorage.setItem(VIEW_EVENTS_CACHE_KEY, JSON.stringify(byUser));
+    } catch (error) { console.warn('閲覧統計のキャッシュを保存できませんでした:', error); }
+}
+async function fetchCloudViewDailyCounts(userId) {
+    const client = ensureSupabaseClient();
+    const counts = {};
+    const pageSize = 1000;
+    let offset = 0;
+    while (true) {
+        const result = await client.from(SUPABASE_VIEW_EVENTS_TABLE)
+            .select('event_id, view_date')
+            .eq('user_id', userId)
+            .order('view_date', { ascending: true })
+            .order('event_id', { ascending: true })
+            .range(offset, offset + pageSize - 1);
+        if (result.error) throw result.error;
+        const rows = Array.isArray(result.data) ? result.data : [];
+        for (const row of rows) {
+            const dateKey = String(row.view_date || '');
+            if (parseCivilDateKey(dateKey)) counts[dateKey] = (counts[dateKey] || 0) + 1;
+        }
+        if (rows.length < pageSize) break;
+        offset += pageSize;
+    }
+    return counts;
+}
+async function uploadPendingViewEvents(userId) {
+    if (!userId) return;
+    if (viewEventsUploadPromises.has(userId)) return viewEventsUploadPromises.get(userId);
+    const uploadPromise = (async () => {
+        while (true) {
+            const pending = readPendingViewEvents(userId);
+            if (!pending.length) return;
+            const payload = pending.map(event => ({
+                event_id: event.eventId,
+                user_id: userId,
+                view_date: event.viewDate,
+                viewed_at: event.viewedAt
+            }));
+            const write = await ensureSupabaseClient().from(SUPABASE_VIEW_EVENTS_TABLE)
+                .upsert(payload, { onConflict: 'event_id', ignoreDuplicates: true });
+            if (write.error) throw write.error;
+            clearPendingViewEvents(userId, pending.map(event => event.eventId));
+        }
+    })();
+    viewEventsUploadPromises.set(userId, uploadPromise);
+    try { await uploadPromise; }
+    finally { viewEventsUploadPromises.delete(userId); }
+}
+async function syncUserViewEvents(userId) {
+    if (!userId) return {};
+    if (viewEventsSyncPromises.has(userId)) return viewEventsSyncPromises.get(userId);
+    const syncPromise = (async () => {
+        let counts = {};
+        while (true) {
+            const pendingVersion = viewEventsPendingVersions[userId] || 0;
+            await uploadPendingViewEvents(userId);
+            counts = await fetchCloudViewDailyCounts(userId);
+            if ((viewEventsPendingVersions[userId] || 0) === pendingVersion
+                && readPendingViewEvents(userId).length === 0) break;
+        }
+        saveCachedUserViewCounts(userId, counts);
+        return counts;
+    })();
+    viewEventsSyncPromises.set(userId, syncPromise);
+    try { return await syncPromise; }
+    finally { viewEventsSyncPromises.delete(userId); }
+}
+function recordWordDetailView(wordId) {
+    if (!Number.isFinite(Number(wordId)) || !wordData.some(word => Number(word.id) === Number(wordId))) return;
+    const viewedAt = new Date().toISOString();
+    const viewDate = getLocalDateKey();
+    const event = { eventId: createViewEventId(), viewDate, viewedAt };
+    if (authUser && authUser.id) {
+        queuePendingViewEvent(authUser.id, event);
+        uploadPendingViewEvents(authUser.id).catch(error => {
+            console.warn('単語閲覧イベントのクラウド同期を保留しました:', error);
+        });
+        return;
+    }
+    const counts = readStoredDailyViewCounts();
+    counts[viewDate] = (counts[viewDate] || 0) + 1;
+    saveStoredDailyViewCounts(counts);
+}
+async function getViewDailyCountsForStatistics() {
+    if (!authUser || !authUser.id) return readStoredDailyViewCounts();
+    const userId = authUser.id;
+    let cached = readCachedUserViewCounts(userId);
+    let pendingCounts = aggregateViewEventCounts(readPendingViewEvents(userId));
+    if (authSyncMode === 'cloud') {
+        try {
+            cached = await syncUserViewEvents(userId);
+            pendingCounts = aggregateViewEventCounts(readPendingViewEvents(userId));
+        } catch (error) {
+            console.warn('閲覧統計の読込を保留し、キャッシュを表示します:', error);
+            const status = $('statsSyncStatus');
+            if (status) status.textContent = 'Supabase と同期できないため、保存済みの統計キャッシュを表示しています。';
+        }
+    }
+    return mergeDailyCountMaps(cached, pendingCounts);
+}
+function installViewStatisticsOnlineSync() {
+    window.addEventListener('online', () => {
+        const userId = authUser && authUser.id;
+        if (!userId) return;
+        uploadPendingViewEvents(userId).catch(error => {
+            console.warn('閲覧統計の再同期を保留しました:', error);
+        });
+    });
+}
+
 function applyParsedDocument(parsed) {
     wordData = reassignIds(parsed.words.slice().sort((a, b) => (a.id || 0) - (b.id || 0)));
     additionalData = parsed.additional_data;
@@ -2356,6 +2725,9 @@ async function activateAuthenticatedUser(user, forceRetry = false) {
             showStorageStatus('表示設定の同期に失敗しました', true);
             setAuthStatus('辞書データは利用できますが、表示設定の同期を保留しています。通信状態と Supabase の nango_user_settings テーブルを確認してください。詳細: ' + settingsError.message);
             console.warn('表示設定の同期に失敗しました:', settingsError);
+        }
+        if (authSyncMode === 'cloud') {
+            syncUserViewEvents(user.id).catch(error => console.warn('閲覧統計の初期同期を保留しました:', error));
         }
         refreshAuthPanel();
     })();
@@ -2570,6 +2942,8 @@ window.NangoPhase1 = {
     parseNangoDocument, serializeNangoDocument, normalizeWord, validateWord,
     findDuplicateIndex, mergeWord, shouldUseLocalStorage,
     normalizeDisplaySettings, hasDisplaySettingsValue, resolveDisplaySettingsSource,
+    buildRegistrationDailyCounts, aggregateViewEventCounts, buildPeriodSeries,
+    normalizeDailyCountMap,
     get data() { return clone(wordData); }
 };
 initApp();
