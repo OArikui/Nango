@@ -9,15 +9,16 @@
 
 | 項目 | ファイル / バージョン |
 | ---- | ---------------------- |
-| アプリ | v03.3.1 |
+| アプリ | v3.3.1 |
 | 画面 (HTML) | `Nango-neo/Nango-neo.v03.3.1.html` |
-| JavaScript | `Nango-neo/Nango_main.v02.0.6.js` |
+| JavaScript | `Nango-neo/Nango_main.v02.0.7.js` |
 | CSS | `Nango-neo/style.v02.9.1.css` |
 | データ形式 (DT-FMT) | `Nango-neo/DTformats.neo.v5.17/`（[仕様](docs/DT-FMT.md)） |
 | ローカルランチャー | `run.py` / `RUN_NANGO.bat`（Python 3.9 以降、標準ライブラリのみ） |
 
 JavaScript と CSS は、内容が変わったときだけ番号が上がります。そのためアプリのバージョンとファイル番号は一致しません。
 バージョンの付け方は [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)、変更履歴は [docs/neo-versions.md](docs/neo-versions.md) と [docs/releases/](docs/releases/) を参照してください。
+リリースノートとドキュメントは [リリース・ドキュメントポータル](Nango-neo/release-docs.html) からも参照できます。
 
 Supabase Auth + RLS によるアカウント同期にも対応しています（GitHub Pages 対応）。独立した新規登録ページ、確認メールの再送、メール認証結果の表示に対応しています。初期設定は [Supabase Auth 設定手順](docs/SUPABASE_AUTH.md) を参照してください。利用者向けの [プライバシーポリシー](Nango-neo/privacy-policy.html) も公開しています。
 

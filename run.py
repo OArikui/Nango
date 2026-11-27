@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Launch Nango-neo v3.3.0 locally using only Python's standard library.
+"""Launch Nango-neo v3.3.1 locally using only Python's standard library.
 
 Usage: python run.py [--port 8765] [--no-browser]
 """

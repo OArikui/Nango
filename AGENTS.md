@@ -67,8 +67,8 @@ python -m py_compile run.py
 ├── run.py / RUN_NANGO.bat        Python launcher (stdlib only)
 ├── Nango-neo/                    App body (HTML / JS / CSS / schemas)
 │   ├── DTformats.neo.v5.17/      DT-FMT schemas & templates
-│   ├── Nango-neo.v03.2.1.html    Current app HTML
-│   ├── Nango_main.v02.0.6.js     Main JS file
+│   ├── Nango-neo.v03.3.1.html    Current app HTML
+│   ├── Nango_main.v02.0.7.js     Main JS file
 │   ├── style.v02.9.1.css         CSS file (single version only)
 │   ├── Nango-quiz.v01.0.0.*      Quiz page files
 │   └── privacy-policy.html
